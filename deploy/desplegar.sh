@@ -164,7 +164,14 @@ paso "Reiniciando PHP-FPM y nginx"
 # fija a mano y el VPS trae otra versión, la recarga falla en silencio y el
 # código nuevo no llega a entrar en producción: se sigue sirviendo el
 # viejo desde el proceso que quedó vivo.
-SERVICIO_PHP_FPM="$(systemctl list-units --type=service --all --no-legend 'php*-fpm.service' 2>/dev/null | awk '{print $1}' | head -1)"
+#
+# El awk se queda con el primero y lee hasta el final en vez de encadenar
+# un `head -1`: head cierra la tubería en cuanto tiene su línea, systemctl
+# recibe un SIGPIPE si aún estaba escribiendo y, con `set -o pipefail`,
+# el despliegue aborta con un 141 que no explica nada. Que salte o no
+# depende de cuántos servicios haya, así que es de los fallos que
+# aparecen el día que se instala algo más en el servidor.
+SERVICIO_PHP_FPM="$(systemctl list-units --type=service --all --no-legend 'php*-fpm.service' 2>/dev/null | awk '!encontrado{servicio=$1; encontrado=1} END{print servicio}' || true)"
 
 if [[ -n "${SERVICIO_PHP_FPM}" ]]; then
   ${COMO_ROOT} systemctl reload "${SERVICIO_PHP_FPM}" && echo "  recargado ${SERVICIO_PHP_FPM}"

@@ -51,10 +51,16 @@ USUARIO_BASE_DE_DATOS="${USUARIO_BASE_DE_DATOS:-tsports}"
 
 # Si no se pasa por variable de entorno, se genera una contraseña larga
 # al azar y se muestra al final. Es mejor que dejar una escrita aquí.
-PASSWORD_BASE_DE_DATOS="${PASSWORD_BASE_DE_DATOS:-$(openssl rand -base64 24 | tr -d '/+=' | head -c 24)}"
+#
+# Se recorta con `cut` y no con `head -c`: head cierra la tubería en
+# cuanto tiene sus bytes, el proceso de la izquierda recibe un SIGPIPE al
+# seguir escribiendo, y con `set -o pipefail` (activado arriba) eso
+# convierte la línea entera en un fallo del 141 que aborta la
+# instalación. `cut` lee toda la entrada y no deja el cabo suelto.
+PASSWORD_BASE_DE_DATOS="${PASSWORD_BASE_DE_DATOS:-$(openssl rand -base64 32 | tr -d '/+=' | cut -c1-24)}"
 
 CORREO_DEL_ADMINISTRADOR="${CORREO_DEL_ADMINISTRADOR:-admin@tssports.com}"
-PASSWORD_DEL_ADMINISTRADOR="${PASSWORD_DEL_ADMINISTRADOR:-$(openssl rand -base64 18 | tr -d '/+=' | head -c 16)}"
+PASSWORD_DEL_ADMINISTRADOR="${PASSWORD_DEL_ADMINISTRADOR:-$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-16)}"
 
 readonly VERSION_DE_NODE="22"
 
@@ -397,7 +403,14 @@ ${COMO_ROOT} apt-get install -y ufw
 #
 # Se lee el puerto real de sshd en vez de suponer el 22: si alguien lo
 # cambió, dar por bueno el 22 dejaría fuera al siguiente que entre.
-PUERTO_SSH="$(${COMO_ROOT} sshd -T 2>/dev/null | awk '/^port /{print $2; exit}')"
+#
+# El awk guarda y no sale a la primera: cortarle la salida a `sshd -T` a
+# media escritura le provoca un SIGPIPE y, con `set -o pipefail`, la
+# línea devuelve 141 y `set -e` aborta la instalación aquí mismo —
+# después de haber montado todo y justo antes del cortafuegos. Ya pasó.
+# El `|| true` cubre además el caso de que sshd no sepa responder, y
+# entonces se recurre al 22 de la línea siguiente.
+PUERTO_SSH="$(${COMO_ROOT} sshd -T 2>/dev/null | awk '/^port /{puerto=$2} END{print puerto}' || true)"
 PUERTO_SSH="${PUERTO_SSH:-22}"
 readonly PUERTO_SSH
 
