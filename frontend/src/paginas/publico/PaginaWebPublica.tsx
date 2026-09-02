@@ -585,16 +585,20 @@ export function PaginaWebPublica() {
       {/* ============================= WhatsApp =============================
           Tarjeta sobre fondo claro, no franja de lado a lado.
 
-          El color es el verde de WhatsApp (#25D366 a #128C7E) y no el
-          `acentoVerde` del CMS: ese es un verde menta claro, pensado para
-          detalles pequeños sobre fondo oscuro, y en un bloque grande deja
-          el texto blanco por debajo del contraste mínimo de la WCAG —se
-          leía a duras penas. Aquí, además, el verde de la propia marca
-          WhatsApp es el que la gente reconoce sin leer nada. */}
+          Sobre el degradado: los tres tonos son los oficiales de WhatsApp
+          (#075E54, #128C7E y #25D366), pero el orden NO es decorativo. El
+          texto blanco vive en la mitad izquierda, así que ahí va el verde
+          oscuro, que le da 7,7 de contraste. El claro se reserva para la
+          derecha, donde solo hay un botón blanco macizo que se lee solo.
+
+          El `acentoVerde` del CMS (#16c79a) daba 2,2, y el degradado del
+          sitio anterior copiado tal cual dejaba el texto sobre su extremo
+          claro con 2,0: aún peor. Los dos por debajo del 4,5 que pide la
+          WCAG, y en la práctica, letras que se perdían en el fondo. */}
       {contenido.contacto.whatsapp && (
         <section className="py-14" style={{ backgroundColor: "var(--web-fondo-alterno)" }}>
           <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <div className="relative flex flex-wrap items-center gap-7 overflow-hidden rounded-[20px] bg-[linear-gradient(135deg,#25D366,#128C7E)] px-10 py-9 shadow-[0_24px_50px_rgba(18,140,126,.35)]">
+            <div className="relative flex flex-wrap items-center gap-7 overflow-hidden rounded-[20px] bg-[linear-gradient(120deg,#075E54_0%,#128C7E_55%,#25D366_100%)] px-10 py-9 shadow-[0_24px_50px_rgba(7,94,84,.35)]">
               {/* Destello suave en la esquina, como en el sitio anterior. */}
               <span
                 aria-hidden="true"
@@ -622,7 +626,7 @@ export function PaginaWebPublica() {
 
               <Button
                 as="a"
-                className="relative z-10 bg-white font-bold text-[#128C7E] shadow-[0_10px_24px_rgba(0,0,0,.18)]"
+                className="relative z-10 bg-white font-bold text-[#075E54] shadow-[0_10px_24px_rgba(0,0,0,.18)]"
                 href={enlaceDeWhatsapp(contenido.contacto.whatsapp)}
                 radius="full"
                 rel="noreferrer"
