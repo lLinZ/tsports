@@ -20,7 +20,15 @@ enum RolUsuario: string
     /** Gestiona todas las marcas y reparte el trabajo entre vendedores. */
     case Comercial = 'comercial';
 
-    /** Ve todas las marcas, pero solo edita las que tiene asignadas. */
+    /**
+     * Ve todas las marcas, pero solo edita las que tiene asignadas.
+     *
+     * En la interfaz se llama AGENTE. El valor guardado sigue siendo
+     * "vendedor" a propósito: está escrito en la columna `rol` de las
+     * cuentas que ya existen, y renombrarlo obligaría a una migración de
+     * datos para cambiar una palabra que nadie ve. La etiqueta visible la
+     * da `etiqueta()`, que es justo para esto.
+     */
     case Vendedor = 'vendedor';
 
     /** Etiqueta legible para mostrar en la interfaz. */
@@ -29,7 +37,7 @@ enum RolUsuario: string
         return match ($this) {
             self::Admin => 'Administrador',
             self::Comercial => 'Comercial',
-            self::Vendedor => 'Vendedor',
+            self::Vendedor => 'Agente',
         };
     }
 

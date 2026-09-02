@@ -638,7 +638,7 @@ function ReporteDelPeriodo({
     };
 
     const filas = [
-      ["Fecha", "Marca", "Campaña", "Zona", "Sector", "Vendedor"]
+      ["Fecha", "Marca", "Campaña", "Zona", "Sector", "Agente"]
         .map(escaparCampo)
         .join(","),
       ...dias.flatMap((dia) =>
@@ -731,7 +731,7 @@ function ReporteDelPeriodo({
           <div className="grid gap-4 sm:grid-cols-3">
             <ListaDeTotales titulo="Por campaña" totales={resumen.porCampana} />
             <ListaDeTotales titulo="Por zona" totales={resumen.porZona} />
-            <ListaDeTotales titulo="Por vendedor" totales={resumen.porVendedor} />
+            <ListaDeTotales titulo="Por agente" totales={resumen.porVendedor} />
           </div>
         </>
       )}

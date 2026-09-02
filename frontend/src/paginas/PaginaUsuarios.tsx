@@ -454,7 +454,7 @@ function ModalDeUsuario({
                 Comercial
               </SelectItem>
               <SelectItem key="vendedor" description="Ve todo; edita solo lo suyo">
-                Vendedor
+                Agente
               </SelectItem>
             </Select>
 

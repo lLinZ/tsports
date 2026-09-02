@@ -1160,7 +1160,7 @@ function PasoContacto({
         <CampoConAyuda ayuda="Es quien trabaja la marca; solo él, un comercial o un administrador podrán editarla.">
         <Select
           isDisabled={!esEditable}
-          label="Vendedor asignado"
+          label="Agente asignado"
           labelPlacement="outside"
           placeholder="Sin asignar"
           radius="lg"

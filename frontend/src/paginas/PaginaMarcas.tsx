@@ -407,9 +407,9 @@ export function PaginaMarcas() {
 
           {usuario.permisos.asignaVendedores && (
             <Select
-              aria-label="Filtrar por vendedor"
+              aria-label="Filtrar por agente"
               className="w-44"
-              placeholder="Todos los vendedores"
+              placeholder="Todos los agentes"
               radius="lg"
               selectedKeys={
                 filtrosAplicados.vendedor ? [filtrosAplicados.vendedor] : []
@@ -421,7 +421,7 @@ export function PaginaMarcas() {
               }
             >
               {[
-                <SelectItem key="">Todos los vendedores</SelectItem>,
+                <SelectItem key="">Todos los agentes</SelectItem>,
                 <SelectItem key="sin_asignar">Sin asignar</SelectItem>,
                 ...vendedores.map((vendedor) => (
                   <SelectItem key={vendedor.id}>{vendedor.nombre}</SelectItem>
@@ -475,7 +475,7 @@ export function PaginaMarcas() {
             )}
             {filtrosAplicados.vendedor === "sin_asignar" && (
               <Chip color="warning" radius="lg" size="sm" variant="flat">
-                Sin vendedor asignado
+                Sin agente asignado
               </Chip>
             )}
             {filtrosAplicados.campana && (

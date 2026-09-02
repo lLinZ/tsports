@@ -386,7 +386,7 @@ class MarcaController extends Controller
             $marca->id,
             sprintf(
                 '%s en %s: %s → %s',
-                $idDelVendedor === null ? 'Quitó el vendedor' : 'Asignó vendedor',
+                $idDelVendedor === null ? 'Quitó el agente' : 'Asignó agente',
                 $marca->nombre_marca,
                 $nombreAnterior ?? 'sin asignar',
                 $marca->vendedor_asignado_nombre ?? 'sin asignar',

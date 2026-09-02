@@ -195,7 +195,7 @@ export function PaginaPanel() {
         >
           <span className="text-sm text-warning-700 dark:text-warning-500">
             Hay <strong>{contadores.sinAsignar}</strong>{" "}
-            {contadores.sinAsignar === 1 ? "marca" : "marcas"} sin vendedor
+            {contadores.sinAsignar === 1 ? "marca" : "marcas"} sin agente
             asignado. Nadie las está trabajando.
           </span>
 
@@ -457,11 +457,11 @@ export function PaginaPanel() {
           columnas={6}
           descripcion="Cuántas marcas lleva cada persona y cuánto tiene propuesto."
           icono={<UserRound className="size-4" />}
-          titulo="Carga por vendedor"
+          titulo="Carga por agente"
         >
           {porVendedor.length === 0 ? (
             <EstadoVacio
-              descripcion="Asigna vendedores a las marcas desde su ficha."
+              descripcion="Asigna agentes a las marcas desde su ficha."
               titulo="Nadie tiene marcas asignadas"
             />
           ) : (

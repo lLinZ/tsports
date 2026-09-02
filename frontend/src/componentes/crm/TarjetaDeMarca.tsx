@@ -142,7 +142,7 @@ export function TarjetaDeMarca({
         )}
 
         {!marca.puedeEditarla && (
-          <Tooltip content="Solo puede editarla el vendedor asignado, un comercial o un administrador">
+          <Tooltip content="Solo puede editarla el agente asignado, un comercial o un administrador">
             <span className="flex size-6 items-center justify-center rounded-lg bg-default-100 text-default-400">
               <Lock className="size-3" />
             </span>
@@ -411,7 +411,7 @@ function AvatarDelVendedor({ marca }: { marca: Marca }) {
         </div>
 
         <Listbox
-          aria-label="Elegir vendedor"
+          aria-label="Elegir agente"
           className="max-h-64 overflow-y-auto"
           selectedKeys={marca.vendedorAsignadoId ? [marca.vendedorAsignadoId] : []}
           selectionMode="single"

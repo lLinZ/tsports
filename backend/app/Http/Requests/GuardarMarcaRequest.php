@@ -205,7 +205,7 @@ class GuardarMarcaRequest extends FormRequest
             'emailContacto.email' => 'El correo del contacto no tiene un formato válido.',
             'sector.in' => 'Ese sector no está en la lista de sectores permitidos.',
             'zona.in' => 'Esa zona no está en la lista de zonas permitidas.',
-            'vendedorAsignadoId.exists' => 'El vendedor que intentas asignar ya no existe.',
+            'vendedorAsignadoId.exists' => 'El agente que intentas asignar ya no existe.',
             'fechaCampana.date_format' => 'La fecha de la campaña no tiene un formato válido.',
         ];
     }
