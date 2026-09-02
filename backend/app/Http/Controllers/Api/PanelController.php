@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\RecursoRegistroActividad;
 use App\Models\Campana;
+use App\Models\EventoDeCampana;
 use App\Models\Marca;
 use App\Models\Propiedad;
 use App\Models\RegistroActividad;
@@ -45,6 +46,7 @@ class PanelController extends Controller
 
         return response()->json([
             'contadores' => $this->contadoresGenerales(),
+            'misNumeros' => $this->misNumeros($peticion->user()),
             'porZona' => $this->resumenPorZona(),
             'porSector' => $this->resumenPorSector(),
             'porVendedor' => $this->resumenPorVendedor(),
@@ -97,6 +99,63 @@ class PanelController extends Controller
             'forecastDePropiedades' => round($forecastDeLasPropiedades, 2),
             // Lo que el equipo pronostica vender de esas propiedades.
             'ovpPronosticado' => round($pronosticoAcumulado, 2),
+        ];
+    }
+
+    /**
+     * Las cifras de quien está mirando el panel: solo sus marcas.
+     *
+     * Existe sobre todo para el vendedor. Los demás bloques del resumen
+     * hablan de todo el equipo —por zona, por sector, por vendedor—, que
+     * es lo que necesita quien reparte trabajo; pero a quien tiene doce
+     * marcas asignadas, saber que en total hay setenta y una no le dice
+     * nada sobre su día. Aquí ve lo suyo.
+     *
+     * Se calcula para todo el mundo, no solo para el vendedor: a un
+     * comercial que además lleva marcas propias le sirve igual, y hacerlo
+     * condicional obligaría a que el cliente supiera cuándo pedirlo.
+     *
+     * @return array<string,int|float>
+     */
+    private function misNumeros(?User $usuario): array
+    {
+        if ($usuario === null) {
+            return [];
+        }
+
+        $agregados = Marca::query()
+            ->where('vendedor_asignado_id', $usuario->id)
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw('SUM(CASE WHEN fase_aproximacion_completada = 1 THEN 1 ELSE 0 END) as en_aproximacion')
+            ->selectRaw('SUM(CASE WHEN fase_prospeccion_completada = 1 THEN 1 ELSE 0 END) as en_prospeccion')
+            ->selectRaw('SUM(CASE WHEN fase_propuesta_completada = 1 THEN 1 ELSE 0 END) as con_propuesta')
+            ->selectRaw('SUM(CASE WHEN fase_propuesta_completada = 1 THEN valor_anual_usd ELSE 0 END) as valor_propuesto')
+            ->first();
+
+        // El pronóstico de una marca se le apunta a su vendedor asignado,
+        // no a quien escribió la cifra (regla 11): al reasignar la marca,
+        // su pronóstico se va con ella.
+        $miPronostico = (float) DB::table('propiedades_de_marca')
+            ->join('marcas', 'marcas.id', '=', 'propiedades_de_marca.marca_id')
+            ->where('marcas.vendedor_asignado_id', $usuario->id)
+            ->sum('propiedades_de_marca.ovp_usd');
+
+        // Acciones de campaña que tiene por delante. Es lo que convierte
+        // el panel en una agenda en vez de en un marcador.
+        $accionesPorDelante = EventoDeCampana::query()
+            ->join('marcas', 'marcas.id', '=', 'eventos_de_campana.marca_id')
+            ->where('marcas.vendedor_asignado_id', $usuario->id)
+            ->whereDate('eventos_de_campana.fecha', '>=', now()->toDateString())
+            ->count();
+
+        return [
+            'totalMarcas' => (int) ($agregados->total ?? 0),
+            'enAproximacion' => (int) ($agregados->en_aproximacion ?? 0),
+            'enProspeccion' => (int) ($agregados->en_prospeccion ?? 0),
+            'conPropuesta' => (int) ($agregados->con_propuesta ?? 0),
+            'valorPropuestoAnual' => (float) ($agregados->valor_propuesto ?? 0),
+            'miPronostico' => round($miPronostico, 2),
+            'accionesPorDelante' => $accionesPorDelante,
         ];
     }
 

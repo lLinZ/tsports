@@ -17,6 +17,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -262,6 +263,133 @@ class MarcaController extends Controller
                 $seQuiereCompletar ? 'Completó' : 'Reabrió',
                 $datos['fase'],
                 $marca->nombre_marca,
+            ),
+        );
+
+        return new RecursoMarca(
+            $marca->fresh()->load(['campana', 'propiedadesOfrecidas.propiedad', 'eventosDeCampana.marca']),
+        );
+    }
+
+    /**
+     * POST /api/marcas/{marca}/acciones-de-campana
+     * Anota una acción de campaña en el calendario al momento, sin pasar
+     * por el resto de la ficha.
+     *
+     * Nace de cómo se trabaja de verdad: quien acaba de visitar a una
+     * marca quiere dejarlo apuntado y seguir. Antes había que elegir la
+     * campaña, poner el día y pulsar "Guardar cambios" —que valida y
+     * guarda la ficha entera—, y no se entendía que apuntar una visita
+     * dependiera de que el resto del formulario estuviera correcto.
+     *
+     * Se queda aquí y no en EventoDeCampanaController porque esto no es
+     * corregir un evento suelto: es asignarle una campaña a la marca, con
+     * su fecha, que es justo lo que hace la ficha al guardar. El evento
+     * sale de ahí como consecuencia (regla 13 del CLAUDE.md) y lo crea el
+     * mismo registrador, para que los dos caminos no se separen nunca.
+     */
+    public function anotarAccionDeCampana(Request $peticion, Marca $marca): RecursoMarca
+    {
+        $this->authorize('update', $marca);
+
+        $datos = $peticion->validate([
+            'campanaId' => ['required', 'uuid', Rule::exists('campanas', 'id')],
+            'fecha' => ['required', 'date_format:Y-m-d'],
+        ], [
+            'campanaId.required' => 'Elige la campaña de esta acción.',
+            'campanaId.exists' => 'Esa campaña ya no existe.',
+            'fecha.required' => 'Indica el día en que se hace la acción.',
+            'fecha.date_format' => 'La fecha debe tener el formato AAAA-MM-DD.',
+        ]);
+
+        /** @var User $usuarioQueActua */
+        $usuarioQueActua = $peticion->user();
+
+        $marca->campana_id = $datos['campanaId'];
+        $marca->fecha_campana = $datos['fecha'];
+
+        // Tocar una marca sin dueño equivale a adoptarla (regla 5).
+        $this->adoptarSiEstaSinDuenio($marca, $usuarioQueActua);
+
+        $eventoAnotado = null;
+
+        DB::transaction(function () use ($marca, $usuarioQueActua, &$eventoAnotado): void {
+            $marca->save();
+
+            $eventoAnotado = RegistradorDeEventosDeCampana::anotarSiLaAccionEsNueva(
+                $marca,
+                $usuarioQueActua,
+            );
+        });
+
+        // Solo se deja rastro si de verdad se anotó algo. Repetir el
+        // gesto con la misma campaña y la misma fecha no es una acción
+        // nueva, y llenar la auditoría de líneas idénticas solo estorba
+        // a quien luego tenga que leerla.
+        if ($eventoAnotado !== null) {
+            RegistroActividad::anotar(
+                $usuarioQueActua,
+                RegistroActividad::ACCION_ACTUALIZO,
+                'marca',
+                $marca->id,
+                sprintf(
+                    'Anotó en el calendario "%s" del %s para %s',
+                    $eventoAnotado->campana_nombre,
+                    $datos['fecha'],
+                    $marca->nombre_marca,
+                ),
+            );
+        }
+
+        return new RecursoMarca(
+            $marca->fresh()->load(['campana', 'propiedadesOfrecidas.propiedad', 'eventosDeCampana.marca']),
+        );
+    }
+
+    /**
+     * PATCH /api/marcas/{marca}/vendedor
+     * Cambia el vendedor asignado desde la propia tarjeta del tablero.
+     *
+     * Es un permiso distinto del de editar la marca: reparte trabajo, y
+     * eso lo hacen admin y comercial (regla 6). Un vendedor puede editar
+     * la marca que tiene asignada pero no puede pasársela a otro ni
+     * quitársela a nadie, así que aquí se pregunta por `asignarVendedor`
+     * y no por `update`.
+     */
+    public function asignarVendedor(Request $peticion, Marca $marca): RecursoMarca
+    {
+        $this->authorize('asignarVendedor', Marca::class);
+
+        $datos = $peticion->validate([
+            // Se admite null a propósito: dejar una marca sin dueño es un
+            // estado legítimo — así vuelve al montón del que cualquiera
+            // puede adoptarla.
+            'vendedorAsignadoId' => ['present', 'nullable', 'uuid', Rule::exists('users', 'id')],
+        ], [
+            'vendedorAsignadoId.exists' => 'Esa persona ya no tiene cuenta en el sistema.',
+        ]);
+
+        $idDelVendedor = $datos['vendedorAsignadoId'] ?: null;
+        $nombreAnterior = $marca->vendedor_asignado_nombre;
+
+        $marca->vendedor_asignado_id = $idDelVendedor;
+        $marca->vendedor_asignado_nombre = $idDelVendedor === null
+            ? null
+            : User::query()->find($idDelVendedor)?->nombreParaMostrar();
+
+        $marca->save();
+
+        RegistroActividad::anotar(
+            $peticion->user(),
+            RegistroActividad::ACCION_ACTUALIZO,
+            'marca',
+            $marca->id,
+            sprintf(
+                '%s en %s: %s → %s',
+                $idDelVendedor === null ? 'Quitó el vendedor' : 'Asignó vendedor',
+                $marca->nombre_marca,
+                $nombreAnterior ?? 'sin asignar',
+                $marca->vendedor_asignado_nombre ?? 'sin asignar',
             ),
         );
 

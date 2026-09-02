@@ -52,7 +52,11 @@ import {
   formatearNumero,
   formatearTiempoRelativo,
 } from "@/utilidades/formato";
-import type { ResumenDeInversionPorZona, ResumenDeZona } from "@/tipos/modelos";
+import type {
+  MisNumerosDelPanel,
+  ResumenDeInversionPorZona,
+  ResumenDeZona,
+} from "@/tipos/modelos";
 
 /** Color fijo de cada fase, el mismo en todos los gráficos del sistema. */
 const COLOR_DE_FASE = {
@@ -80,6 +84,7 @@ export function PaginaPanel() {
 
   const {
     contadores,
+    misNumeros,
     porZona,
     porSector,
     porVendedor,
@@ -115,6 +120,21 @@ export function PaginaPanel() {
           Ir a las marcas
         </Button>
       </div>
+
+      {/*
+        Lo propio, antes que lo del equipo.
+
+        Para un vendedor esto ES el panel: lleva doce marcas y saber que
+        en total hay setenta y una no le dice nada sobre su día. Va
+        arriba del todo y con el color de acento para que se lea primero.
+
+        Se enseña también a admin y comercial cuando llevan marcas suyas
+        —muchos las llevan— y se calla cuando no tienen ninguna, que es
+        cuando serían cinco ceros ocupando la mejor parte de la pantalla.
+      */}
+      {misNumeros.totalMarcas > 0 && (
+        <MisMarcasDeUnVistazo miId={usuario.id} numeros={misNumeros} />
+      )}
 
       {/* --- Los cinco contadores --- */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
@@ -728,6 +748,95 @@ function GraficoDeZonas({ zonas }: { zonas: ResumenDeZona[] }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * "Mis marcas": el resumen de quien está mirando, no el del equipo.
+ *
+ * Es la primera caja del panel para un vendedor, porque es la única que
+ * habla de su trabajo. Enseña cinco cosas y ninguna es decorativa:
+ * cuántas marcas lleva, en qué fases van, cuánto pronostica vender y
+ * —la que convierte el panel en agenda— cuántas acciones de campaña
+ * tiene por delante.
+ *
+ * El enlace de abajo lleva al tablero ya filtrado por sus marcas: sin
+ * eso, "tengo doce" obliga a buscarlas a mano entre setenta y una.
+ */
+function MisMarcasDeUnVistazo({
+  numeros,
+  miId,
+}: {
+  numeros: MisNumerosDelPanel;
+  /** El filtro del tablero espera el id del vendedor, no un alias. */
+  miId: string;
+}) {
+  return (
+    <section className="bento-card border-primary/30 bg-primary/5 p-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+          <UserRound className="size-4 text-primary" />
+          Mis marcas
+        </h3>
+
+        <Button
+          as={Link}
+          className="font-semibold"
+          color="primary"
+          radius="full"
+          size="sm"
+          to={`/marcas?vendedor=${miId}`}
+          variant="light"
+        >
+          Ver solo las mías
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <CifraPropia etiqueta="Asignadas" valor={formatearNumero(numeros.totalMarcas)} />
+        <CifraPropia
+          etiqueta="En prospección"
+          valor={formatearNumero(numeros.enProspeccion)}
+        />
+        <CifraPropia
+          etiqueta="Con propuesta"
+          valor={formatearNumero(numeros.conPropuesta)}
+        />
+        <CifraPropia
+          destacada
+          etiqueta="Mi pronóstico"
+          valor={formatearDineroAbreviado(numeros.miPronostico)}
+        />
+        <CifraPropia
+          etiqueta="Acciones por delante"
+          valor={formatearNumero(numeros.accionesPorDelante)}
+        />
+      </div>
+    </section>
+  );
+}
+
+function CifraPropia({
+  etiqueta,
+  valor,
+  destacada = false,
+}: {
+  etiqueta: string;
+  valor: string;
+  destacada?: boolean;
+}) {
+  return (
+    <div className="rounded-xl bg-content1 px-3 py-2.5">
+      <p className="text-[11px] leading-tight text-default-500">{etiqueta}</p>
+      <p
+        className={[
+          "mt-1 text-lg font-bold leading-none",
+          destacada ? "text-primary" : "text-foreground",
+        ].join(" ")}
+      >
+        {valor}
+      </p>
     </div>
   );
 }

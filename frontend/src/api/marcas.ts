@@ -110,6 +110,49 @@ export async function alternarFaseDeMarca(
   return data.data;
 }
 
+/**
+ * Anota una acción de campaña en el calendario al momento.
+ *
+ * Es el atajo de "acabo de visitar a esta marca": deja la acción
+ * apuntada sin pasar por el resto de la ficha ni por su validación.
+ * Repetir la misma campaña con la misma fecha no duplica la línea, así
+ * que pulsar dos veces es inofensivo.
+ */
+export async function anotarAccionDeCampana(
+  idDeLaMarca: string,
+  datos: { campanaId: string; fecha: string },
+): Promise<Marca> {
+  const { data } = await clienteHttp.post<{ data: Marca }>(
+    `/marcas/${idDeLaMarca}/acciones-de-campana`,
+    datos,
+  );
+
+  return data.data;
+}
+
+/**
+ * Cambia el vendedor asignado desde la propia tarjeta del tablero.
+ *
+ * `null` deja la marca sin dueño, que es un estado legítimo: así vuelve
+ * al montón del que cualquiera puede adoptarla trabajándola.
+ *
+ * Solo lo permite quien reparte trabajo (admin y comercial). La interfaz
+ * no lo comprueba comparando roles: enseña el control según la bandera
+ * `usuario.permisos.asignaVendedores`, y el servidor lo vuelve a
+ * comprobar de todas formas.
+ */
+export async function asignarVendedorAMarca(
+  idDeLaMarca: string,
+  idDelVendedor: string | null,
+): Promise<Marca> {
+  const { data } = await clienteHttp.patch<{ data: Marca }>(
+    `/marcas/${idDeLaMarca}/vendedor`,
+    { vendedorAsignadoId: idDelVendedor },
+  );
+
+  return data.data;
+}
+
 /* ==================================================================== */
 /* Bitácora                                                             */
 /* ==================================================================== */

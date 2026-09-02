@@ -42,6 +42,7 @@ import {
   ArrowRight,
   Building2,
   CalendarDays,
+  CalendarPlus,
   Check,
   Megaphone,
   Package,
@@ -50,8 +51,6 @@ import {
   UserRound,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { listarUsuarios } from "@/api/usuarios";
 import type { AccionVigenteDeLaMarca } from "@/api/marcas";
 import { CampoDeImagen } from "@/componentes/comunes/CampoDeImagen";
 import { ChecklistDePropiedades } from "@/componentes/crm/ChecklistDePropiedades";
@@ -59,8 +58,10 @@ import { HistorialDeCampanas } from "@/componentes/crm/HistorialDeCampanas";
 import { PanelDeComentarios } from "@/componentes/crm/PanelDeComentarios";
 import { useCampanasActivas } from "@/hooks/useCampanas";
 import { useCatalogos } from "@/hooks/useCatalogos";
+import { useVendedores } from "@/hooks/useVendedores";
 import {
   useActualizarMarca,
+  useAnotarAccionDeCampana,
   useCrearMarca,
   useEliminarMarca,
   useFichaDeMarca,
@@ -227,12 +228,7 @@ export function ModalDeMarca({
   const historialDeCampanas = fichaCompleta.data?.historialDeCampanas ?? [];
 
   /** Lista de vendedores para el selector de asignación. */
-  const consultaDeVendedores = useQuery({
-    queryKey: ["usuarios", "vendedores"],
-    queryFn: () => listarUsuarios({ rol: "vendedor", soloActivos: true }),
-    enabled: estaAbierto && usuario.permisos.asignaVendedores,
-    staleTime: 5 * 60 * 1000,
-  });
+  const { vendedores } = useVendedores({ habilitado: estaAbierto });
 
   /* ---------------------------------------------------------------- */
   /* Carga del formulario al abrir                                    */
@@ -599,6 +595,7 @@ export function ModalDeMarca({
                 <div className="mx-auto w-full max-w-3xl">
                 {pasoActual === 1 && (
                   <PasoLaMarca
+                    idDeLaMarca={marcaEnEdicion?.id ?? ""}
                     alCambiarLaAccionVigente={sincronizarLaAccionEnCurso}
                     cambiarCampo={cambiarCampo}
                     campanas={campanasActivas}
@@ -618,7 +615,7 @@ export function ModalDeMarca({
                     esEditable={laMarcaEsEditable}
                     formulario={formulario}
                     puedeAsignar={usuario.permisos.asignaVendedores}
-                    vendedores={consultaDeVendedores.data ?? []}
+                    vendedores={vendedores}
                   />
                 )}
 
@@ -762,6 +759,77 @@ export function ModalDeMarca({
  * funciona— y la ayuda se pinta como un párrafo normal. De paso queda
  * bajo nuestro control el espacio que la separa del campo.
  */
+/**
+ * Botón que deja la acción de campaña apuntada en el calendario sin
+ * pasar por "Guardar cambios".
+ *
+ * Enseña en qué estado está para que se entienda qué va a pasar antes de
+ * pulsarlo: si falta el día avisa de que hace falta, y una vez anotado
+ * lo confirma en el propio botón en vez de solo con un aviso que se va
+ * a los tres segundos.
+ */
+function BotonDeAnotarEnElCalendario({
+  idDeLaMarca,
+  campanaId,
+  fecha,
+}: {
+  idDeLaMarca: string;
+  campanaId: string;
+  fecha: string;
+}) {
+  const anotarAccion = useAnotarAccionDeCampana();
+
+  /** Lo último que se anotó, para confirmarlo en el propio botón. */
+  const [loAnotado, establecerLoAnotado] = useState<string | null>(null);
+
+  const faltaElDia = fecha === "";
+  const yaEstaAnotadoEsto = loAnotado === `${campanaId}|${fecha}`;
+
+  function anotar() {
+    anotarAccion.mutate(
+      { idDeLaMarca, campanaId, fecha },
+      {
+        onSuccess: () => {
+          establecerLoAnotado(`${campanaId}|${fecha}`);
+          avisarDeExito("Anotado en el calendario");
+        },
+        onError: (error) => avisarDeError(error, "No se pudo anotar la acción"),
+      },
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <Button
+        color={yaEstaAnotadoEsto ? "success" : "primary"}
+        isDisabled={faltaElDia || yaEstaAnotadoEsto}
+        isLoading={anotarAccion.isPending}
+        radius="full"
+        size="sm"
+        startContent={
+          yaEstaAnotadoEsto ? (
+            <Check className="size-4" />
+          ) : (
+            <CalendarPlus className="size-4" />
+          )
+        }
+        variant={yaEstaAnotadoEsto ? "flat" : "solid"}
+        onPress={anotar}
+      >
+        {yaEstaAnotadoEsto ? "Anotado en el calendario" : "Anotar en el calendario"}
+      </Button>
+
+      <p className="text-[11px] leading-snug text-default-400">
+        {faltaElDia
+          ? "Elige primero el día."
+          : yaEstaAnotadoEsto
+            ? "Ya aparece en el calendario del panel."
+            : "Lo apunta ahora mismo, sin guardar el resto de la ficha."}
+      </p>
+    </div>
+  );
+}
+
 function CampoConAyuda({
   ayuda,
   children,
@@ -795,6 +863,7 @@ interface PropiedadesDePaso {
 function PasoLaMarca({
   formulario,
   cambiarCampo,
+  idDeLaMarca,
   alCambiarLaAccionVigente,
   historialDeCampanas,
   esUnaMarcaGuardada,
@@ -811,6 +880,8 @@ function PasoLaMarca({
   alCambiarLaAccionVigente: (
     accionVigente: AccionVigenteDeLaMarca | null,
   ) => void;
+  /** Vacío mientras la marca se está creando y aún no tiene id. */
+  idDeLaMarca: string;
 }) {
   return (
     <div className="space-y-5">
@@ -936,6 +1007,27 @@ function PasoLaMarca({
             onValueChange={(valor) => cambiarCampo("fechaCampana", valor)}
           />
         </CampoConAyuda>
+      )}
+
+      {/*
+        Atajo para dejar la acción apuntada sin guardar la ficha entera.
+
+        Que apuntar una visita dependiera de "Guardar cambios" no se
+        entendía: son dos cosas distintas —una es corregir los datos de
+        la marca, la otra es registrar algo que acaba de pasar— y además
+        obligaba a que el resto del formulario estuviera correcto para
+        poder anotar una visita que ya se había hecho.
+
+        Solo sale en fichas ya guardadas: una marca que se está creando
+        todavía no tiene id contra el que anotar, y ahí el botón de
+        guardar hace las dos cosas de una vez.
+      */}
+      {esUnaMarcaGuardada && esEditable && formulario.campanaId !== "" && (
+        <BotonDeAnotarEnElCalendario
+          campanaId={formulario.campanaId}
+          fecha={formulario.fechaCampana}
+          idDeLaMarca={idDeLaMarca}
+        />
       )}
 
       {/* El recorrido de la marca. Solo en fichas ya guardadas: una

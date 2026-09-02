@@ -98,6 +98,12 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::delete('/marcas/{marca}', [MarcaController::class, 'destroy']);
     // Marcar/desmarcar una fase desde la tarjeta, sin abrir la ficha.
     Route::patch('/marcas/{marca}/fase', [MarcaController::class, 'alternarFase']);
+    // Anotar una acción de campaña en el calendario al momento, sin
+    // tener que guardar la ficha entera.
+    Route::post('/marcas/{marca}/acciones-de-campana', [MarcaController::class, 'anotarAccionDeCampana']);
+    // Repartir trabajo desde la propia tarjeta. Es permiso de comercial,
+    // no de quien edita la marca: un vendedor no reasigna lo suyo.
+    Route::patch('/marcas/{marca}/vendedor', [MarcaController::class, 'asignarVendedor']);
 
     /* ---------- Propiedades: los productos IOP que se venden ----------
      | El catálogo lo consulta todo el equipo (hace falta para pintar el

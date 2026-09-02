@@ -108,9 +108,16 @@ function RutasDeLaAplicacion() {
         path="/propiedades"
       />
 
+      {/* Las campañas las planifica quien decide el calendario comercial
+          del año. El vendedor sí las usa —les asigna marcas desde la
+          ficha— pero no las crea ni las cierra, así que la pantalla
+          entera le queda fuera. Esconder solo los botones no bastaba:
+          la ruta seguía siendo alcanzable escribiéndola a mano. */}
       <Route
         element={
-          <RutaProtegida>
+          <RutaProtegida
+            requiere={(usuario) => usuario.permisos.gestionaElCatalogoComercial}
+          >
             <PaginaCampanas />
           </RutaProtegida>
         }

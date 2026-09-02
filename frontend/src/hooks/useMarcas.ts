@@ -18,6 +18,8 @@ import {
 import {
   actualizarMarca,
   alternarFaseDeMarca,
+  anotarAccionDeCampana,
+  asignarVendedorAMarca,
   crearComentario,
   crearMarca,
   eliminarComentario,
@@ -229,6 +231,55 @@ export function useAlternarFase() {
 
     // Pase lo que pase, al final se pide la verdad al servidor.
     onSettled: invalidarMarcas,
+  });
+}
+
+/**
+ * Anota una acción de campaña en el calendario al momento.
+ *
+ * No se aplica de forma optimista, al revés que el interruptor de fases:
+ * lo que confirma que la acción quedó apuntada es el historial y el
+ * calendario, y adelantarse a enseñarlos con datos inventados sería
+ * prometer algo que el servidor todavía no ha dicho. La espera es de un
+ * gesto puntual, no del clic que se repite cien veces al día.
+ */
+export function useAnotarAccionDeCampana() {
+  const clienteDeConsultas = useQueryClient();
+  const invalidarMarcas = useInvalidarMarcas();
+
+  return useMutation({
+    mutationFn: ({
+      idDeLaMarca,
+      campanaId,
+      fecha,
+    }: {
+      idDeLaMarca: string;
+      campanaId: string;
+      fecha: string;
+    }) => anotarAccionDeCampana(idDeLaMarca, { campanaId, fecha }),
+
+    onSuccess: () => {
+      invalidarMarcas();
+      // El calendario del panel es lo que de verdad enseña la acción.
+      void clienteDeConsultas.invalidateQueries({ queryKey: ["panel", "calendario"] });
+    },
+  });
+}
+
+/** Reparte una marca: le pone vendedor, o se lo quita. */
+export function useAsignarVendedor() {
+  const invalidarMarcas = useInvalidarMarcas();
+
+  return useMutation({
+    mutationFn: ({
+      idDeLaMarca,
+      idDelVendedor,
+    }: {
+      idDeLaMarca: string;
+      idDelVendedor: string | null;
+    }) => asignarVendedorAMarca(idDeLaMarca, idDelVendedor),
+
+    onSuccess: invalidarMarcas,
   });
 }
 

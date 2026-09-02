@@ -21,15 +21,28 @@
  *     ficha.
  * ---------------------------------------------------------------------
  */
-import { Chip, Tooltip } from "@heroui/react";
+import {
+  Listbox,
+  ListboxItem,
+  ListboxSection,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Tooltip,
+} from "@heroui/react";
 import {
   Check,
   Globe,
   Lock,
   MessageSquare,
   Package,
-  UserRound,
+  UserMinus,
+  UserPlus,
 } from "lucide-react";
+import { useState } from "react";
+import { useAsignarVendedor } from "@/hooks/useMarcas";
+import { useVendedores } from "@/hooks/useVendedores";
+import { avisarDeError, avisarDeExito } from "@/utilidades/avisos";
 import { formatearDineroAbreviado, inicialesDe } from "@/utilidades/formato";
 import type { Marca } from "@/tipos/modelos";
 
@@ -293,23 +306,146 @@ export function TarjetaDeMarca({
             </span>
           )}
 
-          {marca.vendedorAsignadoNombre ? (
-            <Chip
-              className="max-w-32"
-              radius="lg"
-              size="sm"
-              startContent={<UserRound className="ml-1 size-3" />}
-              variant="flat"
-            >
-              <span className="truncate">{marca.vendedorAsignadoNombre}</span>
-            </Chip>
-          ) : (
-            <Chip color="warning" radius="lg" size="sm" variant="flat">
-              Sin asignar
-            </Chip>
-          )}
+          <AvatarDelVendedor marca={marca} />
         </div>
       </div>
     </article>
+  );
+}
+
+/**
+ * El avatar de quien lleva la marca, en el pie de la tarjeta.
+ *
+ * Antes era una etiqueta con el nombre. Se cambió a avatar porque en una
+ * cuadrícula de sesenta tarjetas lo que se busca es "¿cuáles son mías?",
+ * y eso se responde de un vistazo con una inicial y un color, no leyendo
+ * sesenta nombres. El nombre completo sigue estando a un roce del ratón.
+ *
+ * Para admin y comercial es además el punto donde se reparte el trabajo:
+ * se pulsa y se elige a quién pasársela, sin abrir la ficha. Para todos
+ * los demás es solo información, y ni siquiera se comporta como botón.
+ *
+ * Quién puede repartir sale de `usuario.permisos.asignaVendedores`, la
+ * bandera que ya viene resuelta del servidor; aquí no se compara ningún
+ * rol.
+ */
+function AvatarDelVendedor({ marca }: { marca: Marca }) {
+  const { vendedores, puedeRepartir } = useVendedores();
+  const asignarVendedor = useAsignarVendedor();
+
+  const [elSelectorEstaAbierto, establecerSelectorAbierto] = useState(false);
+
+  const estaSinAsignar = marca.vendedorAsignadoId === null;
+  const nombre = marca.vendedorAsignadoNombre;
+
+  function repartir(idDelVendedor: string | null) {
+    establecerSelectorAbierto(false);
+
+    asignarVendedor.mutate(
+      { idDeLaMarca: marca.id, idDelVendedor },
+      {
+        onSuccess: () =>
+          avisarDeExito(
+            idDelVendedor === null
+              ? "Marca devuelta al montón"
+              : "Marca asignada",
+          ),
+        onError: (error) => avisarDeError(error, "No se pudo asignar la marca"),
+      },
+    );
+  }
+
+  const circulo = (
+    <span
+      className={[
+        "flex size-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
+        estaSinAsignar
+          ? "border border-dashed border-warning-400 text-warning-500"
+          : "bg-primary-100 text-primary-700",
+        puedeRepartir ? "transition hover:scale-110" : "",
+      ].join(" ")}
+    >
+      {estaSinAsignar ? <UserPlus className="size-3.5" /> : inicialesDe(nombre)}
+    </span>
+  );
+
+  // Sin permiso para repartir, el avatar no es un botón: que parezca
+  // pulsable algo que va a responder con un 403 solo genera desconcierto.
+  if (!puedeRepartir) {
+    return (
+      <Tooltip content={nombre ?? "Sin asignar"} placement="top">
+        {circulo}
+      </Tooltip>
+    );
+  }
+
+  return (
+    <Popover
+      isOpen={elSelectorEstaAbierto}
+      placement="top-end"
+      onOpenChange={establecerSelectorAbierto}
+    >
+      <PopoverTrigger>
+        {/* El clic no puede llegar a la tarjeta, que abriría la ficha. */}
+        <button
+          aria-label={
+            estaSinAsignar
+              ? "Asignar esta marca a alguien"
+              : `Asignada a ${nombre}. Pulsa para cambiarlo`
+          }
+          className="rounded-full"
+          type="button"
+          onClick={(evento) => evento.stopPropagation()}
+        >
+          <Tooltip content={nombre ?? "Sin asignar · pulsa para asignar"} placement="top">
+            {circulo}
+          </Tooltip>
+        </button>
+      </PopoverTrigger>
+
+      <PopoverContent className="w-60 p-0">
+        <div className="w-full px-3 py-2">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-default-500">
+            ¿Quién lleva esta marca?
+          </p>
+        </div>
+
+        <Listbox
+          aria-label="Elegir vendedor"
+          className="max-h-64 overflow-y-auto"
+          selectedKeys={marca.vendedorAsignadoId ? [marca.vendedorAsignadoId] : []}
+          selectionMode="single"
+          onAction={(clave) => repartir(String(clave) || null)}
+        >
+          <ListboxSection showDivider>
+            {vendedores.map((vendedor) => (
+              <ListboxItem
+                key={vendedor.id}
+                startContent={
+                  <span className="flex size-6 items-center justify-center rounded-full bg-primary-100 text-[10px] font-bold text-primary-700">
+                    {inicialesDe(vendedor.nombre)}
+                  </span>
+                }
+                textValue={vendedor.nombre}
+              >
+                <span className="truncate text-sm">{vendedor.nombre}</span>
+              </ListboxItem>
+            ))}
+          </ListboxSection>
+
+          {/* Quitar el dueño devuelve la marca al montón, de donde
+              cualquiera puede adoptarla trabajándola (regla 5). */}
+          <ListboxItem
+            key=""
+            className="text-warning"
+            color="warning"
+            startContent={<UserMinus className="size-4" />}
+            textValue="Dejar sin asignar"
+          >
+            Dejar sin asignar
+          </ListboxItem>
+        </Listbox>
+      </PopoverContent>
+    </Popover>
   );
 }

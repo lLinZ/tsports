@@ -23,9 +23,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import { mensajeDeError } from "@/api/clienteHttp";
-import { listarUsuarios } from "@/api/usuarios";
 import {
   BloqueDeCarga,
   BloqueDeError,
@@ -41,6 +39,7 @@ import {
   useListadoDeMarcas,
 } from "@/hooks/useMarcas";
 import { usePropiedadesOfrecibles } from "@/hooks/usePropiedades";
+import { useVendedores } from "@/hooks/useVendedores";
 import { useUsuarioAutenticado } from "@/providers/ProveedorSesion";
 import { avisarDeError } from "@/utilidades/avisos";
 import { formatearNumero } from "@/utilidades/formato";
@@ -164,14 +163,9 @@ export function PaginaMarcas() {
   const { campanas: campanasActivas } = useCampanasActivas();
   const { propiedades: propiedadesOfrecibles } = usePropiedadesOfrecibles();
 
-  // La lista de vendedores solo la necesita quien puede filtrar por
-  // responsable, así que no se pide para un vendedor raso.
-  const consultaDeVendedores = useQuery({
-    queryKey: ["usuarios", "vendedores"],
-    queryFn: () => listarUsuarios({ rol: "vendedor", soloActivos: true }),
-    enabled: usuario.permisos.asignaVendedores,
-    staleTime: 5 * 60 * 1000,
-  });
+  // Solo la necesita quien puede filtrar por responsable; el hook ya
+  // se calla para un vendedor raso.
+  const { vendedores } = useVendedores();
 
   /* ---------------------------------------------------------------- */
   /* Ficha                                                            */
@@ -429,7 +423,7 @@ export function PaginaMarcas() {
               {[
                 <SelectItem key="">Todos los vendedores</SelectItem>,
                 <SelectItem key="sin_asignar">Sin asignar</SelectItem>,
-                ...(consultaDeVendedores.data ?? []).map((vendedor) => (
+                ...vendedores.map((vendedor) => (
                   <SelectItem key={vendedor.id}>{vendedor.nombre}</SelectItem>
                 )),
               ]}

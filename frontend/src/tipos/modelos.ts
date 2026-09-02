@@ -443,8 +443,28 @@ export interface ResumenDeCampana {
   valor: number;
 }
 
+/**
+ * Las cifras de quien está mirando el panel: solo sus marcas.
+ *
+ * Los demás bloques del resumen hablan de todo el equipo, que es lo que
+ * necesita quien reparte trabajo. A quien tiene doce marcas asignadas,
+ * saber que en total hay setenta y una no le dice nada sobre su día.
+ */
+export interface MisNumerosDelPanel {
+  totalMarcas: number;
+  enAproximacion: number;
+  enProspeccion: number;
+  conPropuesta: number;
+  valorPropuestoAnual: number;
+  /** Lo que pronostica vender de las propiedades que ofrece (regla 11). */
+  miPronostico: number;
+  /** Acciones de campaña que tiene de hoy en adelante. */
+  accionesPorDelante: number;
+}
+
 export interface ResumenDelPanel {
   contadores: ContadoresDelPanel;
+  misNumeros: MisNumerosDelPanel;
   porZona: ResumenDeZona[];
   porSector: ResumenDeSector[];
   porVendedor: ResumenDeVendedor[];
