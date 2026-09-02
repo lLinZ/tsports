@@ -1,0 +1,968 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>TS Sports · Guía de uso</title>
+<style>
+  /* ================================================================
+     Tipografía Inter, incrustada desde ficheros locales.
+
+     Se cargan DOS subconjuntos por peso —latin y latin-ext— porque
+     Google Fonts trocea la fuente por alfabetos y el latino no viene
+     solo. Con uno solo, Chrome encuentra la "a" en Inter pero no la
+     "á", y cae a Segoe UI en cuanto aparece una tilde: el documento
+     acaba con dos tipografías mezcladas dentro de la misma palabra.
+
+     Van desde disco y no desde Google: al imprimir, la página podría
+     salir antes de que la fuente llegara por red.
+     ================================================================ */
+  @font-face { font-family: "Inter"; font-weight: 400; font-style: normal; font-display: block;
+               src: url("fuentes/Inter-400-latin.woff2") format("woff2"); }
+  @font-face { font-family: "Inter"; font-weight: 400; font-style: normal; font-display: block;
+               src: url("fuentes/Inter-400-latinext.woff2") format("woff2");
+               unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+                              U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+2113, U+2C60-2C7F; }
+
+  @font-face { font-family: "Inter"; font-weight: 500; font-style: normal; font-display: block;
+               src: url("fuentes/Inter-500-latin.woff2") format("woff2"); }
+  @font-face { font-family: "Inter"; font-weight: 500; font-style: normal; font-display: block;
+               src: url("fuentes/Inter-500-latinext.woff2") format("woff2");
+               unicode-range: U+0100-02BA, U+1E00-1E9F, U+2C60-2C7F; }
+
+  @font-face { font-family: "Inter"; font-weight: 600; font-style: normal; font-display: block;
+               src: url("fuentes/Inter-600-latin.woff2") format("woff2"); }
+  @font-face { font-family: "Inter"; font-weight: 600; font-style: normal; font-display: block;
+               src: url("fuentes/Inter-600-latinext.woff2") format("woff2");
+               unicode-range: U+0100-02BA, U+1E00-1E9F, U+2C60-2C7F; }
+
+  @font-face { font-family: "Inter"; font-weight: 700; font-style: normal; font-display: block;
+               src: url("fuentes/Inter-700-latin.woff2") format("woff2"); }
+  @font-face { font-family: "Inter"; font-weight: 700; font-style: normal; font-display: block;
+               src: url("fuentes/Inter-700-latinext.woff2") format("woff2");
+               unicode-range: U+0100-02BA, U+1E00-1E9F, U+2C60-2C7F; }
+
+  :root {
+    --azul:     #4285F4;
+    --rojo:     #EA4335;
+    --amarillo: #FBBC05;
+    --verde:    #34A853;
+
+    --negro:    #202124;   /* Titulares */
+    --gris:     #5F6368;   /* Cuerpo de texto */
+    --gris-sua: #80868B;   /* Apoyos y pies */
+    --linea:    #E8EAED;
+    --fondo:    #F8F9FA;
+  }
+
+  @page {
+    size: A4;
+    margin: 18mm 16mm 20mm 16mm;
+    /* Chrome pinta las cajas de margen con su fuente por defecto, que
+       es Times: hay que decirle la tipografía aquí también o los
+       números de página desentonan con el resto del documento. */
+    @bottom-center {
+      content: counter(page);
+      font-family: "Inter", sans-serif;
+      font-size: 8.6pt;
+      font-weight: 500;
+      color: #80868B;
+    }
+  }
+  @page:first { margin: 0; }
+
+  * { box-sizing: border-box; }
+
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  body {
+    margin: 0;
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 10.2pt;
+    line-height: 1.62;
+    color: var(--gris);
+    font-feature-settings: "cv05" 1, "ss01" 1;
+  }
+
+  /* ---------------------------- Portada --------------------------- */
+  .portada {
+    height: 297mm;
+    padding: 30mm 24mm 26mm;
+    display: flex;
+    flex-direction: column;
+    page-break-after: always;
+  }
+  .marca-portada {
+    display: flex; align-items: center; gap: 11px;
+    font-size: 13pt; font-weight: 700; color: var(--negro);
+    letter-spacing: -0.02em;
+  }
+  .cuadro-logo {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: var(--azul); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12pt; font-weight: 700; letter-spacing: -0.03em;
+  }
+  .portada h1 {
+    margin: 62mm 0 0; font-size: 40pt; line-height: 1.06;
+    font-weight: 700; color: var(--negro); letter-spacing: -0.035em;
+  }
+  .portada .bajada {
+    margin: 16px 0 0; font-size: 12.5pt; line-height: 1.55;
+    color: var(--gris); max-width: 118mm; font-weight: 400;
+  }
+  .tiras { display: flex; gap: 7px; margin: 34px 0 0; }
+  .tiras span { height: 6px; width: 58px; border-radius: 3px; }
+  .pie-portada {
+    margin-top: auto; padding-top: 16px; border-top: 1px solid var(--linea);
+    display: flex; justify-content: space-between;
+    font-size: 8.6pt; color: var(--gris-sua);
+  }
+
+  /* ---------------------------- Índice ---------------------------- */
+  .indice { page-break-after: always; }
+  .indice ol { list-style: none; margin: 0; padding: 0; counter-reset: cap; }
+  .indice > ol > li { counter-increment: cap; margin-bottom: 3px; }
+  .indice > ol > li > a {
+    display: flex; align-items: baseline; gap: 10px;
+    padding: 8px 0; border-bottom: 1px solid var(--linea);
+    text-decoration: none; color: var(--negro);
+    font-size: 10.6pt; font-weight: 600;
+  }
+  .indice .num {
+    flex: 0 0 22px; font-size: 9pt; font-weight: 700;
+    color: var(--azul); font-variant-numeric: tabular-nums;
+  }
+  .indice .rel { flex: 1; }
+  .indice .sub {
+    font-weight: 400; font-size: 9.2pt; color: var(--gris-sua);
+    padding: 2px 0 6px 32px;
+  }
+
+  /* ---------------------------- Secciones ------------------------- */
+  h2 {
+    margin: 0 0 4px; font-size: 19pt; font-weight: 700;
+    color: var(--negro); letter-spacing: -0.028em; line-height: 1.2;
+  }
+  .seccion { page-break-before: always; }
+  .seccion:first-of-type { page-break-before: avoid; }
+  .cinta { display: flex; align-items: center; gap: 10px; margin-bottom: 3px; }
+  .cinta .indicador { width: 26px; height: 4px; border-radius: 2px; }
+  .cinta .capitulo {
+    font-size: 8.4pt; font-weight: 700; letter-spacing: 0.13em;
+    text-transform: uppercase; color: var(--gris-sua);
+  }
+  .entradilla {
+    margin: 0 0 22px; font-size: 10.6pt; color: var(--gris);
+    max-width: 145mm;
+  }
+
+  h3 {
+    margin: 26px 0 8px; font-size: 12.2pt; font-weight: 600;
+    color: var(--negro); letter-spacing: -0.015em;
+  }
+  h4 {
+    margin: 18px 0 6px; font-size: 10.4pt; font-weight: 600; color: var(--negro);
+  }
+  p { margin: 0 0 10px; }
+  strong { color: var(--negro); font-weight: 600; }
+  /* Sin Inter cursiva cargada, <em> caía a Times New Roman. El énfasis
+     se marca con color y peso, que en pantalla se lee incluso mejor. */
+  em { font-style: normal; font-weight: 500; color: var(--negro); }
+  code {
+    font-family: "Inter", monospace; font-size: 9.2pt;
+    background: var(--fondo); border: 1px solid var(--linea);
+    border-radius: 4px; padding: 1px 5px; color: var(--negro);
+  }
+
+  /* --------------------------- Pasos ------------------------------ */
+  ol.pasos { counter-reset: paso; list-style: none; margin: 12px 0 16px; padding: 0; }
+  ol.pasos > li {
+    counter-increment: paso; position: relative;
+    padding: 0 0 13px 34px; page-break-inside: avoid;
+  }
+  ol.pasos > li::before {
+    content: counter(paso);
+    position: absolute; left: 0; top: 0;
+    width: 21px; height: 21px; border-radius: 50%;
+    background: var(--azul); color: #fff;
+    font-size: 8.6pt; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  /* La línea que enhebra los pasos: se corta en el último. */
+  ol.pasos > li::after {
+    content: ""; position: absolute; left: 10px; top: 25px; bottom: 3px;
+    width: 1px; background: var(--linea);
+  }
+  ol.pasos > li:last-child::after { display: none; }
+  ol.pasos > li p { margin: 0 0 3px; }
+  ol.pasos > li p:first-child { color: var(--negro); font-weight: 500; padding-top: 1px; }
+
+  ul.lista { margin: 8px 0 14px; padding-left: 17px; }
+  ul.lista li { margin-bottom: 5px; padding-left: 3px; }
+  ul.lista li::marker { color: var(--azul); }
+
+  /* --------------------------- Avisos ----------------------------- */
+  .aviso {
+    margin: 14px 0; padding: 11px 14px; border-radius: 8px;
+    background: var(--fondo); border-left: 3px solid var(--gris-sua);
+    font-size: 9.6pt; page-break-inside: avoid;
+  }
+  .aviso p { margin: 0; }
+  .aviso p + p { margin-top: 6px; }
+  .aviso .rotulo {
+    display: block; font-size: 8.2pt; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px;
+  }
+  .aviso.ojo   { border-left-color: var(--amarillo); background: #FEF7E0; }
+  .aviso.ojo .rotulo { color: #B06000; }
+  .aviso.alto  { border-left-color: var(--rojo); background: #FCE8E6; }
+  .aviso.alto .rotulo { color: #C5221F; }
+  .aviso.bien  { border-left-color: var(--verde); background: #E6F4EA; }
+  .aviso.bien .rotulo { color: #137333; }
+  .aviso.dato  { border-left-color: var(--azul); background: #E8F0FE; }
+  .aviso.dato .rotulo { color: #1967D2; }
+
+  /* --------------------------- Tablas ----------------------------- */
+  table {
+    width: 100%; border-collapse: collapse; margin: 12px 0 18px;
+    font-size: 9.4pt; page-break-inside: avoid;
+  }
+  th {
+    text-align: left; padding: 8px 10px;
+    border-bottom: 2px solid var(--negro);
+    font-size: 8.4pt; font-weight: 700; color: var(--negro);
+    letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  td { padding: 8px 10px; border-bottom: 1px solid var(--linea); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  td strong { font-weight: 600; }
+  .si { color: var(--verde); font-weight: 700; }
+  .no { color: var(--rojo); font-weight: 700; }
+  .parte { color: var(--amarillo); font-weight: 700; }
+
+  /* --------------------------- Fichas ----------------------------- */
+  .fichas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0 18px; }
+  .ficha {
+    border: 1px solid var(--linea); border-radius: 9px; padding: 12px 14px;
+    page-break-inside: avoid;
+  }
+  .ficha .titulo {
+    font-size: 9.8pt; font-weight: 600; color: var(--negro); margin-bottom: 3px;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .ficha .punto { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+  .ficha p { margin: 0; font-size: 9.2pt; }
+
+  .ruta {
+    display: inline-block; background: var(--negro); color: #fff;
+    border-radius: 5px; padding: 2px 8px;
+    font-size: 8.8pt; font-weight: 600; letter-spacing: 0.01em;
+  }
+</style>
+</head>
+<body>
+
+<!-- ====================== PORTADA ====================== -->
+<div class="portada">
+  <div class="marca-portada">
+    <span class="cuadro-logo">TS</span>
+    <span>TS Sports</span>
+  </div>
+
+  <h1>Guía de uso<br>del sistema</h1>
+
+  <p class="bajada">
+    Cómo trabajar el CRM de patrocinios, el calendario de campañas,
+    el catálogo comercial y la web pública. Escrita para consultarla
+    a ratos: cada apartado se entiende por su cuenta.
+  </p>
+
+  <div class="tiras">
+    <span style="background:var(--azul)"></span>
+    <span style="background:var(--rojo)"></span>
+    <span style="background:var(--amarillo)"></span>
+    <span style="background:var(--verde)"></span>
+  </div>
+
+  <div class="pie-portada">
+    <span>tsports.tech</span>
+    <span>Septiembre de 2026</span>
+  </div>
+</div>
+
+<!-- ====================== ÍNDICE ====================== -->
+<section class="indice">
+  <div class="cinta">
+    <span class="indicador" style="background:var(--azul)"></span>
+    <span class="capitulo">Contenido</span>
+  </div>
+  <h2>Qué hay en esta guía</h2>
+  <p class="entradilla">
+    Los apartados 3 y 4 son los del día a día. El resto se consulta
+    cuando hace falta.
+  </p>
+
+  <ol>
+    <li><a href="#entrar"><span class="num">01</span><span class="rel">Entrar y moverse</span></a>
+      <div class="sub">Iniciar sesión, el panel, tu perfil y el tema de color</div></li>
+    <li><a href="#roles"><span class="num">02</span><span class="rel">Quién puede hacer qué</span></a>
+      <div class="sub">Los tres roles y la tabla de permisos</div></li>
+    <li><a href="#marcas"><span class="num">03</span><span class="rel">Marcas</span></a>
+      <div class="sub">Dar de alta, las tres fases, asignar agente, buscar y comentar</div></li>
+    <li><a href="#campanas"><span class="num">04</span><span class="rel">Campañas y calendario</span></a>
+      <div class="sub">Crear campañas, anotar acciones, corregirlas y exportar</div></li>
+    <li><a href="#propiedades"><span class="num">05</span><span class="rel">Propiedades y pronóstico</span></a>
+      <div class="sub">MTP, forecast, OVP y el checklist de cada marca</div></li>
+    <li><a href="#equipo"><span class="num">06</span><span class="rel">El equipo</span></a>
+      <div class="sub">Crear cuentas, cambiar roles y dar de baja</div></li>
+    <li><a href="#web"><span class="num">07</span><span class="rel">La web pública</span></a>
+      <div class="sub">Textos, imágenes, colores e historial de versiones</div></li>
+    <li><a href="#auditoria"><span class="num">08</span><span class="rel">Auditoría</span></a>
+      <div class="sub">Quién hizo qué y cuándo</div></li>
+    <li><a href="#reglas"><span class="num">09</span><span class="rel">Reglas que conviene conocer</span></a>
+      <div class="sub">Por qué el sistema se comporta como se comporta</div></li>
+  </ol>
+</section>
+
+<!-- ====================== 01 ====================== -->
+<section class="seccion" id="entrar">
+  <div class="cinta">
+    <span class="indicador" style="background:var(--azul)"></span>
+    <span class="capitulo">01 · Primeros pasos</span>
+  </div>
+  <h2>Entrar y moverse</h2>
+  <p class="entradilla">
+    Todo el sistema vive en <strong>tsports.tech</strong>. La página que se
+    ve sin entrar es la web pública; el panel de trabajo está detrás del
+    inicio de sesión.
+  </p>
+
+  <h3>Iniciar sesión</h3>
+  <ol class="pasos">
+    <li><p>Abre <span class="ruta">tsports.tech/entrar</span></p>
+        <p>También se llega desde el enlace discreto al pie de la web pública.</p></li>
+    <li><p>Escribe tu correo y tu contraseña</p>
+        <p>Son los que te dio quien administra el sistema. Si es tu primera
+           vez, cámbiala nada más entrar desde tu perfil.</p></li>
+    <li><p>Pulsa <strong>Entrar</strong></p>
+        <p>La sesión dura siete días. Pasado ese tiempo se vuelve a pedir.</p></li>
+  </ol>
+
+  <div class="aviso alto">
+    <span class="rotulo">Si no entras</span>
+    <p>Tras varios intentos fallidos seguidos el sistema bloquea el acceso
+    unos minutos. Es una protección contra quien intente adivinar
+    contraseñas; espera y vuelve a probar. Si sigue sin funcionar, pide a
+    un administrador que te ponga una contraseña nueva.</p>
+  </div>
+
+  <h3>Las secciones del panel</h3>
+  <p>El menú de la izquierda cambia según tu rol: solo salen las secciones
+  a las que tienes acceso.</p>
+
+  <table>
+    <thead><tr><th style="width:26%">Sección</th><th>Para qué sirve</th><th style="width:22%">Quién la ve</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Resumen</strong></td><td>Las cifras del pipeline y el calendario de la semana. Si llevas marcas asignadas, arriba del todo sale <strong>Mis marcas</strong> con lo tuyo.</td><td>Todos</td></tr>
+      <tr><td><strong>Marcas</strong></td><td>El tablero del CRM. Es donde se pasa el día el equipo comercial.</td><td>Todos</td></tr>
+      <tr><td><strong>Propiedades</strong></td><td>El catálogo de productos IOP que se venden.</td><td>Todos</td></tr>
+      <tr><td><strong>Campañas</strong></td><td>Los empujones comerciales del año.</td><td>Admin y comercial</td></tr>
+      <tr><td><strong>Web pública</strong></td><td>Los textos, fotos y colores de la página.</td><td>Admin y comercial</td></tr>
+      <tr><td><strong>Equipo</strong></td><td>Las cuentas y sus permisos.</td><td>Admin y comercial</td></tr>
+      <tr><td><strong>Auditoría</strong></td><td>El registro de quién hizo qué.</td><td>Solo admin</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Tu perfil</h3>
+  <p>Desde tu nombre, arriba a la derecha, se llega a <strong>Mi perfil</strong>.
+  Ahí se cambian tres cosas:</p>
+
+  <ul class="lista">
+    <li><strong>Tu contraseña.</strong> Hace falta la actual para poder cambiarla.</li>
+    <li><strong>El tema.</strong> Claro, oscuro o el del sistema operativo. Se
+        guarda en el servidor, así que te acompaña a cualquier ordenador
+        desde el que entres.</li>
+    <li><strong>Tu color de acento.</strong> No es decoración: sirve para
+        reconocer de un vistazo qué sesión está abierta cuando se comparte
+        un equipo. Toda la interfaz se retiñe al instante.</li>
+  </ul>
+
+  <div class="aviso ojo">
+    <span class="rotulo">Ojo</span>
+    <p>Nadie cambia su propio rol ni su propia zona, ni siquiera un
+    administrador. Es a propósito: si el único administrador se rebajase
+    a sí mismo, no quedaría nadie capaz de repartir permisos y habría que
+    entrar a la base de datos a mano.</p>
+  </div>
+</section>
+
+<!-- ====================== 02 ====================== -->
+<section class="seccion" id="roles">
+  <div class="cinta">
+    <span class="indicador" style="background:var(--rojo)"></span>
+    <span class="capitulo">02 · Permisos</span>
+  </div>
+  <h2>Quién puede hacer qué</h2>
+  <p class="entradilla">
+    Hay tres roles. El sistema no esconde botones para disimular: si algo
+    no te corresponde, tampoco lo deja hacer aunque se intente por otro
+    camino.
+  </p>
+
+  <div class="fichas">
+    <div class="ficha">
+      <div class="titulo"><span class="punto" style="background:var(--rojo)"></span>Administrador</div>
+      <p>Todo: cuentas, web pública, catálogo, marcas y el registro de
+      auditoría.</p>
+    </div>
+    <div class="ficha">
+      <div class="titulo"><span class="punto" style="background:var(--azul)"></span>Comercial</div>
+      <p>Todas las marcas, reparte trabajo entre agentes y gestiona el
+      catálogo y las campañas.</p>
+    </div>
+    <div class="ficha">
+      <div class="titulo"><span class="punto" style="background:var(--verde)"></span>Agente</div>
+      <p>Ve todas las marcas, edita solo las que tiene asignadas y nunca
+      borra.</p>
+    </div>
+    <div class="ficha">
+      <div class="titulo"><span class="punto" style="background:var(--amarillo)"></span>Sin dueño</div>
+      <p>Una marca puede no tener agente. El primero que la trabaja se la
+      queda automáticamente.</p>
+    </div>
+  </div>
+
+  <table>
+    <thead><tr><th style="width:46%">Acción</th><th>Admin</th><th>Comercial</th><th>Agente</th></tr></thead>
+    <tbody>
+      <tr><td>Ver todas las marcas</td><td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td></tr>
+      <tr><td>Crear una marca</td><td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td></tr>
+      <tr><td>Editar cualquier marca</td><td class="si">Sí</td><td class="si">Sí</td><td class="parte">Solo las suyas</td></tr>
+      <tr><td>Borrar una marca</td><td class="si">Sí</td><td class="si">Sí</td><td class="no">No</td></tr>
+      <tr><td>Asignar el agente de una marca</td><td class="si">Sí</td><td class="si">Sí</td><td class="no">No</td></tr>
+      <tr><td>Anotar una acción de campaña</td><td class="si">Sí</td><td class="si">Sí</td><td class="parte">En las suyas</td></tr>
+      <tr><td>Borrar una acción del historial</td><td class="si">Sí</td><td class="si">Sí</td><td class="no">No</td></tr>
+      <tr><td>Crear campañas y propiedades</td><td class="si">Sí</td><td class="si">Sí</td><td class="no">No</td></tr>
+      <tr><td>Editar la web pública</td><td class="si">Sí</td><td class="si">Sí</td><td class="no">No</td></tr>
+      <tr><td>Crear y borrar cuentas</td><td class="si">Sí</td><td class="si">Sí</td><td class="no">No</td></tr>
+      <tr><td>Ver la auditoría</td><td class="si">Sí</td><td class="no">No</td><td class="no">No</td></tr>
+    </tbody>
+  </table>
+
+  <div class="aviso bien">
+    <span class="rotulo">Bien saberlo</span>
+    <p>Cuando algo no se puede editar, la tarjeta lleva un candado en la
+    esquina. Al pasar el ratón por encima dice exactamente por qué.</p>
+  </div>
+</section>
+
+<!-- ====================== 03 ====================== -->
+<section class="seccion" id="marcas">
+  <div class="cinta">
+    <span class="indicador" style="background:var(--verde)"></span>
+    <span class="capitulo">03 · El CRM</span>
+  </div>
+  <h2>Marcas</h2>
+  <p class="entradilla">
+    Una marca es una empresa a la que se le está vendiendo un patrocinio.
+    El tablero las enseña como tarjetas, y cada tarjeta cuenta lo esencial
+    sin abrir nada.
+  </p>
+
+  <h3>Dar de alta una marca</h3>
+  <ol class="pasos">
+    <li><p>En <span class="ruta">Marcas</span>, pulsa <strong>Nueva marca</strong></p></li>
+    <li><p>Paso 1 · La marca</p>
+        <p>Nombre, sector, zona, logo y —si toca— la campaña dentro de la
+           que se trabaja. Solo el nombre es obligatorio.</p></li>
+    <li><p>Paso 2 · Contacto</p>
+        <p>Con quién se habla: persona, cargo, correo y teléfono.</p></li>
+    <li><p>Paso 3 · Avance</p>
+        <p>Por dónde va la venta y qué propiedades se le están ofreciendo.</p></li>
+    <li><p>Pulsa <strong>Guardar</strong></p>
+        <p>Al crear una marca hay que llegar al último paso; al editar una
+           existente se puede guardar desde cualquiera.</p></li>
+  </ol>
+
+  <h3>Las tres fases</h3>
+  <p>Cada tarjeta enseña tres casillas. <strong>Son independientes</strong>: una
+  marca puede tener propuesta enviada sin haber cerrado la prospección.
+  No es un embudo por el que haya que pasar en orden.</p>
+
+  <table>
+    <thead><tr><th style="width:22%">Fase</th><th>Qué significa</th><th style="width:30%">Cómo se marca</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Aproximación</strong></td><td>Ya se contactó con la marca.</td><td>Desde la tarjeta. Antes hay que indicar la vía en la ficha.</td></tr>
+      <tr><td><strong>Prospección</strong></td><td>Se tienen sus cinco datos básicos.</td><td><strong>Sola.</strong> No hay forma de marcarla a mano.</td></tr>
+      <tr><td><strong>Propuesta</strong></td><td>Se le envió una propuesta.</td><td>Desde la tarjeta, tras describirla en la ficha.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="aviso dato">
+    <span class="rotulo">La prospección se calcula sola</span>
+    <p>Se da por completa cuando la marca tiene los cinco datos:
+    <strong>nombre, logo, persona de contacto, cargo y correo</strong>. Al
+    pulsarla se abre la ficha diciendo cuáles faltan.</p>
+    <p>No se puede forzar ni desde la interfaz ni desde ningún otro sitio,
+    y es a propósito: así el indicador no puede mentir sobre cuántas
+    marcas están de verdad listas.</p>
+  </div>
+
+  <h3>Asignar un agente</h3>
+  <p>Hay dos formas. La rápida, para repartir varias marcas seguidas:</p>
+
+  <ol class="pasos">
+    <li><p>En el pie de la tarjeta, pulsa el <strong>círculo con las iniciales</strong></p>
+        <p>Si la marca no tiene dueño, en su lugar sale un icono de
+           persona con un signo de más.</p></li>
+    <li><p>Elige a quién se la pasas</p>
+        <p>La lista solo trae agentes activos.</p></li>
+    <li><p>Ya está</p>
+        <p>No hay que guardar nada: el cambio viaja al momento.</p></li>
+  </ol>
+
+  <p>La otra forma es abrir la ficha y usar el selector
+  <strong>Agente asignado</strong> del paso 3, que va con el resto de la ficha
+  al guardar.</p>
+
+  <div class="aviso bien">
+    <span class="rotulo">Quitar el agente</span>
+    <p>En el mismo menú, la opción <strong>Dejar sin asignar</strong> devuelve la
+    marca al montón. No es un descuido: así vuelve a estar disponible para
+    que la adopte quien la trabaje.</p>
+  </div>
+
+  <h3>Buscar y filtrar</h3>
+  <p>El buscador mira el nombre de la marca y el de la persona de
+  contacto. Además hay siete filtros que se combinan entre sí:</p>
+
+  <ul class="lista">
+    <li><strong>Etapa</strong> — en qué fase están.</li>
+    <li><strong>Zona</strong> — Caracas, Centro, Lara, Andes-Zulia u Oriente.</li>
+    <li><strong>Sector</strong> — el rubro de la marca.</li>
+    <li><strong>Campaña</strong> — dentro de qué empujón se trabaja.</li>
+    <li><strong>Propiedad</strong> — a qué marcas se les ofrece un producto concreto.</li>
+    <li><strong>Inversión</strong> — si ya patrocina hoy.</li>
+    <li><strong>Agente</strong> — incluida la opción <strong>sin asignar</strong>.</li>
+  </ul>
+
+  <div class="aviso dato">
+    <span class="rotulo">Un atajo</span>
+    <p>Los filtros quedan en la dirección de la página, así que una vista
+    concreta —«las de Oriente sin asignar»— se puede guardar en favoritos
+    o pasar por chat, y quien la abra verá lo mismo.</p>
+  </div>
+
+  <h3>La bitácora</h3>
+  <p>Dentro de cada ficha, a la derecha, hay un espacio para dejar
+  comentarios: lo que se habló en una llamada, por qué se aplazó una
+  reunión. <strong>Comentar lo puede hacer cualquiera</strong>, aunque la marca
+  sea de otro: si te enteras de algo útil, poder anotarlo importa más que
+  el permiso.</p>
+
+  <h3>Borrar una marca</h3>
+  <p>Al pie de la ficha, en <strong>Eliminar</strong>. Pide confirmación porque
+  se lleva con ella su bitácora y su historial de campañas, y eso no se
+  recupera. Solo admin y comercial.</p>
+</section>
+
+<!-- ====================== 04 ====================== -->
+<section class="seccion" id="campanas">
+  <div class="cinta">
+    <span class="indicador" style="background:var(--amarillo)"></span>
+    <span class="capitulo">04 · Campañas</span>
+  </div>
+  <h2>Campañas y calendario</h2>
+  <p class="entradilla">
+    Una campaña es un empujón comercial del año: «Visita presencial»,
+    «Envío de material POP», «Invitación a evento». Las marcas se le
+    asignan con una fecha, y eso es lo que llena el calendario.
+  </p>
+
+  <h3>Crear una campaña</h3>
+  <ol class="pasos">
+    <li><p>Ve a <span class="ruta">Campañas</span> y pulsa <strong>Nueva campaña</strong></p></li>
+    <li><p>Ponle nombre y, si quieres, descripción</p>
+        <p>El nombre es lo que verá el equipo en los selectores, así que
+           conviene que se entienda solo.</p></li>
+    <li><p>Elige su color</p>
+        <p>Es lo que permite distinguirlas de un vistazo en el calendario
+           y en las tarjetas.</p></li>
+    <li><p>Fechas de inicio y fin, y el orden</p>
+        <p>El orden decide en qué posición sale en los selectores.</p></li>
+    <li><p>Guarda</p></li>
+  </ol>
+
+  <div class="aviso ojo">
+    <span class="rotulo">Desactivar en vez de borrar</span>
+    <p>Una campaña desactivada deja de ofrecerse en los selectores pero
+    conserva todo su historial. Es casi siempre lo que se quiere.</p>
+    <p>Si aun así se borra, <strong>las marcas no se borran</strong>: se quedan sin
+    campaña. Y el historial sigue diciendo lo que de verdad pasó, porque
+    el nombre y el color se copian dentro de cada acción cuando se anota.</p>
+  </div>
+
+  <h3>Anotar una acción en el calendario</h3>
+  <p>Es lo que coloca a la marca en un día concreto. Hay dos caminos y
+  conviene saber cuál usar.</p>
+
+  <h4>El rápido — cuando acabas de hacer la visita</h4>
+  <ol class="pasos">
+    <li><p>Abre la ficha de la marca</p></li>
+    <li><p>En el paso 1, elige la <strong>campaña</strong> y el <strong>día</strong></p></li>
+    <li><p>Pulsa <strong>Anotar en el calendario</strong></p>
+        <p>Queda apuntado al momento. No hace falta guardar la ficha, y no
+           importa que al resto del formulario le falten datos.</p></li>
+  </ol>
+
+  <div class="aviso bien">
+    <span class="rotulo">Pulsar dos veces no duplica</span>
+    <p>Si le das otra vez con la misma campaña y el mismo día, el sistema
+    lo reconoce y no repite la línea. Pero la misma campaña en
+    <strong>otra fecha</strong> sí es una acción nueva: volver a visitar a una
+    marca en noviembre es un hecho distinto de haberla visitado en
+    octubre, y las dos cosas deben constar.</p>
+  </div>
+
+  <h4>El otro — cuando estás rellenando la ficha entera</h4>
+  <p>Elige campaña y fecha y pulsa <strong>Guardar cambios</strong> al final. La
+  acción se anota igual, junto con el resto de la ficha.</p>
+
+  <h3>El historial de una marca</h3>
+  <p>Debajo de la fecha, en la ficha, está la lista de todo lo que se le
+  ha hecho a esa marca, de lo más reciente a lo más antiguo.</p>
+
+  <ul class="lista">
+    <li><strong>Corregir una acción</strong> — el lápiz. Sirve para aplazar una
+        visita o cambiarle la campaña. Lo puede hacer quien pueda editar
+        la marca.</li>
+    <li><strong>Borrar una acción</strong> — la papelera, con confirmación. Solo
+        admin y comercial.</li>
+  </ul>
+
+  <div class="aviso dato">
+    <span class="rotulo">Qué pasa al borrar</span>
+    <p>La marca pasa a tener como acción vigente la anterior que quede en
+    el historial. Si borras todas, se queda sin campaña, y los campos de
+    la ficha se vacían solos para que no vuelvas a guardar lo que
+    acabas de eliminar.</p>
+  </div>
+
+  <h3>Ver el calendario</h3>
+  <p>Está en <span class="ruta">Resumen</span>, arriba de todo, porque contesta la
+  pregunta con la que se entra por la mañana: qué toca hacer esta semana.
+  Se puede ver por semana o por mes, y cada acción sale con el color de su
+  campaña.</p>
+
+  <h3>Exportar el calendario</h3>
+  <ol class="pasos">
+    <li><p>Sitúate en la semana o el mes que quieras llevarte</p>
+        <p>Se exporta lo que estés viendo, con los filtros aplicados.</p></li>
+    <li><p>Pulsa <strong>Exportar</strong></p></li>
+    <li><p>Se descarga un CSV</p>
+        <p>Con seis columnas: fecha, marca, campaña, zona, sector y agente.</p></li>
+  </ol>
+
+  <div class="aviso bien">
+    <span class="rotulo">Se abre bien en Excel</span>
+    <p>El fichero sale preparado para que Excel en Windows respete las
+    tildes y la eñe. Si lo abres con otro programa y ves caracteres
+    raros, elige la codificación <strong>UTF-8</strong> al importarlo.</p>
+  </div>
+</section>
+
+<!-- ====================== 05 ====================== -->
+<section class="seccion" id="propiedades">
+  <div class="cinta">
+    <span class="indicador" style="background:var(--azul)"></span>
+    <span class="capitulo">05 · Catálogo</span>
+  </div>
+  <h2>Propiedades y pronóstico</h2>
+  <p class="entradilla">
+    Una propiedad es un producto IOP que se vende: el Comité Olímpico,
+    Dvo. Táchira, Kombat Challenge. Se cargan enteras, sin dividirlas en
+    sub-propiedades.
+  </p>
+
+  <h3>Los tres montos</h3>
+  <p>Aquí se confunde mucha gente, así que conviene tenerlo claro: son
+  tres cifras distintas y <strong>solo una se escribe dos veces</strong>.</p>
+
+  <table>
+    <thead><tr><th style="width:16%">Monto</th><th style="width:34%">Qué es</th><th>Quién lo pone</th></tr></thead>
+    <tbody>
+      <tr><td><strong>MTP</strong></td><td>El monto total de la propiedad.</td><td>Admin o comercial, al crearla.</td></tr>
+      <tr><td><strong>Forecast</strong></td><td>La meta de venta: por defecto el 20 % del MTP.</td><td><strong>Nadie.</strong> Se calcula. El porcentaje sí es editable, porque es un acuerdo, no una ley.</td></tr>
+      <tr><td><strong>OVP</strong></td><td>Lo que se pronostica vender de esa propiedad <em>a una marca concreta</em>.</td><td>El agente, desde la ficha de la marca.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="aviso dato">
+    <span class="rotulo">Por qué el porcentaje no se guarda</span>
+    <p>El porcentaje que se pinta en la barra (OVP ÷ MTP) se calcula al
+    leer. Si se guardara, corregir el MTP de una propiedad dejaría
+    desactualizadas todas sus líneas y el tablero enseñaría porcentajes
+    falsos sin que nadie se diera cuenta.</p>
+  </div>
+
+  <h3>Crear una propiedad</h3>
+  <ol class="pasos">
+    <li><p>En <span class="ruta">Propiedades</span>, pulsa <strong>Nueva propiedad</strong></p></li>
+    <li><p>Nombre, descripción y el <strong>MTP</strong> en dólares</p></li>
+    <li><p>Ajusta el <strong>forecast</strong> si no es el 20 %</p></li>
+    <li><p>Decide quién la puede ofrecer</p>
+        <p>O se abre a todo el equipo, o se elige a los agentes concretos
+           que la trabajan.</p></li>
+    <li><p>Guarda</p></li>
+  </ol>
+
+  <h3>El checklist de una marca</h3>
+  <p>En el paso 3 de cada ficha se marca qué propiedades se le están
+  ofreciendo y cuánto se pronostica venderle de cada una.</p>
+
+  <div class="aviso ojo">
+    <span class="rotulo">Dos cosas que sorprenden</span>
+    <p><strong>El checklist NO completa la prospección.</strong> Está dentro de esa
+    fase porque es el trabajo que se hace ahí, pero la fase sigue
+    dependiendo solo de los cinco datos de contacto. Mezclarlos haría que
+    el indicador dejase de significar lo que el equipo cree.</p>
+    <p><strong>Solo se pueden añadir propiedades asignadas a ti</strong>, salvo que
+    estén abiertas a todo el equipo. Ahora bien, quitar o corregir una que
+    ya estaba puesta lo puede hacer cualquiera que edite la marca: si no,
+    reasignar una propiedad dejaría fichas bloqueadas para siempre.</p>
+  </div>
+
+  <div class="aviso bien">
+    <span class="rotulo">El pronóstico va con la marca</span>
+    <p>El OVP se le apunta al agente asignado a esa marca, no a quien
+    escribió la cifra. Así, al reasignar una marca, su pronóstico se va
+    con ella y las cuentas de cada persona siguen cuadrando.</p>
+  </div>
+
+  <p>Borrar una propiedad <strong>sí</strong> se lleva sus líneas del checklist de
+  todas las marcas. Por eso la interfaz ofrece antes desactivarla, que la
+  saca del catálogo sin perder nada.</p>
+</section>
+
+<!-- ====================== 06 ====================== -->
+<section class="seccion" id="equipo">
+  <div class="cinta">
+    <span class="indicador" style="background:var(--rojo)"></span>
+    <span class="capitulo">06 · Cuentas</span>
+  </div>
+  <h2>El equipo</h2>
+  <p class="entradilla">
+    En <span class="ruta">Equipo</span> se crean las cuentas y se reparten los
+    permisos. Lo ven admin y comercial.
+  </p>
+
+  <h3>Crear una cuenta</h3>
+  <ol class="pasos">
+    <li><p>Pulsa <strong>Nueva cuenta</strong></p></li>
+    <li><p>Nombre y apellido, y el correo</p>
+        <p>El correo es con lo que entrará, así que tiene que ser real y
+           no puede repetirse.</p></li>
+    <li><p>Elige el rol</p>
+        <p>Administrador, comercial o agente. Repasa la tabla del
+           apartado 2 si tienes dudas.</p></li>
+    <li><p>Asígnale una zona</p>
+        <p>Las marcas que registre heredarán esa zona por defecto.</p></li>
+    <li><p>Guarda y pásale la contraseña</p>
+        <p>Dile que la cambie desde su perfil nada más entrar.</p></li>
+  </ol>
+
+  <h3>Cambiar el rol o la zona de alguien</h3>
+  <p>Se pulsa sobre la persona en la lista, se cambia y se guarda.</p>
+
+  <div class="aviso alto">
+    <span class="rotulo">Sobre ti mismo, no</span>
+    <p>Nadie puede cambiarse su propio rol ni su propia zona, ni aunque
+    sea administrador. Si necesitas cambiar el tuyo, tiene que hacerlo
+    otro administrador.</p>
+  </div>
+
+  <h3>Dar de baja a alguien</h3>
+  <p>Hay dos maneras, y casi siempre quieres la primera.</p>
+
+  <table>
+    <thead><tr><th style="width:26%">Opción</th><th>Qué hace</th><th style="width:26%">Cuándo</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Desactivar</strong></td><td>No podrá entrar, pero sigue existiendo: sus marcas conservan su nombre y el historial queda intacto.</td><td>Casi siempre. Alguien que se va de la empresa.</td></tr>
+      <tr><td><strong>Eliminar</strong></td><td>Borra la cuenta. Las marcas que llevaba se quedan sin agente.</td><td>Solo si la cuenta se creó por error.</td></tr>
+    </tbody>
+  </table>
+
+  <ol class="pasos">
+    <li><p>Abre la persona en la lista</p></li>
+    <li><p>Para desactivarla, quita el interruptor <strong>Activa</strong> y guarda</p></li>
+    <li><p>Para borrarla, pulsa <strong>Eliminar</strong> y confirma</p>
+        <p>Antes de hacerlo, mira cuántas marcas lleva: se quedarán sin
+           dueño y habrá que repartirlas.</p></li>
+  </ol>
+
+  <div class="aviso bien">
+    <span class="rotulo">Después de dar de baja a alguien</span>
+    <p>Filtra el tablero por <strong>Agente / Sin asignar</strong> para ver qué
+    marcas quedaron sueltas, y repártelas desde el avatar de cada tarjeta.</p>
+  </div>
+</section>
+
+<!-- ====================== 07 ====================== -->
+<section class="seccion" id="web">
+  <div class="cinta">
+    <span class="indicador" style="background:var(--verde)"></span>
+    <span class="capitulo">07 · Web pública</span>
+  </div>
+  <h2>La web pública</h2>
+  <p class="entradilla">
+    La página que ve cualquier visitante se edita entera desde
+    <span class="ruta">Web pública</span>, sin tocar código. Ningún texto de esa
+    página está escrito en el programa.
+  </p>
+
+  <h3>Qué se puede cambiar</h3>
+  <ul class="lista">
+    <li><strong>Textos</strong> — en español y en inglés, sección por sección.</li>
+    <li><strong>Imágenes</strong> — portada, vídeo de fondo, foto de «nosotros»,
+        fotos del equipo y logos de aliados.</li>
+    <li><strong>Colores</strong> — la identidad de la web, independiente del panel.</li>
+    <li><strong>Contacto</strong> — correo, WhatsApp y redes.</li>
+    <li><strong>Secciones</strong> — servicios, proyectos, equipo y aliados.</li>
+  </ul>
+
+  <h3>Cómo se publica un cambio</h3>
+  <ol class="pasos">
+    <li><p>Edita lo que quieras</p></li>
+    <li><p>Escribe una nota de cambio</p>
+        <p>Una línea del tipo «actualicé los logos de aliados». Sirve para
+           encontrar la versión después.</p></li>
+    <li><p>Publica</p>
+        <p>El cambio sale al instante en tsports.tech.</p></li>
+  </ol>
+
+  <div class="aviso bien">
+    <span class="rotulo">Se puede volver atrás</span>
+    <p>El sistema guarda el historial de versiones. Si algo no convence,
+    se restaura la anterior desde el propio panel. Y hay una opción para
+    volver al contenido de fábrica, que deja la web como salió de origen.</p>
+  </div>
+
+  <div class="aviso ojo">
+    <span class="rotulo">Las imágenes</span>
+    <p>Se suben desde el propio panel y quedan alojadas en el servidor.
+    Cada una admite hasta 5 MB. Conviene subirlas ya recortadas al tamaño
+    en que se van a ver: una foto de 6.000 píxeles de ancho hace que la
+    página tarde en cargar sin verse mejor.</p>
+  </div>
+</section>
+
+<!-- ====================== 08 ====================== -->
+<section class="seccion" id="auditoria">
+  <div class="cinta">
+    <span class="indicador" style="background:var(--gris-sua)"></span>
+    <span class="capitulo">08 · Auditoría</span>
+  </div>
+  <h2>Quién hizo qué</h2>
+  <p class="entradilla">
+    Solo para administradores. Registra cada cambio con su autor, la fecha
+    y lo que se tocó.
+  </p>
+
+  <p>Queda anotado el alta, la edición y el borrado de marcas; las
+  acciones de campaña que se anotan, corrigen o eliminan; los cambios de
+  agente; y los movimientos de cuentas, campañas y propiedades.</p>
+
+  <p>Sirve sobre todo para contestar dos preguntas: <em>«¿quién cambió
+  esto?»</em> y <em>«¿esto se hizo o se me olvidó?»</em>. En un equipo que
+  comparte todas las marcas, tenerlo por escrito evita más de una
+  discusión.</p>
+
+  <div class="aviso dato">
+    <span class="rotulo">Un detalle heredado</span>
+    <p>En el sistema anterior, cuando alguien no tenía permiso para
+    cambiar algo, la pantalla decía «Guardado, todo bien» sin haber guardado nada.
+    Aquí un permiso insuficiente es siempre un error explícito, y todo lo
+    que sí se guarda queda en este registro.</p>
+  </div>
+</section>
+
+<!-- ====================== 09 ====================== -->
+<section class="seccion" id="reglas">
+  <div class="cinta">
+    <span class="indicador" style="background:var(--negro)"></span>
+    <span class="capitulo">09 · Referencia</span>
+  </div>
+  <h2>Reglas que conviene conocer</h2>
+  <p class="entradilla">
+    Cosas que el sistema hace a propósito y que, sin saberlas, parecen
+    fallos. Todas salieron de cómo trabaja el equipo.
+  </p>
+
+  <table>
+    <thead><tr><th style="width:34%">Regla</th><th>Por qué</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Las tres fases son independientes</strong></td>
+        <td>Una marca puede tener propuesta sin prospección cerrada. No es un embudo secuencial y no se debe usar como tal.</td>
+      </tr>
+      <tr>
+        <td><strong>La prospección no se marca a mano</strong></td>
+        <td>Depende de cinco datos concretos. Si se pudiera forzar, el indicador dejaría de decir la verdad.</td>
+      </tr>
+      <tr>
+        <td><strong>Aproximación exige vía; propuesta exige descripción</strong></td>
+        <td>Marcar la casilla sin ese dato se rechaza. Una fase marcada sin nada detrás no informa de nada.</td>
+      </tr>
+      <tr>
+        <td><strong>El valor solo cuenta con propuesta enviada</strong></td>
+        <td>Sin propuesta el importe se guarda a cero, para que el total del pipeline no infle cifras de marcas con las que aún no se ha hablado de dinero.</td>
+      </tr>
+      <tr>
+        <td><strong>Los leads de la web nacen sin dueño</strong></td>
+        <td>El primero del equipo que los trabaja se los queda. Así ninguno se queda esperando a que alguien lo reparta.</td>
+      </tr>
+      <tr>
+        <td><strong>Nadie cambia su propio rol ni su zona</strong></td>
+        <td>Ni un administrador. Si el único se rebajase, no quedaría nadie capaz de dar permisos.</td>
+      </tr>
+      <tr>
+        <td><strong>Borrar una campaña no borra sus marcas</strong></td>
+        <td>Se quedan sin campaña. Borrar una propiedad sí se lleva sus líneas del checklist, y por eso conviene desactivarla.</td>
+      </tr>
+      <tr>
+        <td><strong>Cada asignación deja un evento</strong></td>
+        <td>Es lo que permite que una marca tenga varias acciones en fechas distintas. Guardar la ficha sin cambiar campaña ni fecha no repite la línea.</td>
+      </tr>
+      <tr>
+        <td><strong>El nombre de la campaña se copia en el evento</strong></td>
+        <td>Si la campaña se renombra o se borra, el historial tiene que seguir diciendo lo que de verdad pasó.</td>
+      </tr>
+      <tr>
+        <td><strong>El pronóstico va con la marca</strong></td>
+        <td>Se le apunta a su agente asignado, no a quien escribió la cifra: al reasignar la marca, el pronóstico la acompaña.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Si algo va mal</h3>
+  <ul class="lista">
+    <li><strong>«No se pudo contactar con el servidor»</strong> — normalmente es la
+        conexión. Recarga la página; lo que estuvieras escribiendo en un
+        formulario abierto se pierde, así que guarda a menudo.</li>
+    <li><strong>Un cambio no aparece</strong> — recarga con <code>Ctrl + F5</code>.
+        Si sigue igual, avisa a quien administra.</li>
+    <li><strong>Una fecha se ve un día antes</strong> — avísalo. Es un fallo
+        conocido en sistemas que mezclan husos horarios y aquí está
+        resuelto, pero conviene saberlo si reaparece.</li>
+  </ul>
+
+  <div class="aviso dato">
+    <span class="rotulo">Contacto</span>
+    <p>Las dudas sobre permisos y cuentas las resuelve quien administre el
+    sistema. Para lo demás, la auditoría suele contestar antes que
+    preguntar.</p>
+  </div>
+</section>
+
+</body>
+</html>
