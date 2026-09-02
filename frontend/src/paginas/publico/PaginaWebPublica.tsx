@@ -289,7 +289,14 @@ export function PaginaWebPublica() {
               {texto("hero.antetitulo")}
             </p>
 
-            <h1 className="text-4xl font-extrabold leading-[1.1] tracking-tight text-white sm:text-5xl lg:text-6xl">
+            {/*
+              `whitespace-pre-line` respeta los saltos de línea que venga
+              a poner quien edita el titular desde el panel. El texto se
+              pinta como texto —nunca como HTML— porque sale del CMS: si
+              se interpretara, cualquiera con acceso al panel podría
+              colar un <script> en la portada.
+            */}
+            <h1 className="whitespace-pre-line text-4xl font-extrabold leading-[1.1] tracking-tight text-white sm:text-5xl lg:text-6xl">
               {texto("hero.titulo")}
             </h1>
 
@@ -389,17 +396,21 @@ export function PaginaWebPublica() {
 
       {/* ============================== Equipo ============================= */}
       {contenido.equipo.length > 0 && (
-        <SeccionDeLaWeb conFondoAlterno id="equipo">
+        <SeccionDeLaWeb fondo="oscuro" id="equipo">
           <CabeceraDeSeccion
             antetitulo={texto("equipo.antetitulo")}
+            sobreFondoOscuro
             titulo={texto("equipo.titulo")}
           />
 
           <CarruselDeEquipo equipo={contenido.equipo} idioma={idioma} />
 
+          {/* La caja de "únete" ya no puede ser del azul de la marca: la
+              sección entera lo es y se perdería el borde. Se separa con
+              una línea tenue, como en el sitio anterior. */}
           <div
             ref={revelar}
-            className="revelar mt-10 rounded-3xl bg-[var(--web-azul)] px-6 py-8 text-center"
+            className="revelar mt-10 border-t border-white/15 px-6 pt-8 text-center"
           >
             <p className="text-lg font-bold text-white">
               {texto("equipo.unirseTitulo")}
@@ -561,7 +572,7 @@ export function PaginaWebPublica() {
 
       {/* ============================== Aliados ============================ */}
       {contenido.aliados.length > 0 && (
-        <SeccionDeLaWeb conFondoAlterno id="aliados">
+        <SeccionDeLaWeb fondo="alterno" id="aliados">
           <CabeceraDeSeccion
             antetitulo={texto("aliados.antetitulo")}
             titulo={texto("aliados.titulo")}
@@ -571,35 +582,57 @@ export function PaginaWebPublica() {
         </SeccionDeLaWeb>
       )}
 
-      {/* ============================= WhatsApp ============================ */}
-      {contenido.contacto.whatsapp && (
-        <section className="bg-[var(--web-acento-verde)] py-14">
-          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-6 px-4 sm:px-6">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/70">
-                {texto("whatsapp.antetitulo")}
-              </p>
-              <h2 className="mt-1 text-2xl font-extrabold tracking-tight text-white">
-                {texto("whatsapp.titulo")}
-              </h2>
-              <p className="mt-1 text-sm text-white/85">{texto("whatsapp.texto")}</p>
-              <p className="mt-2 text-lg font-bold text-white">
-                {contenido.contacto.whatsapp}
-              </p>
-            </div>
+      {/* ============================= WhatsApp =============================
+          Tarjeta sobre fondo claro, no franja de lado a lado.
 
-            <Button
-              as="a"
-              className="bg-white font-semibold text-[var(--web-acento-verde)]"
-              href={enlaceDeWhatsapp(contenido.contacto.whatsapp)}
-              radius="full"
-              rel="noreferrer"
-              size="lg"
-              startContent={<MessageCircle className="size-4" />}
-              target="_blank"
-            >
-              {texto("contacto.botonWhatsapp")}
-            </Button>
+          El color es el verde de WhatsApp (#25D366 a #128C7E) y no el
+          `acentoVerde` del CMS: ese es un verde menta claro, pensado para
+          detalles pequeños sobre fondo oscuro, y en un bloque grande deja
+          el texto blanco por debajo del contraste mínimo de la WCAG —se
+          leía a duras penas. Aquí, además, el verde de la propia marca
+          WhatsApp es el que la gente reconoce sin leer nada. */}
+      {contenido.contacto.whatsapp && (
+        <section className="py-14" style={{ backgroundColor: "var(--web-fondo-alterno)" }}>
+          <div className="mx-auto max-w-5xl px-4 sm:px-6">
+            <div className="relative flex flex-wrap items-center gap-7 overflow-hidden rounded-[20px] bg-[linear-gradient(135deg,#25D366,#128C7E)] px-10 py-9 shadow-[0_24px_50px_rgba(18,140,126,.35)]">
+              {/* Destello suave en la esquina, como en el sitio anterior. */}
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute -right-14 -top-14 size-60 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,.18),transparent_70%)]"
+              />
+
+              <span className="relative z-10 flex size-20 shrink-0 items-center justify-center rounded-full bg-white text-[#25D366] shadow-[0_8px_20px_rgba(0,0,0,.15)]">
+                <IconoWhatsapp className="size-9" />
+              </span>
+
+              <div className="relative z-10 flex-1 basis-80">
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/90">
+                  {texto("whatsapp.antetitulo")}
+                </p>
+                <h2 className="mt-2 text-2xl font-extrabold leading-tight tracking-tight text-white sm:text-3xl">
+                  {texto("whatsapp.titulo")}
+                </h2>
+                <p className="mt-2 max-w-lg text-sm text-white/95">
+                  {texto("whatsapp.texto")}
+                </p>
+                <p className="mt-2.5 text-lg font-bold tracking-wide text-white">
+                  {contenido.contacto.whatsapp}
+                </p>
+              </div>
+
+              <Button
+                as="a"
+                className="relative z-10 bg-white font-bold text-[#128C7E] shadow-[0_10px_24px_rgba(0,0,0,.18)]"
+                href={enlaceDeWhatsapp(contenido.contacto.whatsapp)}
+                radius="full"
+                rel="noreferrer"
+                size="lg"
+                startContent={<MessageCircle className="size-4" />}
+                target="_blank"
+              >
+                {texto("contacto.botonWhatsapp")}
+              </Button>
+            </div>
           </div>
         </section>
       )}
@@ -763,6 +796,38 @@ function CarruselDeEquipo({
 }) {
   const referenciaALaPista = useRef<HTMLDivElement>(null);
   const [posicionCentrada, establecerPosicionCentrada] = useState(0);
+  const [hayDesbordamiento, establecerHayDesbordamiento] = useState(false);
+
+  /*
+   * Si las fichas caben enteras, el carrusel no se puede desplazar y las
+   * flechas sobran. Se mide después de pintar y en cada cambio de tamaño
+   * de ventana, porque el ancho de la ficha va en `clamp()` y depende de
+   * la anchura disponible: la misma web puede desbordar en un portátil y
+   * no hacerlo en un monitor grande.
+   */
+  useEffect(() => {
+    const pista = referenciaALaPista.current;
+
+    if (pista === null) return;
+
+    function medir() {
+      const actual = referenciaALaPista.current;
+
+      if (actual === null) return;
+
+      // Un píxel de margen: los redondeos a subpíxel del navegador hacen
+      // que scrollWidth supere a clientWidth por décimas sin que haya
+      // nada real que desplazar.
+      establecerHayDesbordamiento(actual.scrollWidth > actual.clientWidth + 1);
+    }
+
+    medir();
+
+    const observador = new ResizeObserver(medir);
+    observador.observe(pista);
+
+    return () => observador.disconnect();
+  }, [equipo.length]);
 
   /** Desplaza el carrusel el ancho de una tarjeta. */
   function desplazar(direccion: -1 | 1) {
@@ -807,7 +872,7 @@ function CarruselDeEquipo({
     <div className="relative mt-10">
       <div
         ref={referenciaALaPista}
-        className="carrusel-equipo px-1 py-2"
+        className="carrusel-equipo px-1 py-4"
         onScroll={alDesplazarLaPista}
       >
         {equipo.map((miembro, posicion) => {
@@ -817,35 +882,56 @@ function CarruselDeEquipo({
             <article
               key={`${miembro.nombre}-${posicion}`}
               className={[
-                "w-44 text-center transition duration-300 sm:w-52",
-                estaCentrada ? "scale-100 opacity-100" : "scale-95 opacity-60",
+                "carrusel-equipo__ficha relative aspect-[3/4] overflow-hidden rounded-[18px]",
+                "transition duration-500",
+                estaCentrada
+                  ? "scale-100 shadow-[0_24px_55px_rgba(0,0,0,.55)] grayscale-0 brightness-100"
+                  : "scale-[0.93] grayscale brightness-[0.65]",
               ].join(" ")}
             >
+              {miembro.foto && (
+                <img
+                  alt={miembro.nombre}
+                  className="absolute inset-0 size-full object-cover"
+                  loading="lazy"
+                  src={miembro.foto}
+                />
+              )}
+
+              {/*
+                El nombre va SOBRE la foto, no debajo: así la ficha es una
+                sola pieza rectangular y el carrusel no cambia de altura
+                según lo largo que sea un cargo. El degradado oscuro por
+                detrás es lo que mantiene el texto legible sea cual sea la
+                foto que se suba desde el panel.
+              */}
               <div
                 className={[
-                  "mb-3 aspect-square w-full overflow-hidden rounded-3xl bg-slate-200 transition",
-                  estaCentrada ? "shadow-xl" : "shadow-md",
+                  "absolute inset-x-0 bottom-0 px-5 pb-4 pt-12 transition duration-500",
+                  estaCentrada
+                    ? "bg-[linear-gradient(transparent,rgba(22,199,154,.35)_40%,rgba(0,0,0,.9))]"
+                    : "bg-[linear-gradient(transparent,rgba(0,0,0,.85))]",
                 ].join(" ")}
               >
-                {miembro.foto && (
-                  <img
-                    alt={miembro.nombre}
-                    className="size-full object-cover"
-                    loading="lazy"
-                    src={miembro.foto}
-                  />
-                )}
+                <h3 className="text-lg font-bold leading-tight text-white">
+                  {miembro.nombre}
+                </h3>
+                <p className="text-sm font-semibold text-white/80">
+                  {miembro[idioma].cargo}
+                </p>
               </div>
-
-              <p className="text-sm font-bold text-slate-900">{miembro.nombre}</p>
-              <p className="text-xs text-slate-500">{miembro[idioma].cargo}</p>
             </article>
           );
         })}
       </div>
 
-      {/* Las flechas solo aparecen si de verdad hay algo que desplazar. */}
-      {equipo.length > 2 && (
+      {/*
+        Las flechas solo salen si de verdad hay algo que desplazar. Se
+        mide el desbordamiento real en vez de contar fichas: con cuatro
+        personas en una pantalla ancha caben todas, y unas flechas que no
+        hacen nada al pulsarlas parecen un fallo.
+      */}
+      {hayDesbordamiento && (
         <>
           <BotonDelCarrusel direccion="anterior" onPress={() => desplazar(-1)} />
           <BotonDelCarrusel direccion="siguiente" onPress={() => desplazar(1)} />
@@ -867,9 +953,16 @@ function BotonDelCarrusel({
   return (
     <button
       aria-label={esAnterior ? "Ver anteriores" : "Ver siguientes"}
+      // Cristal translúcido sobre el azul de la sección, como en el sitio
+      // anterior: un círculo blanco macizo pesa demasiado y se come la
+      // atención que tienen que llevarse las fotos.
       className={[
-        "absolute top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-white text-slate-700 shadow-lg transition hover:scale-110 hover:text-[var(--web-acento)]",
-        esAnterior ? "left-0 sm:-left-4" : "right-0 sm:-right-4",
+        "absolute top-1/2 z-10 flex size-[46px] -translate-y-1/2 items-center justify-center",
+        "rounded-full border border-white/30 bg-white/[0.14] text-white backdrop-blur-[6px]",
+        "transition hover:bg-white/30",
+        // En el móvil estorban: ahí se arrastra con el dedo.
+        "hidden sm:flex",
+        esAnterior ? "-left-2" : "-right-2",
       ].join(" ")}
       type="button"
       onClick={onPress}
@@ -939,40 +1032,74 @@ function MarquesinaDeAliados({
   );
 }
 
+/**
+ * Una franja de la portada. El fondo tiene tres variantes y ninguna se
+ * elige a ojo desde fuera: `alterno` es el gris muy claro que separa dos
+ * secciones seguidas, y `oscuro` el azul de la marca, que se reserva
+ * para el equipo —igual que en el sitio anterior— porque las fotos en
+ * blanco y negro necesitan fondo oscuro para no verse deslavadas.
+ */
 function SeccionDeLaWeb({
   id,
   children,
-  conFondoAlterno = false,
+  fondo = "claro",
 }: {
   id: string;
   children: React.ReactNode;
-  conFondoAlterno?: boolean;
+  fondo?: "claro" | "alterno" | "oscuro";
 }) {
+  const colorDeFondo = {
+    claro: undefined,
+    alterno: "var(--web-fondo-alterno)",
+    oscuro: "var(--web-azul)",
+  }[fondo];
+
   return (
     <section
-      className="py-20"
+      className={["py-20", fondo === "oscuro" ? "overflow-hidden" : ""].join(" ")}
       id={id}
-      style={conFondoAlterno ? { backgroundColor: "var(--web-fondo-alterno)" } : undefined}
+      style={colorDeFondo ? { backgroundColor: colorDeFondo } : undefined}
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6">{children}</div>
     </section>
   );
 }
 
-function AntetituloDeSeccion({ children }: { children: React.ReactNode }) {
+function AntetituloDeSeccion({
+  children,
+  sobreFondoOscuro = false,
+}: {
+  children: React.ReactNode;
+  sobreFondoOscuro?: boolean;
+}) {
   return (
     <p
       className="text-[11px] font-bold uppercase tracking-[0.2em]"
-      style={{ color: "var(--web-acento)" }}
+      style={{
+        // Sobre el azul de la marca, el acento azul no contrasta lo
+        // suficiente: ahí se usa el verde, como hacía el sitio anterior.
+        color: sobreFondoOscuro ? "var(--web-acento-verde)" : "var(--web-acento)",
+      }}
     >
       {children}
     </p>
   );
 }
 
-function TituloDeSeccion({ children }: { children: React.ReactNode }) {
+function TituloDeSeccion({
+  children,
+  sobreFondoOscuro = false,
+}: {
+  children: React.ReactNode;
+  sobreFondoOscuro?: boolean;
+}) {
   return (
-    <h2 className="mt-2 text-2xl font-extrabold leading-tight tracking-tight text-slate-900 sm:text-3xl">
+    <h2
+      className={[
+        "mt-2 text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl",
+        sobreFondoOscuro ? "text-white" : "text-slate-900",
+      ].join(" ")}
+    >
       {children}
     </h2>
   );
@@ -981,14 +1108,19 @@ function TituloDeSeccion({ children }: { children: React.ReactNode }) {
 function CabeceraDeSeccion({
   antetitulo,
   titulo,
+  sobreFondoOscuro = false,
 }: {
   antetitulo: string;
   titulo: string;
+  /** Invierte los colores del texto para las franjas de fondo oscuro. */
+  sobreFondoOscuro?: boolean;
 }) {
   return (
     <div className="mx-auto max-w-2xl text-center">
-      <AntetituloDeSeccion>{antetitulo}</AntetituloDeSeccion>
-      <TituloDeSeccion>{titulo}</TituloDeSeccion>
+      <AntetituloDeSeccion sobreFondoOscuro={sobreFondoOscuro}>
+        {antetitulo}
+      </AntetituloDeSeccion>
+      <TituloDeSeccion sobreFondoOscuro={sobreFondoOscuro}>{titulo}</TituloDeSeccion>
     </div>
   );
 }

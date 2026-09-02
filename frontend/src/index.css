@@ -174,12 +174,19 @@
    las tarjetas queden siempre centradas y no a medias. */
 .carrusel-equipo {
   display: flex;
-  gap: 1.25rem;
+  gap: 20px;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
   /* La barra de desplazamiento sobra: se navega con las flechas. */
   scrollbar-width: none;
+
+  /* `safe` es la palabra clave importante. Con `center` a secas, cuando
+     las fichas SÍ desbordan el navegador centra igualmente y recorta el
+     principio de la lista, dejando la primera persona inalcanzable por
+     mucho que se arrastre. Con `safe center` se centra solo mientras
+     quepa todo y, en cuanto desborda, vuelve a alinear al principio. */
+  justify-content: safe center;
 }
 
 .carrusel-equipo::-webkit-scrollbar {
@@ -189,6 +196,21 @@
 .carrusel-equipo > * {
   scroll-snap-align: center;
   flex: 0 0 auto;
+}
+
+/* El ancho de la ficha, igual que en el sitio anterior: crece con la
+   pantalla pero nunca baja de 220px ni pasa de 300px, para que la cara
+   siempre se reconozca y nunca ocupe media portada. */
+.carrusel-equipo__ficha {
+  flex: 0 0 clamp(220px, 30%, 300px);
+}
+
+@media (max-width: 700px) {
+  /* En el móvil se enseña una ficha entera y el borde de la siguiente,
+     que es lo que invita a arrastrar. */
+  .carrusel-equipo__ficha {
+    flex-basis: 72%;
+  }
 }
 
 /* Respeta a quien pidió menos movimiento en su sistema operativo. */
