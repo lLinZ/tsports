@@ -186,18 +186,23 @@ terminado.
 
 ## 3. Instalar en el VPS
 
-Pensado para **Ubuntu 22.04 LTS** recién instalado, que es la opción que
-ofrece el proveedor. Funciona igual en Ubuntu 20.04/24.04 y en Debian
-11/12.
+El servidor de producción corre **Debian 13 (Trixie)**, que es donde está
+probado. El instalador funciona igual en Debian 11/12 y en Ubuntu
+20.04/22.04/24.04.
 
-> **Al contratar el VPS, elige Ubuntu 22.04.** De la lista del proveedor
-> es la única con soporte hasta 2027: CentOS 7, Fedora 36 y Ubuntu 18.04
-> están fuera de mantenimiento, y AlmaLinux usa `dnf` en vez de `apt`, con
-> lo que el instalador no sirve.
+> **No sirve para AlmaLinux, CentOS ni Fedora:** usan `dnf` y otros
+> nombres de paquete.
 >
-> Ninguna distribución trae PHP 8.2 de fábrica (Ubuntu 22.04 viene con
-> 8.1), así que el instalador añade solo el repositorio que lo publica.
-> No hay que hacer nada a mano.
+> El instalador se adapta solo a la distribución, así que no hay nada que
+> tocar a mano. Dos diferencias que resuelve por su cuenta:
+>
+> - **PHP.** Debian 13 trae 8.4 y Ubuntu 24.04 trae 8.3; los dos valen
+>   para Laravel 12 y se usan tal cual. Ubuntu 22.04 trae 8.1 y Debian 11
+>   el 7.4, y ahí sí añade el repositorio que publica el 8.2.
+> - **Base de datos.** Debian **no publica `mysql-server`**: su motor es
+>   MariaDB. En Debian instala MariaDB y escribe `DB_CONNECTION=mariadb`
+>   en el `.env`, que en Laravel 12 es una conexión distinta de `mysql`.
+>   En Ubuntu sigue usando MySQL.
 
 ### Paso 1 — Traer el código
 
@@ -215,10 +220,11 @@ cd tsports
 ./deploy/instalar-vps.sh
 ```
 
-El guion se encarga de todo: instala nginx, MySQL, PHP y Node; crea la
-base de datos y su usuario; rellena el `.env`; aplica las migraciones;
-crea la cuenta de administrador; construye el frontend y configura
-nginx.
+El guion se encarga de todo: instala nginx, la base de datos, PHP y Node;
+crea la base de datos y su usuario; rellena el `.env`; aplica las
+migraciones; crea la cuenta de administrador; construye el frontend;
+configura nginx y levanta el cortafuegos dejando abiertos solo SSH, HTTP
+y HTTPS.
 
 Si tu dominio no es `tssports.com`, pásalo antes:
 
