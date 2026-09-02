@@ -52,6 +52,7 @@ import {
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { listarUsuarios } from "@/api/usuarios";
+import type { AccionVigenteDeLaMarca } from "@/api/marcas";
 import { CampoDeImagen } from "@/componentes/comunes/CampoDeImagen";
 import { ChecklistDePropiedades } from "@/componentes/crm/ChecklistDePropiedades";
 import { HistorialDeCampanas } from "@/componentes/crm/HistorialDeCampanas";
@@ -271,6 +272,39 @@ export function ModalDeMarca({
   const estaGuardando = crearMarca.isPending || actualizarMarca.isPending;
 
   /** Cambia un campo del formulario y limpia su error si lo tenía. */
+  /**
+   * Pone al día la campaña y la fecha del formulario cuando se toca el
+   * historial.
+   *
+   * Hace falta porque el formulario se rellena UNA VEZ, al abrir la
+   * ficha, a partir de la marca que llega por props —y esa marca es una
+   * instantánea que no se refresca—. Al borrar la acción en curso, el
+   * servidor deja la marca sin campaña, pero estos dos campos seguían
+   * enseñando la que se acababa de borrar; al guardar se reenviaban y el
+   * servidor los anotaba como una asignación nueva, así que la acción
+   * volvía a aparecer sola en el historial.
+   *
+   * Se tocan solo estos dos campos y no se recarga el formulario entero:
+   * quien está editando la ficha puede llevar media hora escrita en las
+   * notas, y borrar una línea del historial no puede costarle ese texto.
+   */
+  function sincronizarLaAccionEnCurso(
+    accionVigente: AccionVigenteDeLaMarca | null,
+  ) {
+    establecerFormulario((anterior) => ({
+      ...anterior,
+      campanaId: accionVigente?.campanaId ?? "",
+      fechaCampana: accionVigente?.fechaCampana ?? "",
+    }));
+
+    // Si quedaba pendiente el aviso de "falta la fecha", ya no aplica.
+    establecerErroresPorCampo((errores) => {
+      const { fechaCampana: _quitado, ...resto } = errores;
+
+      return resto;
+    });
+  }
+
   function cambiarCampo<Clave extends keyof FormularioDeMarca>(
     clave: Clave,
     valor: FormularioDeMarca[Clave],
@@ -565,6 +599,7 @@ export function ModalDeMarca({
                 <div className="mx-auto w-full max-w-3xl">
                 {pasoActual === 1 && (
                   <PasoLaMarca
+                    alCambiarLaAccionVigente={sincronizarLaAccionEnCurso}
                     cambiarCampo={cambiarCampo}
                     campanas={campanasActivas}
                     historialDeCampanas={historialDeCampanas}
@@ -760,6 +795,7 @@ interface PropiedadesDePaso {
 function PasoLaMarca({
   formulario,
   cambiarCampo,
+  alCambiarLaAccionVigente,
   historialDeCampanas,
   esUnaMarcaGuardada,
   errores,
@@ -772,6 +808,9 @@ function PasoLaMarca({
   historialDeCampanas: AccionDeCampanaEnElHistorial[];
   /** En una marca nueva no hay historial que enseñar todavía. */
   esUnaMarcaGuardada: boolean;
+  alCambiarLaAccionVigente: (
+    accionVigente: AccionVigenteDeLaMarca | null,
+  ) => void;
 }) {
   return (
     <div className="space-y-5">
@@ -902,7 +941,10 @@ function PasoLaMarca({
       {/* El recorrido de la marca. Solo en fichas ya guardadas: una
           marca que se está creando no tiene historial todavía. */}
       {esUnaMarcaGuardada && (
-        <HistorialDeCampanas historial={historialDeCampanas} />
+        <HistorialDeCampanas
+          alCambiarLaAccionVigente={alCambiarLaAccionVigente}
+          historial={historialDeCampanas}
+        />
       )}
 
       <div className="grid gap-5 sm:grid-cols-2">

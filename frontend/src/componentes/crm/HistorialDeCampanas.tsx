@@ -46,6 +46,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   corregirAccionDeCampana,
   eliminarAccionDeCampana,
+  type AccionVigenteDeLaMarca,
 } from "@/api/marcas";
 import { clavesDeMarcas } from "@/hooks/useMarcas";
 import { useCampanasActivas } from "@/hooks/useCampanas";
@@ -55,8 +56,24 @@ import type { AccionDeCampanaEnElHistorial } from "@/tipos/modelos";
 
 export function HistorialDeCampanas({
   historial,
+  alCambiarLaAccionVigente,
 }: {
   historial: AccionDeCampanaEnElHistorial[];
+  /**
+   * Se llama cuando tocar el historial cambia la acción en curso de la
+   * marca, con lo que el servidor dice que queda vigente (o `null` si el
+   * historial se vació).
+   *
+   * La ficha que esté abierta TIENE que hacerle caso. Sus campos de
+   * campaña y fecha son una copia del estado de la marca tomada al
+   * abrirla, y si se quedan con la acción que se acaba de borrar, al
+   * guardar se reenvían y el servidor las anota como una asignación
+   * nueva: la acción borrada reaparece sola. No es un fallo del
+   * servidor, es la ficha guardando lo que enseña.
+   */
+  alCambiarLaAccionVigente?: (
+    accionVigente: AccionVigenteDeLaMarca | null,
+  ) => void;
 }) {
   const clienteDeConsultas = useQueryClient();
 
@@ -80,9 +97,10 @@ export function HistorialDeCampanas({
   const borrarAccion = useMutation({
     mutationFn: eliminarAccionDeCampana,
 
-    onSuccess: () => {
+    onSuccess: (accionVigente) => {
       avisarDeExito("Acción eliminada del historial");
       establecerAccionPorBorrar(null);
+      alCambiarLaAccionVigente?.(accionVigente);
       refrescarLoQueDependeDelHistorial();
     },
 
@@ -238,7 +256,10 @@ export function HistorialDeCampanas({
       <ModalDeCorreccion
         accion={accionEnCorreccion}
         onCerrar={() => establecerAccionEnCorreccion(null)}
-        onCorregida={refrescarLoQueDependeDelHistorial}
+        onCorregida={(accionVigente) => {
+          alCambiarLaAccionVigente?.(accionVigente);
+          refrescarLoQueDependeDelHistorial();
+        }}
       />
     </>
   );
@@ -255,7 +276,7 @@ function ModalDeCorreccion({
 }: {
   accion: AccionDeCampanaEnElHistorial | null;
   onCerrar: () => void;
-  onCorregida: () => void;
+  onCorregida: (accionVigente: AccionVigenteDeLaMarca | null) => void;
 }) {
   const { campanas } = useCampanasActivas();
 
@@ -284,9 +305,9 @@ function ModalDeCorreccion({
       });
     },
 
-    onSuccess: () => {
+    onSuccess: ({ accionVigente }) => {
       avisarDeExito("Acción corregida");
-      onCorregida();
+      onCorregida(accionVigente);
       onCerrar();
     },
 

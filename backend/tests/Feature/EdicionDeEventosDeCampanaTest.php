@@ -242,6 +242,77 @@ class EdicionDeEventosDeCampanaTest extends TestCase
     /**
      * @return array{0:Marca,1:EventoDeCampana}
      */
+    /* ------------------------------------------------------------------
+     | Que lo borrado se quede borrado
+     |-----------------------------------------------------------------*/
+
+    /**
+     * El caso que reportó el equipo: se borraban las cuatro acciones de
+     * una marca y la última reaparecía sola en el historial.
+     *
+     * La causa no estaba aquí: el borrado limpiaba bien la marca, pero la
+     * ficha abierta en pantalla seguía enseñando la campaña y la fecha de
+     * antes —son una copia tomada al abrirla— y al guardar las reenviaba.
+     * El servidor las recibía como una asignación nueva y perfectamente
+     * legítima, y anotaba el evento otra vez.
+     *
+     * Por eso el borrado devuelve ahora con qué acción se queda la marca:
+     * es lo que permite a la ficha ponerse al día en vez de guardar algo
+     * que ya no es verdad. Si esta respuesta deja de mandarse, el
+     * formulario se queda ciego y el fallo vuelve.
+     */
+    public function test_borrar_una_accion_dice_con_cual_se_queda_la_marca(): void
+    {
+        $comercial = $this->crearUsuario(RolUsuario::Comercial);
+        [$marca, $eventoAntiguo] = $this->crearMarcaConEvento('2026-09-10');
+
+        $otraCampana = Campana::create(['nombre' => 'Envió material pop']);
+
+        $eventoReciente = EventoDeCampana::create([
+            'marca_id' => $marca->id,
+            'campana_id' => $otraCampana->id,
+            'campana_nombre' => $otraCampana->nombre,
+            'campana_color' => '#eab308',
+            'fecha' => '2026-10-01',
+        ]);
+
+        $marca->forceFill([
+            'campana_id' => $otraCampana->id,
+            'fecha_campana' => '2026-10-01',
+        ])->save();
+
+        // Al borrar la más reciente, manda la que quedaba.
+        $this->actingAs($comercial)
+            ->deleteJson("/api/eventos-de-campana/{$eventoReciente->id}")
+            ->assertOk()
+            ->assertJsonPath('accionVigente.campanaId', $eventoAntiguo->campana_id)
+            ->assertJsonPath('accionVigente.fechaCampana', '2026-09-10');
+
+        // Y al vaciar el historial del todo, ninguna.
+        $this->actingAs($comercial)
+            ->deleteJson("/api/eventos-de-campana/{$eventoAntiguo->id}")
+            ->assertOk()
+            ->assertJsonPath('accionVigente', null);
+
+        $this->assertNull($marca->fresh()->campana_id);
+    }
+
+    public function test_corregir_una_accion_dice_como_queda_la_accion_en_curso(): void
+    {
+        $comercial = $this->crearUsuario(RolUsuario::Comercial);
+        [, $evento] = $this->crearMarcaConEvento('2026-09-10');
+
+        // Misma trampa que al borrar: si la ficha abierta no se entera de
+        // la fecha corregida, al guardar escribe la vieja encima.
+        $this->actingAs($comercial)
+            ->putJson("/api/eventos-de-campana/{$evento->id}", [
+                'campanaId' => $evento->campana_id,
+                'fecha' => '2026-09-17',
+            ])
+            ->assertOk()
+            ->assertJsonPath('accionVigente.fechaCampana', '2026-09-17');
+    }
+
     private function crearMarcaConEvento(string $fecha): array
     {
         $campana = Campana::create(['nombre' => 'Visita presencial', 'color' => '#2563eb']);

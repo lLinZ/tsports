@@ -148,6 +148,20 @@ export async function eliminarComentario(
 /* ==================================================================== */
 
 /**
+ * Cómo queda la acción en curso de una marca después de tocar su
+ * historial. `null` significa que se quedó sin ninguna.
+ *
+ * La calcula el servidor y viaja en la respuesta: cuál es la acción
+ * vigente tras borrar o corregir un evento es una regla suya, y tenerla
+ * escrita también aquí es pedir que las dos versiones dejen de
+ * coincidir.
+ */
+export interface AccionVigenteDeLaMarca {
+  campanaId: string;
+  fechaCampana: string | null;
+}
+
+/**
  * Corrige una acción ya anotada: su campaña, su día o su nota.
  *
  * Los eventos se crean solos al asignar campaña en la ficha, pero la
@@ -156,22 +170,41 @@ export async function eliminarComentario(
  * van a pasar.
  *
  * Al guardar, el servidor vuelve a fijar la acción en curso de la marca
- * a partir de su historial, así que la ficha y el calendario quedan al
- * día sin que el cliente tenga que recalcular nada.
+ * a partir de su historial y devuelve cómo queda, para que la ficha
+ * abierta pueda ponerse al día.
  */
 export async function corregirAccionDeCampana(
   idDeLaAccion: string,
   datos: DatosDeAccionParaCorregir,
-): Promise<AccionDeCampanaEnElHistorial> {
+): Promise<{
+  evento: AccionDeCampanaEnElHistorial;
+  accionVigente: AccionVigenteDeLaMarca | null;
+}> {
   const { data } = await clienteHttp.put<{
     mensaje: string;
     evento: AccionDeCampanaEnElHistorial;
+    accionVigente: AccionVigenteDeLaMarca | null;
   }>(`/eventos-de-campana/${idDeLaAccion}`, datos);
 
-  return data.evento;
+  return { evento: data.evento, accionVigente: data.accionVigente ?? null };
 }
 
-/** Borra una acción del historial. Solo admin y comercial. */
-export async function eliminarAccionDeCampana(idDeLaAccion: string): Promise<void> {
-  await clienteHttp.delete(`/eventos-de-campana/${idDeLaAccion}`);
+/**
+ * Borra una acción del historial. Solo admin y comercial.
+ *
+ * Devuelve con qué acción se queda la marca —la más reciente de las que
+ * sobreviven, o ninguna si se vació el historial—. Quien llame tiene que
+ * usarla para refrescar el formulario abierto: si no, la ficha sigue
+ * enseñando la campaña recién borrada y al guardar la reenvía, con lo
+ * que la acción reaparece sola.
+ */
+export async function eliminarAccionDeCampana(
+  idDeLaAccion: string,
+): Promise<AccionVigenteDeLaMarca | null> {
+  const { data } = await clienteHttp.delete<{
+    mensaje: string;
+    accionVigente: AccionVigenteDeLaMarca | null;
+  }>(`/eventos-de-campana/${idDeLaAccion}`);
+
+  return data.accionVigente ?? null;
 }

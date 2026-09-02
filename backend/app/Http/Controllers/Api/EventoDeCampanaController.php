@@ -97,9 +97,18 @@ class EventoDeCampanaController extends Controller
             ['antes' => $comoEstabaAntes],
         );
 
+        // Igual que al borrar: corregir la acción más reciente cambia la
+        // acción en curso de la marca, y la ficha abierta tiene que
+        // enterarse o guardará la fecha vieja encima de la corregida.
+        $marcaActualizada = $evento->marca?->fresh();
+
         return response()->json([
             'mensaje' => 'Acción actualizada.',
             'evento' => $this->comoArreglo($evento->fresh()),
+            'accionVigente' => $marcaActualizada?->campana_id === null ? null : [
+                'campanaId' => $marcaActualizada->campana_id,
+                'fechaCampana' => $marcaActualizada->fecha_campana?->format('Y-m-d'),
+            ],
         ]);
     }
 
@@ -142,7 +151,25 @@ class EventoDeCampanaController extends Controller
             $descripcionDeLoBorrado,
         );
 
-        return response()->json(['mensaje' => 'Acción eliminada del historial.']);
+        // Se devuelve cómo queda la acción en curso de la marca —o null
+        // si el historial se vació— para que la ficha que esté abierta
+        // pueda ponerse al día.
+        //
+        // Va en la respuesta y no lo calcula el cliente a propósito: cuál
+        // es la acción vigente después de borrar es una regla del
+        // servidor (`sincronizarAccionEnCursoConSuHistorial`), y tenerla
+        // escrita en dos sitios es pedir que dejen de coincidir. Sin
+        // esto, el formulario se quedaba enseñando la campaña recién
+        // borrada y la reenviaba al guardar, resucitando la acción.
+        $marcaActualizada = $marca?->fresh();
+
+        return response()->json([
+            'mensaje' => 'Acción eliminada del historial.',
+            'accionVigente' => $marcaActualizada?->campana_id === null ? null : [
+                'campanaId' => $marcaActualizada->campana_id,
+                'fechaCampana' => $marcaActualizada->fecha_campana?->format('Y-m-d'),
+            ],
+        ]);
     }
 
     /**
