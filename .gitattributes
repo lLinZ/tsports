@@ -1,0 +1,29 @@
+# =====================================================================
+#  TS SPORTS — Normalización de finales de línea
+#  ---------------------------------------------------------------------
+#  El repositorio se edita en Windows y se ejecuta en Linux. Sin esto,
+#  git entrega los ficheros con retornos de carro (CRLF) y los guiones
+#  de deploy/ dejan de arrancar en el VPS: bash lee el "\r" como parte
+#  del intérprete y responde
+#
+#      /usr/bin/env: 'bash\r': No such file or directory
+#
+#  que es de los errores que más tiempo hacen perder, porque el fichero
+#  se ve perfectamente bien al abrirlo.
+#
+#  Se guarda TODO con LF dentro del repositorio y se entrega con LF en
+#  todas partes.
+# =====================================================================
+
+* text=auto eol=lf
+
+# Binarios: que git no toque un solo byte.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.woff binary
+*.woff2 binary
+*.pdf  binary

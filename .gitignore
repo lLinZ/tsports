@@ -1,0 +1,52 @@
+# =====================================================================
+#  TS SPORTS — Qué NO se sube al repositorio
+# =====================================================================
+
+# --- Dependencias (se reinstalan con composer install / npm ci) ---
+/backend/vendor/
+/frontend/node_modules/
+
+# --- Configuración con contraseñas ---
+# El .env lleva las claves de la base de datos y la clave de cifrado de
+# la aplicación. NUNCA se sube. La plantilla es backend/.env.example.
+/backend/.env
+/backend/.env.backup
+/backend/.env.production
+.env
+.env.local
+
+# --- Base de datos local ---
+/backend/database/*.sqlite
+/backend/database/*.sqlite-journal
+
+# --- Generado en cada arranque o despliegue ---
+/backend/storage/*.key
+/backend/storage/app/public/*
+!/backend/storage/app/public/.gitkeep
+/backend/storage/framework/cache/*
+/backend/storage/framework/sessions/*
+/backend/storage/framework/views/*
+/backend/storage/logs/*
+/backend/bootstrap/cache/*.php
+/backend/public/storage
+/frontend/dist/
+/frontend/.vite/
+/frontend/node_modules/.tmp/
+
+# --- Datos exportados de Supabase para importar ---
+# Contienen datos personales de los contactos: no van al repositorio.
+/backend/storage/app/import/
+
+# --- Del editor y del sistema operativo ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# --- Registros ---
+*.log
+npm-debug.log*
+yarn-error.log*

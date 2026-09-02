@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="TS Sports — Marketing y consultoría estratégica deportiva." />
+    <title>TS Sports</title>
+
+    <!-- Inter: la tipografía de toda la interfaz. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300..800;1,14..32,300..800&display=swap"
+      rel="stylesheet"
+    />
+
+    <!--
+      Pinta el tema ANTES de que React arranque. Sin esto, quien tiene el
+      modo oscuro guardado vería un destello blanco en cada recarga.
+      Lee la misma clave de localStorage que usa ProveedorTema.
+    -->
+    <script>
+      (function aplicarTemaGuardado() {
+        try {
+          var preferencia = localStorage.getItem("tsports:tema") || "sistema";
+          var prefiereOscuroElSistema = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          var debeSerOscuro =
+            preferencia === "oscuro" || (preferencia === "sistema" && prefiereOscuroElSistema);
+          document.documentElement.classList.toggle("dark", debeSerOscuro);
+
+          // Color de acento del perfil (se guarda junto al tema).
+          var acento = localStorage.getItem("tsports:acento");
+          if (acento) document.documentElement.setAttribute("data-acento", acento);
+        } catch (e) {
+          /* Si localStorage está bloqueado, se queda el tema claro. */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
