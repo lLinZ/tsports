@@ -356,8 +356,19 @@ ${COMO_ROOT} chown -R "${USUARIO_ACTUAL}":www-data "${CARPETA_DEL_PROYECTO}/back
 ${COMO_ROOT} chmod -R 775 "${CARPETA_DEL_PROYECTO}/backend/storage" \
                   "${CARPETA_DEL_PROYECTO}/backend/bootstrap/cache"
 
-# El .env lleva contraseñas: solo lo lee su dueño.
-chmod 600 "${CARPETA_DEL_PROYECTO}/backend/.env"
+# El .env lleva contraseñas, así que no puede ser legible por todo el
+# mundo. Pero tampoco puede ser 600: PHP-FPM corre como www-data y, si no
+# lo puede leer, Laravel NO da error — se calla y tira de los valores por
+# defecto del framework, donde DB_CONNECTION vale 'sqlite'. La aplicación
+# arranca, sirve la web, y luego cada petición que toca la base de datos
+# muere con un 500 quejándose de que falta database.sqlite. Cuesta horas
+# encontrarlo porque `php artisan` como root funciona perfectamente: root
+# sí puede leer el fichero.
+#
+# 640 con grupo www-data es el punto justo: lo lee el servidor web y su
+# dueño, y nadie más.
+${COMO_ROOT} chown "${USUARIO_ACTUAL}":www-data "${CARPETA_DEL_PROYECTO}/backend/.env"
+${COMO_ROOT} chmod 640 "${CARPETA_DEL_PROYECTO}/backend/.env"
 
 # ---------------------------------------------------------------------
 # 6) nginx
