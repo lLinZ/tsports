@@ -181,12 +181,16 @@
   /* La barra de desplazamiento sobra: se navega con las flechas. */
   scrollbar-width: none;
 
-  /* `safe` es la palabra clave importante. Con `center` a secas, cuando
-     las fichas SÍ desbordan el navegador centra igualmente y recorta el
-     principio de la lista, dejando la primera persona inalcanzable por
-     mucho que se arrastre. Con `safe center` se centra solo mientras
-     quepa todo y, en cuanto desborda, vuelve a alinear al principio. */
-  justify-content: safe center;
+  /* El hueco de los lados, que calcula el componente: media pista menos
+     media ficha. Es lo que permite que la PRIMERA y la ÚLTIMA persona
+     puedan quedar centradas; sin él, la primera se queda pegada al borde
+     izquierdo y nunca llega al centro por mucho que se arrastre.
+
+     Se intentó antes con `justify-content: center`, que centra el grupo
+     entero en vez de una ficha: en cuanto la lista desbordaba un poco,
+     el navegador recortaba el principio y la referencia de qué ficha
+     está en el centro dejaba de cuadrar con la que se veía resaltada. */
+  padding-inline: var(--margen-del-carrusel, 4px);
 }
 
 .carrusel-equipo::-webkit-scrollbar {
@@ -200,16 +204,22 @@
 
 /* El ancho de la ficha, igual que en el sitio anterior: crece con la
    pantalla pero nunca baja de 220px ni pasa de 300px, para que la cara
-   siempre se reconozca y nunca ocupe media portada. */
+   siempre se reconozca y nunca ocupe media portada.
+
+   Se mide contra la VENTANA (`vw`) y no contra la pista. Un porcentaje
+   se resuelve contra el ancho interior de la pista, que es justo lo que
+   el hueco lateral encoge: la ficha salía más estrecha, el hueco se
+   agrandaba para compensar y las dos medidas se perseguían hasta acabar
+   siempre en el mínimo. `26vw` equivale al 30% de la pista de antes. */
 .carrusel-equipo__ficha {
-  flex: 0 0 clamp(220px, 30%, 300px);
+  flex: 0 0 clamp(220px, 26vw, 300px);
 }
 
 @media (max-width: 700px) {
   /* En el móvil se enseña una ficha entera y el borde de la siguiente,
      que es lo que invita a arrastrar. */
   .carrusel-equipo__ficha {
-    flex-basis: 72%;
+    flex-basis: 72vw;
   }
 }
 

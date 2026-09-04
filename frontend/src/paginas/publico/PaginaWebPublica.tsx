@@ -782,14 +782,49 @@ function CifraDestacada({ valor, etiqueta }: { valor: string; etiqueta: string }
 }
 
 /**
+ * Cuánto se ignora el desplazamiento después de mover el carrusel a
+ * mano. El navegador anima el scroll y va disparando eventos por el
+ * camino; sin esta pausa, dos pulsaciones seguidas en la flecha leerían
+ * la posición a medio viaje y la segunda volvería atrás.
+ */
+const MILISEGUNDOS_DE_LA_ANIMACION = 700;
+
+/**
+ * Dónde empieza una ficha dentro de la pista, en píxeles de maquetación.
+ *
+ * Se usa `offsetLeft` y NO `getBoundingClientRect()`. Las fichas que no
+ * están centradas llevan un `scale(.93)`, y el rectángulo que devuelve el
+ * navegador es el YA TRANSFORMADO: la ficha encogida parece empezar once
+ * píxeles más a la derecha de donde de verdad está. Con esa medida, el
+ * destino salía siempre corrido y solo el anclaje del scroll lo tapaba.
+ *
+ * Cuenta con que la pista no esté posicionada —no lo está— para que
+ * `offsetLeft` incluya su hueco lateral, que es justo el origen desde el
+ * que se mide `scrollLeft`.
+ */
+function izquierdaEnLaPista(ficha: HTMLElement): number {
+  return ficha.offsetLeft;
+}
+
+/**
  * El equipo, como carrusel horizontal con flechas.
  *
  * Se eligió carrusel y no rejilla porque el equipo crece: con una
  * rejilla fija, la novena persona rompe la composición, mientras que
  * aquí simplemente se desplaza un poco más.
  *
- * La tarjeta más cercana al centro se resalta, que es lo que guía la
- * mirada al navegar.
+ * SIEMPRE HAY UNA FICHA CENTRADA Y RESALTADA, y al cargar es la primera
+ * de la lista. Que eso funcione depende de dos cosas:
+ *
+ *   · El hueco lateral de la pista (`--margen-del-carrusel`), que vale
+ *     media pista menos media ficha. Sin él, la primera persona no puede
+ *     llegar al centro y el resalte nunca coincide con lo que se ve.
+ *   · Que las flechas muevan un ÍNDICE y no un puñado de píxeles. Al
+ *     empujar píxeles, el resalte lo decidía después el evento de
+ *     desplazamiento y las dos cosas se desincronizaban.
+ *
+ * También se puede pulsar una ficha para traerla al centro, como en el
+ * sitio anterior.
  */
 function CarruselDeEquipo({
   equipo,
@@ -800,68 +835,99 @@ function CarruselDeEquipo({
 }) {
   const referenciaALaPista = useRef<HTMLDivElement>(null);
   const [posicionCentrada, establecerPosicionCentrada] = useState(0);
-  const [hayDesbordamiento, establecerHayDesbordamiento] = useState(false);
+
+  /**
+   * La ficha a la que se está yendo. Se guarda aparte del estado porque
+   * hace falta leerla dentro del mismo gesto: dos clics rápidos en la
+   * flecha tienen que avanzar dos fichas, y el estado todavía no se ha
+   * refrescado cuando llega el segundo.
+   */
+  const posicionObjetivo = useRef(0);
+
+  /** Cuándo se lanzó el último desplazamiento propio. Ver la constante. */
+  const momentoDelUltimoSalto = useRef(0);
 
   /*
-   * Si las fichas caben enteras, el carrusel no se puede desplazar y las
-   * flechas sobran. Se mide después de pintar y en cada cambio de tamaño
-   * de ventana, porque el ancho de la ficha va en `clamp()` y depende de
-   * la anchura disponible: la misma web puede desbordar en un portátil y
-   * no hacerlo en un monitor grande.
+   * El hueco de los lados: media pista menos media ficha. Se recalcula
+   * al cambiar el tamaño porque el ancho de la ficha va en `clamp()` y
+   * depende de la anchura disponible.
    */
   useEffect(() => {
     const pista = referenciaALaPista.current;
 
     if (pista === null) return;
 
-    function medir() {
+    function medirElMargen() {
       const actual = referenciaALaPista.current;
+      const primeraFicha = actual?.querySelector("article");
 
-      if (actual === null) return;
+      if (!actual || !primeraFicha) return;
 
-      // Un píxel de margen: los redondeos a subpíxel del navegador hacen
-      // que scrollWidth supere a clientWidth por décimas sin que haya
-      // nada real que desplazar.
-      establecerHayDesbordamiento(actual.scrollWidth > actual.clientWidth + 1);
+      const margen = Math.max(
+        4,
+        (actual.clientWidth - primeraFicha.offsetWidth) / 2,
+      );
+
+      actual.style.setProperty("--margen-del-carrusel", `${margen}px`);
     }
 
-    medir();
+    medirElMargen();
 
-    const observador = new ResizeObserver(medir);
+    const observador = new ResizeObserver(medirElMargen);
     observador.observe(pista);
 
     return () => observador.disconnect();
   }, [equipo.length]);
 
-  /** Desplaza el carrusel el ancho de una tarjeta. */
-  function desplazar(direccion: -1 | 1) {
+  /** Trae al centro la ficha de esa posición. */
+  function irALaFicha(posicion: number) {
     const pista = referenciaALaPista.current;
 
     if (pista === null) return;
 
-    const primeraTarjeta = pista.querySelector("article");
-    const anchoDeUnPaso = primeraTarjeta
-      ? primeraTarjeta.clientWidth + 20
-      : 260;
+    const destino = Math.min(Math.max(posicion, 0), equipo.length - 1);
+    const ficha = pista.querySelectorAll("article")[destino];
 
-    pista.scrollBy({ left: anchoDeUnPaso * direccion, behavior: "smooth" });
+    if (ficha === undefined) return;
+
+    posicionObjetivo.current = destino;
+    momentoDelUltimoSalto.current = Date.now();
+
+    // El resalte cambia ya, sin esperar a que termine la animación: si
+    // esperase, la ficha se movería antes de encenderse y se vería el
+    // salto en dos tiempos.
+    establecerPosicionCentrada(destino);
+
+    pista.scrollTo({
+      left:
+        izquierdaEnLaPista(ficha) - (pista.clientWidth - ficha.offsetWidth) / 2,
+      behavior: "smooth",
+    });
   }
 
-  /** Recalcula qué tarjeta está más cerca del centro al desplazarse. */
+  /**
+   * Al arrastrar con el dedo o con la rueda, manda la posición real: se
+   * resalta la ficha que ha quedado más cerca del centro.
+   */
   function alDesplazarLaPista() {
     const pista = referenciaALaPista.current;
 
     if (pista === null) return;
 
+    // Mientras dura una animación propia, el destino ya está decidido.
+    if (Date.now() - momentoDelUltimoSalto.current < MILISEGUNDOS_DE_LA_ANIMACION) {
+      return;
+    }
+
     const centroDeLaVista = pista.scrollLeft + pista.clientWidth / 2;
-    const tarjetas = Array.from(pista.querySelectorAll("article"));
+    const fichas = Array.from(pista.querySelectorAll("article"));
 
     let posicionMasCercana = 0;
     let distanciaMinima = Number.POSITIVE_INFINITY;
 
-    tarjetas.forEach((tarjeta, posicion) => {
-      const centroDeLaTarjeta = tarjeta.offsetLeft + tarjeta.offsetWidth / 2;
-      const distancia = Math.abs(centroDeLaTarjeta - centroDeLaVista);
+    fichas.forEach((ficha, posicion) => {
+      const centroDeLaFicha = izquierdaEnLaPista(ficha) + ficha.offsetWidth / 2;
+      const distancia = Math.abs(centroDeLaFicha - centroDeLaVista);
 
       if (distancia < distanciaMinima) {
         distanciaMinima = distancia;
@@ -869,6 +935,7 @@ function CarruselDeEquipo({
       }
     });
 
+    posicionObjetivo.current = posicionMasCercana;
     establecerPosicionCentrada(posicionMasCercana);
   }
 
@@ -876,7 +943,7 @@ function CarruselDeEquipo({
     <div className="relative mt-10">
       <div
         ref={referenciaALaPista}
-        className="carrusel-equipo px-1 py-4"
+        className="carrusel-equipo py-4"
         onScroll={alDesplazarLaPista}
       >
         {equipo.map((miembro, posicion) => {
@@ -885,13 +952,23 @@ function CarruselDeEquipo({
           return (
             <article
               key={`${miembro.nombre}-${posicion}`}
+              aria-label={`Ver a ${miembro.nombre}`}
               className={[
-                "carrusel-equipo__ficha relative aspect-[3/4] overflow-hidden rounded-[18px]",
+                "carrusel-equipo__ficha relative aspect-[3/4] cursor-pointer overflow-hidden rounded-[18px]",
                 "transition duration-500",
                 estaCentrada
                   ? "scale-100 shadow-[0_24px_55px_rgba(0,0,0,.55)] grayscale-0 brightness-100"
                   : "scale-[0.93] grayscale brightness-[0.65]",
               ].join(" ")}
+              role="button"
+              tabIndex={0}
+              onClick={() => irALaFicha(posicion)}
+              onKeyDown={(evento) => {
+                if (evento.key === "Enter" || evento.key === " ") {
+                  evento.preventDefault();
+                  irALaFicha(posicion);
+                }
+              }}
             >
               {miembro.foto && (
                 <img
@@ -930,15 +1007,22 @@ function CarruselDeEquipo({
       </div>
 
       {/*
-        Las flechas solo salen si de verdad hay algo que desplazar. Se
-        mide el desbordamiento real en vez de contar fichas: con cuatro
-        personas en una pantalla ancha caben todas, y unas flechas que no
-        hacen nada al pulsarlas parecen un fallo.
+        Las flechas salen en cuanto hay más de una persona. Antes se medía
+        si la lista desbordaba, pero con el hueco lateral la pista siempre
+        se puede desplazar y esa cuenta ya no dice nada: lo que mueven las
+        flechas es cuál está centrada, y eso tiene sentido aunque quepan
+        todas en pantalla.
       */}
-      {hayDesbordamiento && (
+      {equipo.length > 1 && (
         <>
-          <BotonDelCarrusel direccion="anterior" onPress={() => desplazar(-1)} />
-          <BotonDelCarrusel direccion="siguiente" onPress={() => desplazar(1)} />
+          <BotonDelCarrusel
+            direccion="anterior"
+            onPress={() => irALaFicha(posicionObjetivo.current - 1)}
+          />
+          <BotonDelCarrusel
+            direccion="siguiente"
+            onPress={() => irALaFicha(posicionObjetivo.current + 1)}
+          />
         </>
       )}
     </div>
