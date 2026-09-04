@@ -98,6 +98,36 @@ class PermisosDeCuentasTest extends TestCase
         $this->assertDatabaseMissing('users', ['email' => 'colada@test.test']);
     }
 
+    /**
+     * Una cuenta recién creada tiene que volver ENTERA.
+     *
+     * `tema` y `color_acento` traen su valor por defecto en la migración,
+     * pero un DEFAULT de la base solo se aplica al escribir: el objeto
+     * que devolvía `User::create()` se quedaba con `tema` a null y el
+     * recurso reventaba al hacer `tema->value`. Resultado: la cuenta se
+     * creaba, el servidor respondía 500 y la interfaz no llegaba a
+     * refrescar la lista, así que la persona recién dada de alta no
+     * aparecía hasta recargar la página.
+     */
+    public function test_crear_una_cuenta_devuelve_sus_preferencias_ya_puestas(): void
+    {
+        $administrador = $this->crearUsuario(RolUsuario::Admin);
+
+        $this->actingAs($administrador)
+            ->postJson('/api/admin/usuarios', [
+                'nombre' => 'Agente Nuevo',
+                'email' => 'agente.nuevo@test.test',
+                'password' => 'clave-larga-123',
+                'rol' => 'vendedor',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.nombre', 'Agente Nuevo')
+            ->assertJsonPath('data.rolEtiqueta', 'Agente')
+            ->assertJsonPath('data.tema', 'sistema')
+            ->assertJsonPath('data.colorAcento', '#1b9aaa')
+            ->assertJsonPath('data.activo', true);
+    }
+
     /* ------------------------------------------------------------------
      | Perfil propio
      |-----------------------------------------------------------------*/

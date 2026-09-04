@@ -51,6 +51,27 @@ class User extends Authenticatable
         'activo',
     ];
 
+    /**
+     * Valores de partida de las preferencias visuales.
+     *
+     * La columna ya trae estos mismos valores por defecto en la
+     * migración, pero un `DEFAULT` de la base solo se aplica al escribir:
+     * el objeto que `User::create()` devuelve se queda con `tema` a null
+     * hasta que alguien lo relee. Y `RecursoUsuario` hace `tema->value`,
+     * así que dar de alta una cuenta respondía 500 —con la cuenta ya
+     * creada—, la interfaz cantaba error y la lista no se refrescaba
+     * hasta recargar la página.
+     *
+     * Repetirlos aquí es lo que hace que un usuario recién creado esté
+     * completo desde el primer momento, venga de donde venga: del panel,
+     * del sembrador o del importador.
+     */
+    protected $attributes = [
+        'tema' => 'sistema',
+        'color_acento' => '#1b9aaa',
+        'activo' => true,
+    ];
+
     /** Nunca se serializan hacia el cliente. */
     protected $hidden = [
         'password',

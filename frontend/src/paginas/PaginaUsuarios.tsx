@@ -302,26 +302,41 @@ function ModalDeUsuario({
     FORMULARIO_DE_USUARIO_VACIO,
   );
 
-  // Se recarga el formulario cada vez que se abre el modal con otra
-  // cuenta. La clave del Modal fuerza el remontaje, así que basta con
-  // inicializar el estado a partir de las propiedades.
-  const [idDelUsuarioCargado, establecerIdCargado] = useState<string | null>(null);
-  const idQueTocaCargar = usuarioEnEdicion?.id ?? null;
+  /*
+   * El formulario se recarga cada vez que se ABRE el modal, no cada vez
+   * que cambia de cuenta.
+   *
+   * La versión anterior comparaba el id de la cuenta en edición, y dos
+   * altas seguidas comparten identidad: ninguna, las dos `null`. Al abrir
+   * "Nueva cuenta" por segunda vez, el formulario seguía con los datos de
+   * la primera y el servidor la rechazaba por correo repetido, que es un
+   * error desconcertante cuando uno cree estar viendo un formulario en
+   * blanco. Por eso el alta tiene aquí una clave propia.
+   */
+  const [loQueEstaCargado, establecerLoQueEstaCargado] = useState<string | null>(
+    null,
+  );
+  const loQueTocaCargar = estaAbierto
+    ? (usuarioEnEdicion?.id ?? "cuenta-nueva")
+    : null;
 
-  if (estaAbierto && idDelUsuarioCargado !== idQueTocaCargar) {
-    establecerIdCargado(idQueTocaCargar);
-    establecerFormulario(
-      usuarioEnEdicion
-        ? {
-            nombre: usuarioEnEdicion.nombre,
-            email: usuarioEnEdicion.email ?? "",
-            password: "",
-            rol: usuarioEnEdicion.rol,
-            zona: usuarioEnEdicion.zona ?? "",
-            activo: usuarioEnEdicion.activo,
-          }
-        : FORMULARIO_DE_USUARIO_VACIO,
-    );
+  if (loQueEstaCargado !== loQueTocaCargar) {
+    establecerLoQueEstaCargado(loQueTocaCargar);
+
+    if (estaAbierto) {
+      establecerFormulario(
+        usuarioEnEdicion
+          ? {
+              nombre: usuarioEnEdicion.nombre,
+              email: usuarioEnEdicion.email ?? "",
+              password: "",
+              rol: usuarioEnEdicion.rol,
+              zona: usuarioEnEdicion.zona ?? "",
+              activo: usuarioEnEdicion.activo,
+            }
+          : FORMULARIO_DE_USUARIO_VACIO,
+      );
+    }
   }
 
   const guardarCuenta = useMutation({
@@ -432,11 +447,29 @@ function ModalDeUsuario({
             }
           />
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          {/*
+            Dos detalles que este par de campos necesita, y ninguno es
+            cosmético:
+
+            · `items-start`. Un Select de HeroUI empuja su control al
+              fondo de la caja (`justify-end`), contando con que la caja
+              mida lo justo. En una rejilla, las celdas se estiran a la
+              altura de la más alta —aquí la de Zona, que lleva texto de
+              ayuda— y el control de Rol se descolgaba hasta abajo,
+              dejando un hueco enorme bajo su etiqueta.
+
+            · `outside-top`. Con `outside` a secas la etiqueta no va en el
+              flujo: se coloca encima del control y se sube con un
+              `translate`, salvo que el campo tenga texto de ayuda. Como
+              Zona lo tiene y Rol no, cada uno usaba un mecanismo distinto
+              y las dos etiquetas quedaban a distinta altura. `outside-top`
+              la pone arriba y en el flujo siempre.
+          */}
+          <div className="grid items-start gap-4 sm:grid-cols-2">
             <Select
               isDisabled={estaEditandoSuPropiaCuenta}
               label="Rol"
-              labelPlacement="outside"
+              labelPlacement="outside-top"
               radius="lg"
               selectedKeys={[formulario.rol]}
               variant="bordered"
@@ -462,7 +495,7 @@ function ModalDeUsuario({
               description="Las marcas que registre heredarán esta zona."
               isDisabled={estaEditandoSuPropiaCuenta}
               label="Zona"
-              labelPlacement="outside"
+              labelPlacement="outside-top"
               placeholder="Sin zona"
               radius="lg"
               selectedKeys={formulario.zona ? [formulario.zona] : []}
