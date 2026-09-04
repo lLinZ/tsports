@@ -39,14 +39,38 @@ class PanelController extends Controller
 {
     /**
      * GET /api/panel/resumen
+     *
+     * Devuelve UNA DE DOS RESPUESTAS, y el campo `alcance` dice cuál:
+     *
+     *   · "empresa"  → admin y comercial. El cuadro completo.
+     *   · "personal" → el agente. Solo su cartera.
+     *
+     * El corte se hace aquí y no en la interfaz a propósito. Si el
+     * servidor mandara siempre las cifras de la agencia y el navegador
+     * decidiera cuáles pintar, el pipeline entero seguiría viajando en la
+     * respuesta y se leería desde el inspector. Lo que no se tiene
+     * derecho a ver, no se calcula ni se envía.
      */
     public function resumen(Request $peticion): JsonResponse
     {
         $this->authorize('viewAny', Marca::class);
 
+        /** @var User $usuario */
+        $usuario = $peticion->user();
+
+        if (! $usuario->rol->veLasCifrasDeTodaLaEmpresa()) {
+            return response()->json([
+                'alcance' => 'personal',
+                'misNumeros' => $this->misNumeros($usuario),
+                'misPropiedades' => $this->misPropiedades($usuario),
+                'misCampanas' => $this->misCampanas($usuario),
+            ]);
+        }
+
         return response()->json([
+            'alcance' => 'empresa',
             'contadores' => $this->contadoresGenerales(),
-            'misNumeros' => $this->misNumeros($peticion->user()),
+            'misNumeros' => $this->misNumeros($usuario),
             'porZona' => $this->resumenPorZona(),
             'porSector' => $this->resumenPorSector(),
             'porVendedor' => $this->resumenPorVendedor(),
@@ -157,6 +181,73 @@ class PanelController extends Controller
             'miPronostico' => round($miPronostico, 2),
             'accionesPorDelante' => $accionesPorDelante,
         ];
+    }
+
+    /**
+     * Qué propiedades está ofreciendo el agente y cuánto pronostica de
+     * cada una, contando SOLO sus marcas.
+     *
+     * Deliberadamente NO lleva el MTP de la propiedad ni la meta de venta
+     * del catálogo: son cifras de la agencia, y esta respuesta es la de
+     * quien solo ve lo suyo. Aquí la pregunta es "¿por dónde va mi
+     * pronóstico?", no "¿cuánto vale el producto?".
+     *
+     * @return list<array<string,mixed>>
+     */
+    private function misPropiedades(User $usuario): array
+    {
+        return DB::table('propiedades_de_marca as lineas')
+            ->join('marcas', 'marcas.id', '=', 'lineas.marca_id')
+            ->join('propiedades', 'propiedades.id', '=', 'lineas.propiedad_id')
+            ->where('marcas.vendedor_asignado_id', $usuario->id)
+            ->select('propiedades.id as propiedad_id')
+            ->selectRaw('MAX(propiedades.nombre) as nombre')
+            ->selectRaw('COALESCE(SUM(lineas.ovp_usd), 0) as ovp')
+            ->selectRaw('COUNT(DISTINCT lineas.marca_id) as total_marcas')
+            ->groupBy('propiedades.id')
+            ->orderByDesc(DB::raw('SUM(lineas.ovp_usd)'))
+            ->get()
+            ->map(static fn ($fila): array => [
+                'propiedadId' => (string) $fila->propiedad_id,
+                'nombre' => (string) $fila->nombre,
+                'ovpUsd' => round((float) $fila->ovp, 2),
+                'totalMarcas' => (int) $fila->total_marcas,
+            ])
+            ->all();
+    }
+
+    /**
+     * Cómo se reparten las marcas del agente entre campañas.
+     *
+     * Solo salen las campañas en las que de verdad tiene marcas. En el
+     * panel de la empresa se listan todas, incluso vacías, porque ahí la
+     * pregunta es cuál hay que empujar; aquí una lista de campañas a cero
+     * solo sería ruido.
+     *
+     * El nombre y el color se leen de `campanas` y no del historial: esto
+     * describe cómo están AHORA sus marcas, no lo que se hizo en su día.
+     *
+     * @return list<array<string,mixed>>
+     */
+    private function misCampanas(User $usuario): array
+    {
+        return Marca::query()
+            ->leftJoin('campanas', 'campanas.id', '=', 'marcas.campana_id')
+            ->where('marcas.vendedor_asignado_id', $usuario->id)
+            ->select('marcas.campana_id')
+            ->selectRaw('MAX(campanas.nombre) as nombre')
+            ->selectRaw('MAX(campanas.color) as color')
+            ->selectRaw('COUNT(*) as total')
+            ->groupBy('marcas.campana_id')
+            ->orderByDesc(DB::raw('COUNT(*)'))
+            ->get()
+            ->map(static fn ($fila): array => [
+                'campanaId' => $fila->campana_id,
+                'nombre' => (string) ($fila->nombre ?: 'Sin campaña'),
+                'color' => (string) ($fila->color ?: '#94a3b8'),
+                'total' => (int) $fila->total,
+            ])
+            ->all();
     }
 
     /**

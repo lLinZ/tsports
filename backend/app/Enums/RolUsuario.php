@@ -87,6 +87,25 @@ enum RolUsuario: string
         return $this === self::Admin || $this === self::Comercial;
     }
 
+    /**
+     * ¿Ve las cifras de TODA la empresa, o solo las suyas?
+     *
+     * Es la que decide la forma del panel de resumen y del calendario.
+     * Admin y comercial necesitan el cuadro completo —el pipeline entero,
+     * el reparto por zona, cuánto pronostica cada persona— porque es con
+     * lo que reparten el trabajo. El agente no: lo suyo es su cartera, y
+     * el total de la agencia no le dice nada sobre su día.
+     *
+     * No es solo cuestión de enseñar menos. El servidor deja de calcular
+     * y de ENVIAR esas cifras: si únicamente se escondieran en la
+     * interfaz, seguirían viajando en la respuesta y cualquiera podría
+     * leerlas desde el inspector del navegador.
+     */
+    public function veLasCifrasDeTodaLaEmpresa(): bool
+    {
+        return $this === self::Admin || $this === self::Comercial;
+    }
+
     /** Todos los valores, para poblar selectores y validaciones. */
     public static function valores(): array
     {

@@ -3,7 +3,19 @@
  * ---------------------------------------------------------------------
  * El resumen: lo primero que ve el equipo al entrar.
  *
- * Está montado como una rejilla bento de cajas de distinto tamaño:
+ * SON DOS PANTALLAS, y el servidor decide cuál toca:
+ *
+ *   · `alcance: "empresa"`  → admin y comercial. El cuadro completo, con
+ *     el que se reparte el trabajo. Es lo que se describe abajo.
+ *   · `alcance: "personal"` → el agente. Su agenda y su cartera, sin una
+ *     sola cifra de la agencia. Lo pinta `PanelDelAgente`.
+ *
+ * El corte lo hace el servidor, no este fichero: a un agente las cifras
+ * de la agencia ni siquiera le llegan. Si solo se escondieran aquí,
+ * seguirían viajando en la respuesta y se leerían desde el inspector.
+ *
+ * El panel de la empresa está montado como una rejilla bento de cajas de
+ * distinto tamaño:
  *
  *   · Arriba, los cinco contadores grandes y, en su propia fila, los dos
  *     de los productos IOP: la meta del catálogo y lo que el equipo
@@ -23,6 +35,7 @@ import { Button, Chip, Progress } from "@heroui/react";
 import {
   Activity,
   Building2,
+  CalendarClock,
   CheckCircle2,
   Handshake,
   MapPin,
@@ -55,7 +68,9 @@ import {
 import type {
   MisNumerosDelPanel,
   ResumenDeInversionPorZona,
+  ResumenDelAgente,
   ResumenDeZona,
+  Usuario,
 } from "@/tipos/modelos";
 
 /** Color fijo de cada fase, el mismo en todos los gráficos del sistema. */
@@ -80,6 +95,13 @@ export function PaginaPanel() {
         alReintentar={() => void consulta.refetch()}
       />
     );
+  }
+
+  // El servidor manda una de dos respuestas y `alcance` dice cuál. El
+  // agente no recibe ni una cifra de la agencia, así que no hay nada que
+  // esconder aquí: simplemente se pinta otro panel.
+  if (consulta.data.alcance === "personal") {
+    return <PanelDelAgente resumen={consulta.data} usuario={usuario} />;
   }
 
   const {
@@ -124,13 +146,10 @@ export function PaginaPanel() {
       {/*
         Lo propio, antes que lo del equipo.
 
-        Para un vendedor esto ES el panel: lleva doce marcas y saber que
-        en total hay setenta y una no le dice nada sobre su día. Va
-        arriba del todo y con el color de acento para que se lea primero.
-
-        Se enseña también a admin y comercial cuando llevan marcas suyas
-        —muchos las llevan— y se calla cuando no tienen ninguna, que es
-        cuando serían cinco ceros ocupando la mejor parte de la pantalla.
+        Un comercial que además lleva marcas suyas quiere verlas antes
+        que el total de la agencia. Se calla cuando no tiene ninguna, que
+        es cuando serían cinco ceros ocupando la mejor parte de la
+        pantalla.
       */}
       {misNumeros.totalMarcas > 0 && (
         <MisMarcasDeUnVistazo miId={usuario.id} numeros={misNumeros} />
@@ -492,6 +511,203 @@ export function PaginaPanel() {
                       </Chip>
                     )}
                   </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </TarjetaBento>
+      </RejillaBento>
+    </div>
+  );
+}
+
+/* ==================================================================== */
+/* El panel del agente                                                 */
+/* ==================================================================== */
+
+/**
+ * El panel de quien solo ve lo suyo.
+ *
+ * No es el panel de la empresa con cajas escondidas: es otra pantalla,
+ * porque contesta otra pregunta. La de arriba dice "cómo va la agencia";
+ * esta dice "qué tengo yo y qué me toca hacer". Por eso el orden es
+ * agenda primero y cifras después, al revés que en el panel de la
+ * dirección.
+ *
+ * Las cifras de la agencia —el pipeline entero, el reparto por zona, lo
+ * que pronostica cada compañero— no llegan siquiera al navegador: el
+ * servidor devuelve otra respuesta (`alcance: "personal"`). Esconderlas
+ * al pintar habría dejado el dato viajando en la red.
+ */
+function PanelDelAgente({
+  resumen,
+  usuario,
+}: {
+  resumen: ResumenDelAgente;
+  usuario: Usuario;
+}) {
+  const { misNumeros, misPropiedades, misCampanas } = resumen;
+
+  const noTieneNadaAsignado = misNumeros.totalMarcas === 0;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold tracking-tight text-foreground">
+            Hola, {usuario.nombre.split(" ")[0]}
+          </h2>
+          <p className="mt-0.5 text-sm text-default-500">
+            {noTieneNadaAsignado
+              ? "Todavía no tienes marcas asignadas."
+              : "Esto es lo que llevas y lo que tienes por delante."}
+          </p>
+        </div>
+
+        <Button
+          as={Link}
+          color="primary"
+          radius="lg"
+          size="sm"
+          startContent={<Building2 className="size-4" />}
+          to={`/marcas?vendedor=${usuario.id}`}
+          variant="flat"
+        >
+          Ver mis marcas
+        </Button>
+      </div>
+
+      {/* Las seis cifras propias. Las mismas que ve un comercial de sí
+          mismo, aquí en primer plano porque son TODO su panel. */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <TarjetaDeMetrica
+          etiqueta="Marcas asignadas"
+          icono={<Building2 className="size-4" />}
+          valor={formatearNumero(misNumeros.totalMarcas)}
+        />
+        <TarjetaDeMetrica
+          color={COLOR_DE_FASE.aproximacion}
+          etiqueta="En aproximación"
+          icono={<Handshake className="size-4" />}
+          valor={formatearNumero(misNumeros.enAproximacion)}
+        />
+        <TarjetaDeMetrica
+          color={COLOR_DE_FASE.prospeccion}
+          etiqueta="Prospección completa"
+          icono={<Search className="size-4" />}
+          valor={formatearNumero(misNumeros.enProspeccion)}
+        />
+        <TarjetaDeMetrica
+          color={COLOR_DE_FASE.propuesta}
+          etiqueta="Con propuesta"
+          icono={<CheckCircle2 className="size-4" />}
+          valor={formatearNumero(misNumeros.conPropuesta)}
+        />
+        <TarjetaDeMetrica
+          etiqueta="Valor propuesto / año"
+          icono={<Wallet className="size-4" />}
+          valor={formatearDineroAbreviado(misNumeros.valorPropuestoAnual)}
+        />
+        <TarjetaDeMetrica
+          destacada
+          etiqueta="Mi pronóstico (OVP)"
+          icono={<TrendingUp className="size-4" />}
+          valor={formatearDineroAbreviado(misNumeros.miPronostico)}
+        />
+      </div>
+
+      {/* El aviso de trabajo pendiente, con el mismo peso visual que en
+          el panel de la dirección tienen los leads sin dueño. */}
+      {misNumeros.accionesPorDelante > 0 && (
+        <div className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3">
+          <CalendarClock className="size-4 shrink-0 text-primary" />
+          <span className="text-sm text-foreground">
+            Tienes <strong>{misNumeros.accionesPorDelante}</strong>{" "}
+            {misNumeros.accionesPorDelante === 1
+              ? "acción de campaña"
+              : "acciones de campaña"}{" "}
+            de hoy en adelante.
+          </span>
+        </div>
+      )}
+
+      <RejillaBento>
+        {/* La agenda abre el panel: para quien trabaja las marcas, "¿qué
+            toca esta semana?" es la primera pregunta del día. El
+            servidor ya la devuelve acotada a sus marcas. */}
+        <CalendarioDeCampanas />
+
+        <TarjetaBento
+          columnas={6}
+          descripcion="Lo que pronosticas vender de cada producto IOP, sumando tus marcas."
+          icono={<Package className="size-4" />}
+          titulo="Mis propiedades"
+        >
+          {misPropiedades.length === 0 ? (
+            <EstadoVacio
+              descripcion="Aparecerán cuando anotes un pronóstico en el checklist de alguna de tus marcas."
+              titulo="Sin pronósticos todavía"
+            />
+          ) : (
+            <ul className="space-y-2.5">
+              {misPropiedades.map((propiedad) => (
+                <li
+                  key={propiedad.propiedadId}
+                  className="flex items-center justify-between gap-3 rounded-xl bg-default-50 px-3 py-2.5"
+                >
+                  <div className="min-w-0">
+                    <Link
+                      className="block truncate text-xs font-medium text-foreground hover:text-primary hover:underline"
+                      to={`/marcas?propiedad=${propiedad.propiedadId}&vendedor=${usuario.id}`}
+                    >
+                      {propiedad.nombre}
+                    </Link>
+                    <p className="text-[10px] text-default-400">
+                      {propiedad.totalMarcas}{" "}
+                      {propiedad.totalMarcas === 1 ? "marca mía" : "marcas mías"}
+                    </p>
+                  </div>
+
+                  <span className="shrink-0 text-xs font-bold text-primary">
+                    {formatearDineroAbreviado(propiedad.ovpUsd)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </TarjetaBento>
+
+        <TarjetaBento
+          columnas={6}
+          descripcion="Dentro de qué empujón comercial estás trabajando cada marca."
+          icono={<Megaphone className="size-4" />}
+          titulo="Mis campañas"
+        >
+          {misCampanas.length === 0 ? (
+            <EstadoVacio
+              descripcion="Se asigna una campaña desde la ficha de la marca, junto con el día de la acción."
+              titulo="Ninguna marca tiene campaña"
+            />
+          ) : (
+            <ul className="space-y-2.5">
+              {misCampanas.map((campana) => (
+                <li
+                  key={campana.campanaId ?? "sin_campana"}
+                  className="flex items-center justify-between gap-3 rounded-xl bg-default-50 px-3 py-2.5"
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span
+                      className="size-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: campana.color }}
+                    />
+                    <span className="truncate text-xs font-medium text-foreground">
+                      {campana.nombre}
+                    </span>
+                  </span>
+
+                  <Chip radius="lg" size="sm" variant="flat">
+                    {campana.total}
+                  </Chip>
                 </li>
               ))}
             </ul>

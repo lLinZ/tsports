@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\EventoDeCampana;
 use App\Models\Marca;
+use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -56,11 +57,24 @@ class CalendarioController extends Controller
             ? $this->rejillaDelMes($diaPedido)
             : [$diaPedido->startOfWeek(), $diaPedido->endOfWeek()];
 
-        $eventos = $this->buscarEventosEntre($primerDia, $ultimoDia);
+        /** @var User $usuario */
+        $usuario = $peticion->user();
+
+        // El agente ve SU agenda; quien reparte trabajo, la del equipo.
+        // El filtro va aquí, en la consulta, y no en la interfaz: si se
+        // enviaran todos los eventos y el navegador escondiera los
+        // ajenos, la agenda completa de la agencia seguiría viajando en
+        // la respuesta.
+        $soloDe = $usuario->rol->veLasCifrasDeTodaLaEmpresa() ? null : $usuario;
+
+        $eventos = $this->buscarEventosEntre($primerDia, $ultimoDia, $soloDe);
 
         return response()->json([
             'periodo' => [
                 'vista' => $vista,
+                // De quién es esta agenda. La interfaz lo usa para
+                // titular el calendario sin tener que comparar roles.
+                'esSoloMia' => $soloDe !== null,
                 'desde' => $primerDia->toDateString(),
                 'hasta' => $ultimoDia->toDateString(),
                 // El día que se pidió: es lo que el navegador usa para
@@ -157,15 +171,25 @@ class CalendarioController extends Controller
      * —visitarla el 10 e invitarla a un evento el 20—, y desde la marca
      * solo se vería la última.
      *
+     * Con `$soloDe` se acota a las acciones de las marcas de esa persona.
+     *
      * @return \Illuminate\Support\Collection<int,EventoDeCampana>
      */
     private function buscarEventosEntre(
         CarbonImmutable $desde,
         CarbonImmutable $hasta,
+        ?User $soloDe = null,
     ) {
         return EventoDeCampana::query()
             ->with('marca:id,nombre_marca,logo_url,zona,sector,vendedor_asignado_nombre')
             ->entreFechas($desde->toDateString(), $hasta->toDateString())
+            ->when(
+                $soloDe !== null,
+                fn ($consulta) => $consulta->whereHas(
+                    'marca',
+                    fn ($deLaMarca) => $deLaMarca->where('vendedor_asignado_id', $soloDe->id),
+                ),
+            )
             ->orderBy('fecha')
             ->get()
             // Por nombre de marca dentro de cada día, para que el orden

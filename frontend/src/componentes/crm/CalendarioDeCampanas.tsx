@@ -150,7 +150,13 @@ export function CalendarioDeCampanas() {
     <>
       <TarjetaBento
         columnas={12}
-        descripcion="Las acciones de campaña programadas. Pulsa un día para ver su detalle."
+        // De quién es la agenda lo dice el servidor, que es quien la
+        // filtra; aquí no se compara ningún rol.
+        descripcion={
+          periodo.esSoloMia
+            ? "Las acciones de campaña de tus marcas. Pulsa un día para ver su detalle."
+            : "Las acciones de campaña programadas. Pulsa un día para ver su detalle."
+        }
         icono={<CalendarDays className="size-4" />}
         titulo="Calendario de campañas"
         accionDeCabecera={
@@ -728,10 +734,21 @@ function ReporteDelPeriodo({
             </Chip>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          {/* El desglose por agente sobra cuando la agenda ya es de una
+              sola persona: sería una lista de un elemento repitiendo el
+              total que está tres líneas más arriba. */}
+          <div
+            className={[
+              "grid gap-4",
+              periodo.esSoloMia ? "sm:grid-cols-2" : "sm:grid-cols-3",
+            ].join(" ")}
+          >
             <ListaDeTotales titulo="Por campaña" totales={resumen.porCampana} />
             <ListaDeTotales titulo="Por zona" totales={resumen.porZona} />
-            <ListaDeTotales titulo="Por agente" totales={resumen.porVendedor} />
+
+            {!periodo.esSoloMia && (
+              <ListaDeTotales titulo="Por agente" totales={resumen.porVendedor} />
+            )}
           </div>
         </>
       )}

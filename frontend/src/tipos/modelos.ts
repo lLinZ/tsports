@@ -34,6 +34,11 @@ export interface PermisosDelUsuario {
   editaLaWeb: boolean;
   /** Da de alta propiedades (productos IOP) y campañas, y las reparte. */
   gestionaElCatalogoComercial: boolean;
+  /**
+   * ¿Ve las cifras de TODA la agencia, o solo las suyas? Es la que
+   * decide la forma del panel de resumen y del calendario.
+   */
+  veLasCifrasDeTodaLaEmpresa: boolean;
 }
 
 export interface Usuario {
@@ -462,7 +467,30 @@ export interface MisNumerosDelPanel {
   accionesPorDelante: number;
 }
 
-export interface ResumenDelPanel {
+/** Una propiedad que el agente está ofreciendo, con SU pronóstico. */
+export interface MiPropiedadDelPanel {
+  propiedadId: string;
+  nombre: string;
+  /** Lo que él pronostica, sumando sus marcas. */
+  ovpUsd: number;
+  /** Cuántas de SUS marcas la tienen en el checklist. */
+  totalMarcas: number;
+}
+
+/** Cómo se reparten las marcas del agente entre campañas. */
+export interface MiCampanaDelPanel {
+  campanaId: string | null;
+  nombre: string;
+  color: string;
+  total: number;
+}
+
+/**
+ * El panel de quien ve las cifras de toda la agencia: admin y comercial.
+ * Es el cuadro con el que se reparte el trabajo.
+ */
+export interface ResumenDeLaEmpresa {
+  alcance: "empresa";
   contadores: ContadoresDelPanel;
   misNumeros: MisNumerosDelPanel;
   porZona: ResumenDeZona[];
@@ -474,6 +502,27 @@ export interface ResumenDelPanel {
   porCampana: ResumenDeCampana[];
   actividadReciente: RegistroDeActividad[];
 }
+
+/**
+ * El panel de un agente: solo su cartera.
+ *
+ * No trae ni una cifra de la agencia. No es que se escondan al pintar:
+ * el servidor ni las calcula ni las envía, así que tampoco se pueden
+ * leer desde el inspector del navegador.
+ */
+export interface ResumenDelAgente {
+  alcance: "personal";
+  misNumeros: MisNumerosDelPanel;
+  misPropiedades: MiPropiedadDelPanel[];
+  misCampanas: MiCampanaDelPanel[];
+}
+
+/**
+ * Lo que devuelve /api/panel/resumen. El campo `alcance` distingue las
+ * dos formas, así que TypeScript obliga a comprobarlo antes de leer
+ * cualquier cifra de la agencia.
+ */
+export type ResumenDelPanel = ResumenDeLaEmpresa | ResumenDelAgente;
 
 /* ==================================================================== */
 /* Calendario e historial de acciones de campaña                        */
@@ -576,6 +625,12 @@ export interface PeriodoDelCalendario {
     /** Ya redactada: "8 – 14 de septiembre" o "Septiembre de 2026". */
     etiqueta: string;
     esElPeriodoActual: boolean;
+    /**
+     * De quién es esta agenda: `true` cuando el servidor la ha acotado a
+     * las marcas de quien pregunta. Lo dice él porque es él quien filtra;
+     * aquí no se comparan roles.
+     */
+    esSoloMia: boolean;
   };
   dias: DiaDelCalendario[];
   resumen: ResumenDeLaSemana;
