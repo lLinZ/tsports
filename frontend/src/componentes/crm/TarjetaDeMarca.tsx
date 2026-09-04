@@ -52,6 +52,16 @@ import type { Marca } from "@/tipos/modelos";
  */
 const PROPIEDADES_QUE_CABEN_EN_LA_TARJETA = 2;
 
+/**
+ * Clave de la opción "Dejar sin asignar".
+ *
+ * Es una cadena propia y no la cadena vacía: la lista usa la clave para
+ * saber qué opción está marcada, y "" se confunde con "no hay nada
+ * seleccionado". Con un nombre real, "sin dueño" es un estado que se ve
+ * marcado como cualquier otro.
+ */
+const CLAVE_DE_SIN_ASIGNAR = "sin-asignar";
+
 /** Las tres fases, con su color y su etiqueta. El orden es el del proceso. */
 const FASES_DE_LA_MARCA = [
   { clave: "aproximacion", etiqueta: "Aproximación", color: "#3b82f6" },
@@ -410,12 +420,29 @@ function AvatarDelVendedor({ marca }: { marca: Marca }) {
           </p>
         </div>
 
+        {/*
+          Se escucha `onSelectionChange` y NO `onAction`. En React Aria,
+          una lista con selección activa solo dispara `onAction` mientras
+          no hay nada seleccionado: en cuanto la marca tiene dueño, el
+          clic pasa a ser "seleccionar" y la acción no llega nunca. Con
+          `onAction` se podía asignar una marca huérfana, pero cambiarle
+          el dueño a una que ya lo tenía —o quitárselo— no hacía nada.
+        */}
         <Listbox
           aria-label="Elegir agente"
           className="max-h-64 overflow-y-auto"
-          selectedKeys={marca.vendedorAsignadoId ? [marca.vendedorAsignadoId] : []}
+          disallowEmptySelection
+          selectedKeys={[marca.vendedorAsignadoId ?? CLAVE_DE_SIN_ASIGNAR]}
           selectionMode="single"
-          onAction={(clave) => repartir(String(clave) || null)}
+          onSelectionChange={(seleccion) => {
+            const elegida = Array.from(seleccion)[0];
+
+            // Pulsar sobre quien ya la lleva no cambia la selección y no
+            // llega hasta aquí; esto cubre el caso de que llegue vacía.
+            if (elegida === undefined) return;
+
+            repartir(elegida === CLAVE_DE_SIN_ASIGNAR ? null : String(elegida));
+          }}
         >
           <ListboxSection showDivider>
             {vendedores.map((vendedor) => (
@@ -436,7 +463,7 @@ function AvatarDelVendedor({ marca }: { marca: Marca }) {
           {/* Quitar el dueño devuelve la marca al montón, de donde
               cualquiera puede adoptarla trabajándola (regla 5). */}
           <ListboxItem
-            key=""
+            key={CLAVE_DE_SIN_ASIGNAR}
             className="text-warning"
             color="warning"
             startContent={<UserMinus className="size-4" />}
