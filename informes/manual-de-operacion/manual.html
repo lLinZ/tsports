@@ -1,0 +1,780 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>TS Sports &middot; Manual de operación</title>
+<style>
+  /* ================================================================
+     Tipografía Inter, incrustada desde ficheros locales.
+
+     Se cargan DOS subconjuntos por peso —latin y latin-ext— porque
+     Google Fonts trocea la fuente por alfabetos y el latino no viene
+     solo. Con uno solo, Chrome encuentra la "a" en Inter pero no la
+     "á", y cae a Segoe UI en cuanto aparece una tilde: el documento
+     acaba con dos tipografías mezcladas dentro de la misma palabra.
+
+     Van desde disco y no desde Google: al imprimir, la página podría
+     salir antes de que la fuente llegara por red.
+     ================================================================ */
+  @font-face { font-family: "Inter"; font-weight: 400; font-style: normal; font-display: block;
+               src: url("fuentes/Inter-400-latin.woff2") format("woff2"); }
+  @font-face { font-family: "Inter"; font-weight: 400; font-style: normal; font-display: block;
+               src: url("fuentes/Inter-400-latinext.woff2") format("woff2");
+               unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+                              U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+2113, U+2C60-2C7F; }
+
+  @font-face { font-family: "Inter"; font-weight: 500; font-style: normal; font-display: block;
+               src: url("fuentes/Inter-500-latin.woff2") format("woff2"); }
+  @font-face { font-family: "Inter"; font-weight: 500; font-style: normal; font-display: block;
+               src: url("fuentes/Inter-500-latinext.woff2") format("woff2");
+               unicode-range: U+0100-02BA, U+1E00-1E9F, U+2C60-2C7F; }
+
+  @font-face { font-family: "Inter"; font-weight: 600; font-style: normal; font-display: block;
+               src: url("fuentes/Inter-600-latin.woff2") format("woff2"); }
+  @font-face { font-family: "Inter"; font-weight: 600; font-style: normal; font-display: block;
+               src: url("fuentes/Inter-600-latinext.woff2") format("woff2");
+               unicode-range: U+0100-02BA, U+1E00-1E9F, U+2C60-2C7F; }
+
+  @font-face { font-family: "Inter"; font-weight: 700; font-style: normal; font-display: block;
+               src: url("fuentes/Inter-700-latin.woff2") format("woff2"); }
+  @font-face { font-family: "Inter"; font-weight: 700; font-style: normal; font-display: block;
+               src: url("fuentes/Inter-700-latinext.woff2") format("woff2");
+               unicode-range: U+0100-02BA, U+1E00-1E9F, U+2C60-2C7F; }
+
+  /* ================================================================
+     ZONA DE MARCA — es lo UNICO que se cambia de un proyecto a otro.
+
+     Los cuatro colores se usan en las tiras de la portada, en el
+     indicador de cada seccion, en los avisos y en los puntos de las
+     fichas. No hace falta que sean estos: lo que importa es que sean
+     cuatro y que se distingan entre si, porque el documento los usa
+     para separar capitulos de un vistazo.
+
+     Los grises NO se tocan salvo que haya un motivo: estan elegidos
+     para que el cuerpo de texto se lea en papel sin cansar.
+     ================================================================ */
+  :root {
+    --azul:     #4285F4;   /* Principal. Numeracion, pasos, enlaces  */
+    --rojo:     #EA4335;   /* Segundo capitulo, avisos de peligro    */
+    --amarillo: #FBBC05;   /* Tercer capitulo, avisos de atencion    */
+    --verde:    #34A853;   /* Cuarto capitulo, avisos de conformidad */
+
+    --negro:    #202124;   /* Titulares */
+    --gris:     #5F6368;   /* Cuerpo de texto */
+    --gris-sua: #80868B;   /* Apoyos y pies */
+    --linea:    #E8EAED;
+    --fondo:    #F8F9FA;
+  }
+
+  @page {
+    size: A4;
+    margin: 18mm 16mm 20mm 16mm;
+    /* Chrome pinta las cajas de margen con su fuente por defecto, que
+       es Times: hay que decirle la tipografía aquí también o los
+       números de página desentonan con el resto del documento. */
+    @bottom-center {
+      content: counter(page);
+      font-family: "Inter", sans-serif;
+      font-size: 8.6pt;
+      font-weight: 500;
+      color: #80868B;
+    }
+  }
+  @page:first { margin: 0; }
+
+  * { box-sizing: border-box; }
+
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  body {
+    margin: 0;
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 10.2pt;
+    line-height: 1.62;
+    color: var(--gris);
+    font-feature-settings: "cv05" 1, "ss01" 1;
+  }
+
+  /* ---------------------------- Portada --------------------------- */
+  .portada {
+    height: 297mm;
+    padding: 30mm 24mm 26mm;
+    display: flex;
+    flex-direction: column;
+    page-break-after: always;
+  }
+  .marca-portada {
+    display: flex; align-items: center; gap: 11px;
+    font-size: 13pt; font-weight: 700; color: var(--negro);
+    letter-spacing: -0.02em;
+  }
+  .cuadro-logo {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: var(--azul); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12pt; font-weight: 700; letter-spacing: -0.03em;
+  }
+  .portada h1 {
+    margin: 62mm 0 0; font-size: 40pt; line-height: 1.06;
+    font-weight: 700; color: var(--negro); letter-spacing: -0.035em;
+  }
+  .portada .bajada {
+    margin: 16px 0 0; font-size: 12.5pt; line-height: 1.55;
+    color: var(--gris); max-width: 118mm; font-weight: 400;
+  }
+  .tiras { display: flex; gap: 7px; margin: 34px 0 0; }
+  .tiras span { height: 6px; width: 58px; border-radius: 3px; }
+  .pie-portada {
+    margin-top: auto; padding-top: 16px; border-top: 1px solid var(--linea);
+    display: flex; justify-content: space-between;
+    font-size: 8.6pt; color: var(--gris-sua);
+  }
+
+  /* ---------------------------- Índice ---------------------------- */
+  .indice { page-break-after: always; }
+  .indice ol { list-style: none; margin: 0; padding: 0; counter-reset: cap; }
+  .indice > ol > li { counter-increment: cap; margin-bottom: 3px; }
+  .indice > ol > li > a {
+    display: flex; align-items: baseline; gap: 10px;
+    padding: 8px 0; border-bottom: 1px solid var(--linea);
+    text-decoration: none; color: var(--negro);
+    font-size: 10.6pt; font-weight: 600;
+  }
+  .indice .num {
+    flex: 0 0 22px; font-size: 9pt; font-weight: 700;
+    color: var(--azul); font-variant-numeric: tabular-nums;
+  }
+  .indice .rel { flex: 1; }
+  .indice .sub {
+    font-weight: 400; font-size: 9.2pt; color: var(--gris-sua);
+    padding: 2px 0 6px 32px;
+  }
+
+  /* ---------------------------- Secciones ------------------------- */
+  h2 {
+    margin: 0 0 4px; font-size: 19pt; font-weight: 700;
+    color: var(--negro); letter-spacing: -0.028em; line-height: 1.2;
+  }
+  .seccion { page-break-before: always; }
+  .seccion:first-of-type { page-break-before: avoid; }
+  .cinta { display: flex; align-items: center; gap: 10px; margin-bottom: 3px; }
+  .cinta .indicador { width: 26px; height: 4px; border-radius: 2px; }
+  .cinta .capitulo {
+    font-size: 8.4pt; font-weight: 700; letter-spacing: 0.13em;
+    text-transform: uppercase; color: var(--gris-sua);
+  }
+  .entradilla {
+    margin: 0 0 22px; font-size: 10.6pt; color: var(--gris);
+    max-width: 145mm;
+  }
+
+  h3 {
+    margin: 26px 0 8px; font-size: 12.2pt; font-weight: 600;
+    color: var(--negro); letter-spacing: -0.015em;
+  }
+  h4 {
+    margin: 18px 0 6px; font-size: 10.4pt; font-weight: 600; color: var(--negro);
+  }
+  /* Un titular no se queda solo al pie de una pagina. Si lo que viene
+     detras no cabe, bajan los dos juntos a la siguiente. Sin esto salen
+     paginas que terminan anunciando algo que empieza en la de al lado. */
+  h3, h4 { page-break-after: avoid; break-after: avoid; }
+  p { margin: 0 0 10px; }
+  strong { color: var(--negro); font-weight: 600; }
+  /* Sin Inter cursiva cargada, <em> caía a Times New Roman. El énfasis
+     se marca con color y peso, que en pantalla se lee incluso mejor. */
+  em { font-style: normal; font-weight: 500; color: var(--negro); }
+  code {
+    font-family: "Inter", monospace; font-size: 9.2pt;
+    background: var(--fondo); border: 1px solid var(--linea);
+    border-radius: 4px; padding: 1px 5px; color: var(--negro);
+  }
+
+  /* --------------------------- Pasos ------------------------------ */
+  ol.pasos { counter-reset: paso; list-style: none; margin: 12px 0 16px; padding: 0; }
+  ol.pasos > li {
+    counter-increment: paso; position: relative;
+    padding: 0 0 13px 34px; page-break-inside: avoid;
+  }
+  ol.pasos > li::before {
+    content: counter(paso);
+    position: absolute; left: 0; top: 0;
+    width: 21px; height: 21px; border-radius: 50%;
+    background: var(--azul); color: #fff;
+    font-size: 8.6pt; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  /* La línea que enhebra los pasos: se corta en el último. */
+  ol.pasos > li::after {
+    content: ""; position: absolute; left: 10px; top: 25px; bottom: 3px;
+    width: 1px; background: var(--linea);
+  }
+  ol.pasos > li:last-child::after { display: none; }
+  ol.pasos > li p { margin: 0 0 3px; }
+  ol.pasos > li p:first-child { color: var(--negro); font-weight: 500; padding-top: 1px; }
+
+  ul.lista { margin: 8px 0 14px; padding-left: 17px; }
+  ul.lista li { margin-bottom: 5px; padding-left: 3px; }
+  ul.lista li::marker { color: var(--azul); }
+
+  /* --------------------------- Avisos ----------------------------- */
+  .aviso {
+    margin: 14px 0; padding: 11px 14px; border-radius: 8px;
+    background: var(--fondo); border-left: 3px solid var(--gris-sua);
+    font-size: 9.6pt; page-break-inside: avoid;
+  }
+  .aviso p { margin: 0; }
+  .aviso p + p { margin-top: 6px; }
+  .aviso .rotulo {
+    display: block; font-size: 8.2pt; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px;
+  }
+  .aviso.ojo   { border-left-color: var(--amarillo); background: #FEF7E0; }
+  .aviso.ojo .rotulo { color: #B06000; }
+  .aviso.alto  { border-left-color: var(--rojo); background: #FCE8E6; }
+  .aviso.alto .rotulo { color: #C5221F; }
+  .aviso.bien  { border-left-color: var(--verde); background: #E6F4EA; }
+  .aviso.bien .rotulo { color: #137333; }
+  .aviso.dato  { border-left-color: var(--azul); background: #E8F0FE; }
+  .aviso.dato .rotulo { color: #1967D2; }
+
+  /* --------------------------- Tablas ----------------------------- */
+  table {
+    width: 100%; border-collapse: collapse; margin: 12px 0 18px;
+    font-size: 9.4pt; page-break-inside: avoid;
+  }
+  th {
+    text-align: left; padding: 8px 10px;
+    border-bottom: 2px solid var(--negro);
+    font-size: 8.4pt; font-weight: 700; color: var(--negro);
+    letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  td { padding: 8px 10px; border-bottom: 1px solid var(--linea); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  td strong { font-weight: 600; }
+  .si { color: var(--verde); font-weight: 700; }
+  .no { color: var(--rojo); font-weight: 700; }
+  .parte { color: var(--amarillo); font-weight: 700; }
+
+  /* --------------------------- Fichas ----------------------------- */
+  .fichas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0 18px; }
+  .ficha {
+    border: 1px solid var(--linea); border-radius: 9px; padding: 12px 14px;
+    page-break-inside: avoid;
+  }
+  .ficha .titulo {
+    font-size: 9.8pt; font-weight: 600; color: var(--negro); margin-bottom: 3px;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .ficha .punto { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+  .ficha p { margin: 0; font-size: 9.2pt; }
+
+  /* Un comando largo no cabe en una linea de texto: dentro de <code>
+     se parte en trozos con borde y deja de leerse como un solo comando.
+     En bloque se copia entero y se ve donde empieza y donde acaba. */
+  pre.comando {
+    margin: 8px 0 14px; padding: 10px 13px;
+    background: var(--fondo);
+    border: 1px solid var(--linea); border-left: 3px solid var(--azul);
+    border-radius: 7px;
+    font-family: "Inter", monospace; font-size: 8.8pt; line-height: 1.5;
+    color: var(--negro);
+    white-space: pre-wrap; word-break: break-word;
+    page-break-inside: avoid;
+  }
+
+  .ruta {
+    display: inline-block; background: var(--negro); color: #fff;
+    border-radius: 5px; padding: 2px 8px;
+    font-size: 8.8pt; font-weight: 600; letter-spacing: 0.01em;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================ PORTADA ============================ -->
+<div class="portada">
+  <div class="marca-portada">
+    <span class="cuadro-logo">TS</span>
+    <span>TS Sports</span>
+  </div>
+
+  <h1>Manual de<br>operación</h1>
+
+  <p class="bajada">
+    Cómo llevar el sistema sin ayuda: trabajar en tu ordenador, subir
+    cambios a producción y salir del paso cuando algo falla. Escrito
+    para leerlo con el teclado delante.
+  </p>
+
+  <div class="tiras">
+    <span style="background:var(--azul)"></span>
+    <span style="background:var(--rojo)"></span>
+    <span style="background:var(--amarillo)"></span>
+    <span style="background:var(--verde)"></span>
+  </div>
+
+  <div class="pie-portada">
+    <span>tsports.tech</span>
+    <span>Septiembre de 2026</span>
+  </div>
+</div>
+
+<!-- ============================= ÍNDICE ============================ -->
+<section class="indice">
+  <div class="cinta">
+    <span class="indicador" style="background:var(--azul)"></span>
+    <span class="capitulo">Contenido</span>
+  </div>
+  <h2>Qué hay en este manual</h2>
+  <p class="entradilla">
+    Si solo vas a leer un apartado, que sea el 3: es el que usarás cada
+    vez que quieras que un cambio llegue a la web. El 4 se lee el día
+    que algo se tuerce, y conviene haberlo ojeado antes.
+  </p>
+
+  <ol>
+    <li><a href="#mapa"><span class="num">01</span><span class="rel">El mapa</span></a>
+      <div class="sub">Las tres piezas y por dónde viaja el código</div></li>
+    <li><a href="#local"><span class="num">02</span><span class="rel">Trabajar en tu ordenador</span></a>
+      <div class="sub">Arrancar el sistema, ver los cambios y comprobarlos</div></li>
+    <li><a href="#desplegar"><span class="num">03</span><span class="rel">Desplegar</span></a>
+      <div class="sub">De tu ordenador a tsports.tech, paso a paso</div></li>
+    <li><a href="#fallos"><span class="num">04</span><span class="rel">Cuando algo sale mal</span></a>
+      <div class="sub">Levantar el sitio, leer los registros y volver atrás</div></li>
+    <li><a href="#administrar"><span class="num">05</span><span class="rel">Administración</span></a>
+      <div class="sub">Cuentas, contraseñas y copias de la base de datos</div></li>
+    <li><a href="#chuleta"><span class="num">06</span><span class="rel">Chuleta</span></a>
+      <div class="sub">Todos los comandos, en una sola página</div></li>
+  </ol>
+</section>
+
+<!-- ============================== 01 =============================== -->
+<section class="seccion" id="mapa">
+  <div class="cinta">
+    <span class="indicador" style="background:var(--azul)"></span>
+    <span class="capitulo">01 &middot; Cómo está montado</span>
+  </div>
+  <h2>El mapa</h2>
+  <p class="entradilla">
+    Hay tres piezas y el código pasa por las tres <em>siempre en el mismo
+    orden</em>. Entender esto de una vez ahorra la mayoría de los sustos.
+  </p>
+
+  <div class="fichas">
+    <div class="ficha">
+      <div class="titulo"><span class="punto" style="background:var(--azul)"></span>Tu ordenador</div>
+      <p>Donde se escribe y se prueba. Nada de lo que hagas aquí se ve
+      en internet hasta que lo subas.</p>
+    </div>
+    <div class="ficha">
+      <div class="titulo"><span class="punto" style="background:var(--rojo)"></span>GitHub</div>
+      <p>Donde vive el código de verdad. Es el respaldo y la historia
+      completa del proyecto.</p>
+    </div>
+    <div class="ficha">
+      <div class="titulo"><span class="punto" style="background:var(--verde)"></span>El servidor</div>
+      <p>El VPS que sirve tsports.tech. Se baja el código de GitHub, lo
+      construye y lo publica.</p>
+    </div>
+    <div class="ficha">
+      <div class="titulo"><span class="punto" style="background:var(--amarillo)"></span>La base de datos</div>
+      <p>Vive dentro del servidor. No se sube nunca: las marcas y las
+      cuentas solo existen ahí.</p>
+    </div>
+  </div>
+
+  <h3>El camino del código</h3>
+  <p>Es de un solo sentido y no tiene atajos:</p>
+
+  <ol class="pasos">
+    <li><p>Escribes en tu ordenador</p></li>
+    <li><p>Lo subes a GitHub con <code>git push</code></p></li>
+    <li><p>Entras al servidor y ejecutas el guion de despliegue</p>
+        <p>El guion se baja de GitHub lo que acabas de subir, lo
+        construye y reinicia el sitio.</p></li>
+  </ol>
+
+  <div class="aviso dato">
+    <span class="rotulo">Por qué así y no directo al servidor</span>
+    <p>Antes se podía empujar el código al servidor sin pasar por
+    GitHub, y eso permitía que el sitio estuviera corriendo una versión
+    que no estaba guardada en ningún sitio. Si el VPS se perdía, se
+    perdía con él. Ahora el servidor solo sabe bajar de GitHub: es
+    imposible tener publicado algo que no esté respaldado.</p>
+  </div>
+
+  <h3>Datos del servidor</h3>
+  <table>
+    <thead><tr><th style="width:34%">Qué</th><th>Valor</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Dirección</strong></td><td><code>2.25.152.122</code>, usuario <code>root</code></td></tr>
+      <tr><td><strong>Llave de acceso</strong></td><td><code>~/.ssh/tsports_vps</code> en tu ordenador</td></tr>
+      <tr><td><strong>Carpeta del proyecto</strong></td><td><code>/var/www/tsports</code></td></tr>
+      <tr><td><strong>Sitio</strong></td><td><code>https://tsports.tech</code></td></tr>
+      <tr><td><strong>Repositorio</strong></td><td><code>github.com/lLinZ/tsports</code>, rama <code>main</code></td></tr>
+      <tr><td><strong>Base de datos</strong></td><td>MariaDB, base <code>tsports</code></td></tr>
+      <tr><td><strong>Lo instalado</strong></td><td>PHP 8.4 &middot; Node 22 &middot; nginx 1.26</td></tr>
+    </tbody>
+  </table>
+
+  <div class="aviso ojo">
+    <span class="rotulo">La llave no se comparte</span>
+    <p>El fichero <code>~/.ssh/tsports_vps</code> es lo único que deja
+    entrar al servidor. No se manda por WhatsApp ni se sube al
+    repositorio. Si se pierde, se genera otra y se cambia en el
+    servidor; si se filtra, cualquiera es administrador de la máquina.</p>
+  </div>
+</section>
+
+<!-- ============================== 02 =============================== -->
+<section class="seccion" id="local">
+  <div class="cinta">
+    <span class="indicador" style="background:var(--rojo)"></span>
+    <span class="capitulo">02 &middot; En tu ordenador</span>
+  </div>
+  <h2>Trabajar en tu ordenador</h2>
+  <p class="entradilla">
+    El sistema son dos programas que se arrancan por separado y se
+    hablan entre sí: el servidor de datos y la interfaz.
+  </p>
+
+  <h3>Arrancarlo</h3>
+  <p>Dos terminales, una para cada uno. Los dos se quedan corriendo:
+  no se cierran hasta que termines.</p>
+
+  <ol class="pasos">
+    <li><p>El servidor de datos</p>
+        <p><code>cd backend</code> y luego <code>php artisan serve</code>.
+        Queda escuchando en <code>127.0.0.1:8000</code>.</p></li>
+    <li><p>La interfaz</p>
+        <p><code>cd frontend</code> y luego <code>npm run dev</code>.
+        Abre <code>http://localhost:5173</code> en el navegador.</p></li>
+  </ol>
+
+  <p>Se entra con las mismas cuentas de siempre. La interfaz manda las
+  peticiones al <code>8000</code> por su cuenta; no hay que configurar
+  nada.</p>
+
+  <div class="aviso ojo">
+    <span class="rotulo">Si ves otra web que no es la tuya</span>
+    <p>Tienes otro proyecto en el ordenador, <code>linzdev</code>, que
+    usa esos mismos dos puertos. Si estaba arrancado, se los queda él y
+    tú acabas mirando su web sin que nada dé error. Ciérralo antes, o
+    comprueba quién tiene el puerto.</p>
+  </div>
+
+  <h3>Antes de dar nada por terminado</h3>
+  <p>Dos comprobaciones. Las dos son rápidas y las dos evitan subir algo
+  roto:</p>
+
+  <ol class="pasos">
+    <li><p>Que la interfaz compila</p>
+        <p><code>cd frontend</code> y <code>npm run build</code>. Incluye
+        la comprobación de tipos: si no compila aquí, tampoco compilará
+        en el servidor y el despliegue se detendrá.</p></li>
+    <li><p>Que las reglas del negocio siguen en pie</p>
+        <p><code>cd backend</code> y <code>php artisan test</code>. Son
+        las reglas escritas como pruebas: quién puede editar qué, cuándo
+        cuenta el dinero, qué ve cada rol. Corren sobre una base de
+        datos de mentira y no tocan la tuya.</p></li>
+  </ol>
+
+  <div class="aviso bien">
+    <span class="rotulo">Ha salido bien si</span>
+    <p>El <code>build</code> termina diciendo <code>built in</code> y un
+    tiempo, y las pruebas terminan en verde con una línea del estilo
+    <code>Tests: 111 passed</code>. Si alguna sale roja, el nombre de la
+    prueba dice qué regla se ha roto.</p>
+  </div>
+</section>
+
+<!-- ============================== 03 =============================== -->
+<section class="seccion" id="desplegar">
+  <div class="cinta">
+    <span class="indicador" style="background:var(--amarillo)"></span>
+    <span class="capitulo">03 &middot; Lo que harás siempre</span>
+  </div>
+  <h2>Desplegar</h2>
+  <p class="entradilla">
+    Llevar un cambio de tu ordenador a tsports.tech. Son seis pasos y
+    siempre los mismos. Los tres primeros en tu ordenador, los tres
+    últimos en el servidor.
+  </p>
+
+  <h4>En tu ordenador</h4>
+  <ol class="pasos">
+    <li><p>Comprueba que compila y que pasa</p>
+        <p><code>cd frontend</code> y <code>npm run build</code>; luego
+        <code>cd backend</code> y <code>php artisan test</code>. Si algo
+        falla, para aquí: no subas nada.</p></li>
+
+    <li><p>Guarda los cambios</p>
+        <p><code>git add -A</code> y luego
+        <code>git commit -m "Lo que hiciste, en una frase"</code>.</p></li>
+
+    <li><p>Súbelos a GitHub</p>
+        <p><code>git push origin main</code></p>
+        <p>Esto todavía no cambia nada en la web. Solo deja el código
+        guardado y listo para que el servidor lo recoja.</p></li>
+  </ol>
+
+  <h4>En el servidor</h4>
+  <ol class="pasos">
+    <li><p>Entra por SSH</p>
+        <pre class="comando">ssh -i ~/.ssh/tsports_vps root@2.25.152.122</pre></li>
+
+    <li><p>Ejecuta el guion de despliegue</p>
+        <p><code>cd /var/www/tsports</code> y luego
+        <code>./deploy/desplegar.sh</code></p>
+        <p>Tarda un par de minutos y va contando lo que hace. No lo
+        interrumpas.</p></li>
+
+    <li><p>Comprueba que el sitio responde</p>
+        <p><code>curl -s https://tsports.tech/up</code>, o simplemente
+        abre la web en el navegador y entra.</p></li>
+  </ol>
+
+  <div class="aviso bien">
+    <span class="rotulo">Ha salido bien si</span>
+    <p>El guion termina con <em>Despliegue terminado</em> en verde, y la
+    web carga y te deja entrar. Si además cambiaste algo visible,
+    recarga con Ctrl+F5 la primera vez: el navegador guarda la versión
+    anterior.</p>
+  </div>
+
+  <h3>Qué hace el guion mientras esperas</h3>
+  <p>Para que sepas qué estás viendo pasar, y en qué punto se ha
+  quedado si se detiene:</p>
+
+  <table>
+    <thead><tr><th style="width:38%">Paso</th><th>Qué significa</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Modo mantenimiento</strong></td><td>La web deja de atender un momento, para que nadie escriba mientras cambia la base de datos.</td></tr>
+      <tr><td><strong>Bajando los cambios</strong></td><td>Se trae de GitHub lo que subiste.</td></tr>
+      <tr><td><strong>Dependencias de PHP</strong></td><td>Instala las librerías del servidor.</td></tr>
+      <tr><td><strong>Migraciones</strong></td><td>Aplica los cambios de estructura a la base de datos.</td></tr>
+      <tr><td><strong>Dependencias de Node</strong></td><td>Instala las librerías de la interfaz.</td></tr>
+      <tr><td><strong>Construyendo el frontend</strong></td><td>Genera la web final. Aquí es donde falla si el código no compila.</td></tr>
+      <tr><td><strong>Reiniciando</strong></td><td>Recarga PHP y nginx para que sirvan lo nuevo.</td></tr>
+      <tr><td><strong>Saliendo de mantenimiento</strong></td><td>La web vuelve a atender.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="aviso dato">
+    <span class="rotulo">Si el guion se detiene, el sitio no se cae</span>
+    <p>Mientras la construcción no termine bien, sigue publicándose la
+    versión anterior. Y pase lo que pase, el guion saca la web del modo
+    mantenimiento antes de salir. Un despliegue fallido deja el sitio
+    como estaba, no roto.</p>
+  </div>
+
+  <h3>Si el cambio toca la base de datos</h3>
+  <p>Cuando el despliegue vaya a aplicar migraciones que borren o
+  transformen datos, haz una copia antes. Está en el apartado 5, y son
+  diez segundos.</p>
+</section>
+
+<!-- ============================== 04 =============================== -->
+<section class="seccion" id="fallos">
+  <div class="cinta">
+    <span class="indicador" style="background:var(--verde)"></span>
+    <span class="capitulo">04 &middot; Cuando se tuerce</span>
+  </div>
+  <h2>Cuando algo sale mal</h2>
+  <p class="entradilla">
+    Por orden: primero mira qué pasa, luego decide. Casi nada de lo que
+    puede fallar es irreversible.
+  </p>
+
+  <h3>La web dice que está en mantenimiento y no vuelve</h3>
+  <p>Pasa si el despliegue se cortó a la mitad. Se saca a mano:</p>
+  <ol class="pasos">
+    <li><p>Entra al servidor y ve a la carpeta del proyecto</p>
+        <p><code>cd /var/www/tsports</code></p></li>
+    <li><p>Levántala</p>
+        <p><code>php backend/artisan up</code></p></li>
+  </ol>
+
+  <h3>Ver qué ha fallado</h3>
+  <table>
+    <thead><tr><th style="width:40%">Dónde mirar</th><th>Qué cuenta</th></tr></thead>
+    <tbody>
+      <tr><td><code>backend/storage/logs/</code></td><td>Los errores de la aplicación, un fichero por día. El de hoy es el que lleva la fecha de hoy.</td></tr>
+      <tr><td><code>/var/log/nginx/error.log</code></td><td>Cuando la web ni siquiera carga.</td></tr>
+      <tr><td><code>curl -s https://tsports.tech/up</code></td><td>Si responde, la aplicación está viva.</td></tr>
+    </tbody>
+  </table>
+  <p>Para ver el final de un registro sin abrirlo entero:
+  <code>tail -50 backend/storage/logs/laravel-2026-09-04.log</code></p>
+
+  <h3>Volver a la versión anterior</h3>
+  <p>Si el cambio que acabas de subir rompió algo y no ves el arreglo
+  rápido, se vuelve atrás. En tu ordenador, no en el servidor:</p>
+
+  <ol class="pasos">
+    <li><p>Mira los últimos cambios</p>
+        <p><code>git log --oneline -5</code></p></li>
+    <li><p>Deshaz el último creando otro que lo revierte</p>
+        <p><code>git revert HEAD</code>. Se abre un editor: guarda y
+        cierra.</p></li>
+    <li><p>Súbelo y vuelve a desplegar</p>
+        <p><code>git push origin main</code>, y en el servidor otra vez
+        <code>./deploy/desplegar.sh</code>.</p></li>
+  </ol>
+
+  <div class="aviso ojo">
+    <span class="rotulo">Revert, no reset</span>
+    <p><code>git revert</code> añade un cambio nuevo que deshace el
+    anterior y deja el historial intacto. <code>git reset --hard</code>
+    borra historia, y si ya estaba subida a GitHub, el siguiente
+    <code>push</code> te va a pelear. Usa siempre revert.</p>
+  </div>
+
+  <div class="aviso alto">
+    <span class="rotulo">Volver atrás no deshace la base de datos</span>
+    <p>Si el despliegue aplicó una migración que borró una columna,
+    revertir el código no devuelve los datos: eso solo lo hace
+    restaurar una copia. Por eso la copia se hace <em>antes</em>.</p>
+  </div>
+</section>
+
+<!-- ============================== 05 =============================== -->
+<section class="seccion" id="administrar">
+  <div class="cinta">
+    <span class="indicador" style="background:var(--azul)"></span>
+    <span class="capitulo">05 &middot; Administración</span>
+  </div>
+  <h2>Administración</h2>
+  <p class="entradilla">
+    Lo que se hace de vez en cuando. Casi todo desde la propia web; solo
+    las copias de la base piden terminal.
+  </p>
+
+  <h3>Cuentas y contraseñas</h3>
+  <p>Todo esto se hace desde <span class="ruta">Equipo</span> en el
+  panel, siendo administrador. No hace falta tocar el servidor:</p>
+
+  <ul class="lista">
+    <li><strong>Dar de alta a alguien.</strong> Botón <em>Nueva
+        cuenta</em>. La contraseña la escribes tú y se la entregas; la
+        persona la cambia luego desde su perfil.</li>
+    <li><strong>Cambiar una contraseña olvidada.</strong> Se edita la
+        cuenta y se escribe una nueva. No hay correo de recuperación.</li>
+    <li><strong>Quitar el acceso a alguien.</strong> Se desactiva la
+        cuenta, no se borra: así su rastro en el historial sigue
+        teniendo nombre.</li>
+  </ul>
+
+  <div class="aviso alto">
+    <span class="rotulo">Pendiente: siete cuentas con la contraseña publicada</span>
+    <p>La contraseña temporal con la que quedaron las cuentas
+    importadas estuvo dentro del repositorio público, y siete cuentas
+    de producción todavía entran con ella. Entre ellas hay un
+    administrador.</p>
+    <p>Mientras no se cambien una por una desde
+    <span class="ruta">Equipo</span>, cualquiera que encuentre el
+    repositorio puede entrar como administrador. Es lo más urgente de
+    esta lista.</p>
+  </div>
+
+  <h3>Copia de seguridad de la base de datos</h3>
+  <p>No hay ninguna automática: se hacen a mano. Hazla antes de cada
+  despliegue que toque datos, y de vez en cuando porque sí.</p>
+
+  <ol class="pasos">
+    <li><p>Entra al servidor y ve al backend</p>
+        <p><code>cd /var/www/tsports/backend</code></p></li>
+    <li><p>Lanza la copia</p>
+        <p>Las credenciales se leen del <code>.env</code>, así que no
+        hay que escribir ninguna contraseña en el comando:</p>
+<pre class="comando">MYSQL_PWD=$(grep -m1 DB_PASSWORD= .env | cut -d= -f2-) mysqldump -u $(grep -m1 DB_USERNAME= .env | cut -d= -f2-) tsports | gzip &gt; /var/backups/tsports/copia-$(date +%F-%H%M).sql.gz</pre></li>
+    <li><p>Comprueba que no salió vacía</p>
+        <p><code>ls -lh /var/backups/tsports/</code>. Una copia buena
+        pesa decenas de kilobytes, no cero.</p></li>
+  </ol>
+
+  <div class="aviso ojo">
+    <span class="rotulo">Una copia dentro del mismo servidor no es una copia</span>
+    <p>Si el VPS se pierde, se pierden con él. Bájatelas de vez en
+    cuando a tu ordenador:</p>
+    <pre class="comando">scp -i ~/.ssh/tsports_vps root@2.25.152.122:/var/backups/tsports/*.gz .</pre>
+  </div>
+
+  <h3>Restaurar una copia</h3>
+  <p>Se hace muy de tarde en tarde y machaca lo que haya. Con calma:</p>
+  <ol class="pasos">
+    <li><p>Haz una copia de lo que hay ahora</p>
+        <p>Aunque esté mal. Es la red de seguridad por si la
+        restauración tampoco era la que buscabas.</p></li>
+    <li><p>Restaura</p>
+        <p>Con los mismos datos que en el paso anterior:</p>
+        <pre class="comando">zcat LA-COPIA.sql.gz | MYSQL_PWD=... mysql -u ... tsports</pre></li>
+    <li><p>Limpia la caché de la aplicación</p>
+        <p><code>php artisan optimize:clear</code>, desde
+        <code>/var/www/tsports/backend</code>.</p></li>
+  </ol>
+</section>
+
+<!-- ============================== 06 =============================== -->
+<section class="seccion" id="chuleta">
+  <div class="cinta">
+    <span class="indicador" style="background:var(--rojo)"></span>
+    <span class="capitulo">06 &middot; De un vistazo</span>
+  </div>
+  <h2>Chuleta</h2>
+  <p class="entradilla">
+    Todo lo del manual, sin explicaciones. Esta es la página para
+    imprimir y dejar al lado del teclado.
+  </p>
+
+  <h3>Desplegar un cambio</h3>
+  <table>
+    <thead><tr><th style="width:56%">Comando</th><th>Dónde</th></tr></thead>
+    <tbody>
+      <tr><td><code>npm run build</code> (en <code>frontend</code>)</td><td>Tu PC</td></tr>
+      <tr><td><code>php artisan test</code> (en <code>backend</code>)</td><td>Tu PC</td></tr>
+      <tr><td><code>git add -A</code></td><td>Tu PC</td></tr>
+      <tr><td><code>git commit -m "..."</code></td><td>Tu PC</td></tr>
+      <tr><td><code>git push origin main</code></td><td>Tu PC</td></tr>
+      <tr><td><code>ssh -i ~/.ssh/tsports_vps root@2.25.152.122</code></td><td>Tu PC</td></tr>
+      <tr><td><code>cd /var/www/tsports</code></td><td>Servidor</td></tr>
+      <tr><td><code>./deploy/desplegar.sh</code></td><td>Servidor</td></tr>
+      <tr><td><code>curl -s https://tsports.tech/up</code></td><td>Servidor</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Trabajar en local</h3>
+  <table>
+    <thead><tr><th style="width:56%">Comando</th><th>Para qué</th></tr></thead>
+    <tbody>
+      <tr><td><code>php artisan serve</code> (en <code>backend</code>)</td><td>Servidor de datos, puerto 8000</td></tr>
+      <tr><td><code>npm run dev</code> (en <code>frontend</code>)</td><td>Interfaz, puerto 5173</td></tr>
+      <tr><td><code>php artisan test</code></td><td>Las reglas del negocio</td></tr>
+      <tr><td><code>npm run build</code></td><td>Compilar y comprobar tipos</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Cuando algo falla</h3>
+  <table>
+    <thead><tr><th style="width:56%">Comando</th><th>Para qué</th></tr></thead>
+    <tbody>
+      <tr><td><code>php backend/artisan up</code></td><td>Sacar la web de mantenimiento</td></tr>
+      <tr><td><code>tail -50 backend/storage/logs/laravel-FECHA.log</code></td><td>Ver los últimos errores</td></tr>
+      <tr><td><code>git log --oneline -5</code></td><td>Ver los últimos cambios</td></tr>
+      <tr><td><code>git revert HEAD</code></td><td>Deshacer el último cambio</td></tr>
+      <tr><td><code>git status</code></td><td>Ver qué tienes sin guardar</td></tr>
+    </tbody>
+  </table>
+
+  <div class="aviso dato">
+    <span class="rotulo">La regla de oro</span>
+    <p>El código va siempre en el mismo sentido: tu ordenador, GitHub,
+    el servidor. Si alguna vez te ves editando ficheros directamente en
+    el servidor, para: ese cambio se perderá en el siguiente despliegue
+    y no estará en ningún respaldo.</p>
+  </div>
+</section>
+
+</body>
+</html>
