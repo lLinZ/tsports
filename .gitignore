@@ -9,11 +9,16 @@
 # --- Configuración con contraseñas ---
 # El .env lleva las claves de la base de datos y la clave de cifrado de
 # la aplicación. NUNCA se sube. La plantilla es backend/.env.example.
-/backend/.env
-/backend/.env.backup
-/backend/.env.production
+#
+# Se ignora CUALQUIER variante (.env.algo), no una lista de nombres. La
+# lista fallaba con el primer nombre que nadie había previsto: un
+# `.env.sqlite.bak` acabó versionado y publicado, con la contraseña
+# temporal del administrador dentro. La única excepción es la
+# plantilla, que no lleva secretos y sí tiene que viajar.
 .env
-.env.local
+.env.*
+!.env.example
+!/backend/.env.example
 
 # --- Base de datos local ---
 /backend/database/*.sqlite
