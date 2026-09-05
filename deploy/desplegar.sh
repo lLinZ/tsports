@@ -188,4 +188,10 @@ php "${CARPETA_BACKEND}/artisan" up
 trap - EXIT
 
 echo -e "\n${VERDE}✔ Despliegue terminado.${SIN_COLOR}"
-echo "  Comprueba que responde:  curl -s https://tssports.com/up"
+# El dominio se lee del .env en vez de escribirlo aquí: este guion es
+# el mismo para cualquier instalación, y un dominio fijo mandaba a
+# comprobar una dirección que no era la del servidor donde se acaba
+# de desplegar.
+DIRECCION_DEL_SITIO="$(grep -m1 '^APP_URL=' "${CARPETA_BACKEND}/.env" | cut -d= -f2- | tr -d '\"' || true)"
+
+echo "  Comprueba que responde:  curl -s ${DIRECCION_DEL_SITIO:-https://TU-DOMINIO}/up"
