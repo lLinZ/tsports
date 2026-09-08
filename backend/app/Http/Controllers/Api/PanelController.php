@@ -97,7 +97,10 @@ class PanelController extends Controller
             ->selectRaw('SUM(CASE WHEN fase_prospeccion_completada = 1 THEN 1 ELSE 0 END) as total_prospeccion')
             ->selectRaw('SUM(CASE WHEN fase_propuesta_completada = 1 THEN 1 ELSE 0 END) as total_propuesta')
             ->selectRaw('SUM(CASE WHEN fase_propuesta_completada = 1 THEN valor_anual_usd ELSE 0 END) as valor_propuesto')
-            ->selectRaw('SUM(CASE WHEN vendedor_asignado_id IS NULL THEN 1 ELSE 0 END) as total_sin_asignar')
+            // Sin dueño es no tener ni id ni nombre, igual que en el
+            // filtro del tablero: una fila con el nombre puesto sale al
+            // filtrar por esa persona, así que no es huérfana.
+            ->selectRaw("SUM(CASE WHEN vendedor_asignado_id IS NULL AND COALESCE(vendedor_asignado_nombre, '') = '' THEN 1 ELSE 0 END) as total_sin_asignar")
             ->first();
 
         // Las dos cifras de los productos IOP viven en otras tablas, así

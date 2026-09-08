@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Enums\OrigenMarca;
+use App\Enums\RolUsuario;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\GuardarMarcaRequest;
 use App\Http\Resources\RecursoMarca;
@@ -51,6 +52,10 @@ class MarcaController extends Controller
             ->with(['campana', 'propiedadesOfrecidas.propiedad'])
             ->buscarTexto($peticion->query('busqueda'))
             ->enEtapa($peticion->query('etapa'))
+            // Filtro por una fase suelta. Es el que usan los contadores
+            // del panel al pulsarlos: cuentan lo mismo que este filtra.
+            ->conLaFase($peticion->query('fase'))
+            ->deVendedor($peticion->query('vendedor'))
             ->deZona($peticion->query('zona'))
             ->deCampana($peticion->query('campana'))
             ->queOfrecenLaPropiedad($peticion->query('propiedad'))
@@ -61,16 +66,6 @@ class MarcaController extends Controller
             $consulta->where('sector', $sectorPedido);
         }
 
-        // Filtro por responsable: admite el id de un vendedor o el valor
-        // especial "sin_asignar" para ver los leads huérfanos.
-        $responsablePedido = $peticion->query('vendedor');
-
-        if ($responsablePedido === 'sin_asignar') {
-            $consulta->whereNull('vendedor_asignado_id');
-        } elseif (is_string($responsablePedido) && $responsablePedido !== '') {
-            $consulta->where('vendedor_asignado_id', $responsablePedido);
-        }
-
         $consulta = $this->aplicarOrden($consulta, (string) $peticion->query('orden', 'recientes'));
 
         // Paginación generosa: el tablero se pinta como cuadrícula y el
@@ -78,6 +73,101 @@ class MarcaController extends Controller
         $marcasPorPagina = min((int) $peticion->query('porPagina', 60), 200);
 
         return RecursoMarca::collection($consulta->paginate($marcasPorPagina));
+    }
+
+    /**
+     * GET /api/marcas/agentes
+     * Quién puede salir en el filtro por agente del tablero.
+     *
+     * No es la lista de cuentas: es la lista de quien REALMENTE lleva
+     * marcas, más los vendedores activos aunque todavía no lleven
+     * ninguna. La diferencia importa porque una marca se puede asignar a
+     * cualquier cuenta —también a un admin, a un comercial o a alguien
+     * que luego se desactivó—, y con la lista de cuentas activas esas
+     * marcas quedaban fuera del desplegable: no había forma de filtrarlas
+     * por nadie y parecía que el filtro las perdía.
+     *
+     * Cada persona viene con su total, para que al elegirla se pueda
+     * comprobar de un vistazo que el tablero devuelve esa misma cifra.
+     */
+    public function agentes(): JsonResponse
+    {
+        $this->authorize('viewAny', Marca::class);
+
+        // Lo que hay escrito en las marcas, agrupado por persona. Se
+        // agrupa por NOMBRE y no por id para que dos cuentas de la misma
+        // persona —o una fila con el nombre y sin id— salgan como una
+        // sola entrada, que es como lo entiende el equipo.
+        //
+        // La agrupación se normaliza en SQL (minúsculas y sin espacios
+        // sobrantes) y no en PHP: MySQL compara sin distinguir mayúsculas
+        // y SQLite sí, así que agrupar por la columna tal cual daría una
+        // lista distinta en el servidor y en las pruebas. Además, un
+        // «daymar marcano» escrito a mano tiene que sumar con su
+        // «Daymar Marcano», no salir aparte con su propio contador.
+        $asignadas = Marca::query()
+            ->selectRaw('LOWER(TRIM(vendedor_asignado_nombre)) as clave')
+            // De las variantes escritas se enseña la primera por orden,
+            // que con las mayúsculas delante es la bien escrita.
+            ->selectRaw('MIN(TRIM(vendedor_asignado_nombre)) as nombre')
+            ->selectRaw('MIN(vendedor_asignado_id) as id')
+            ->selectRaw('COUNT(*) as total')
+            ->whereNotNull('vendedor_asignado_nombre')
+            ->where('vendedor_asignado_nombre', '!=', '')
+            ->groupBy('clave')
+            ->get()
+            ->keyBy(fn ($fila): string => (string) $fila->clave);
+
+        // Cuando hay cuenta, el nombre bueno es el de la cuenta: es el
+        // que se ve en el resto del sistema y el que se actualiza si esa
+        // persona se cambia el nombre.
+        $cuentas = User::query()
+            ->whereIn('id', $asignadas->pluck('id')->filter()->all())
+            ->get()
+            ->keyBy('id');
+
+        $agentes = $asignadas->map(static function ($fila) use ($cuentas): array {
+            $cuenta = $fila->id === null ? null : $cuentas->get($fila->id);
+
+            return [
+                // El id sirve para que el filtro siga viajando por id
+                // cuando existe cuenta; si no la hay, viaja el nombre.
+                'id' => $fila->id ?: (string) $fila->nombre,
+                'nombre' => $cuenta?->nombreParaMostrar() ?? (string) $fila->nombre,
+                'totalMarcas' => (int) $fila->total,
+                'tieneCuenta' => $cuenta !== null,
+            ];
+        })->values()->all();
+
+        // Los vendedores activos que aún no llevan ninguna marca también
+        // salen: el filtro tiene que poder contestar "ninguna" en vez de
+        // esconder a la persona.
+        $vendedoresSinMarcas = User::query()
+            ->where('rol', RolUsuario::Vendedor->value)
+            ->where('activo', true)
+            ->orderBy('name')
+            ->get()
+            ->reject(fn (User $usuario): bool => $asignadas->has(
+                mb_strtolower(trim($usuario->nombreParaMostrar())),
+            ))
+            ->map(static fn (User $usuario): array => [
+                'id' => $usuario->id,
+                'nombre' => $usuario->nombreParaMostrar(),
+                'totalMarcas' => 0,
+                'tieneCuenta' => true,
+            ])
+            ->values()
+            ->all();
+
+        $todos = array_merge($agentes, $vendedoresSinMarcas);
+
+        usort($todos, static fn (array $uno, array $otro): int => strcasecmp($uno['nombre'], $otro['nombre']));
+
+        return response()->json([
+            'data' => $todos,
+            // Las que no tienen ni id ni nombre: el montón sin dueño.
+            'sinAsignar' => Marca::query()->deVendedor('sin_asignar')->count(),
+        ]);
     }
 
     /**

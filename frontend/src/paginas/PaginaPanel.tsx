@@ -29,11 +29,20 @@
  *
  * Todas las cifras vienen ya calculadas del servidor: el navegador no
  * descarga las marcas para poder enseñar un total.
+ *
+ * Y casi todas se pueden pulsar para ver de dónde salen: los contadores
+ * llevan al tablero con el filtro puesto (`/marcas?fase=propuesta`) y
+ * las dos cifras IOP, al catálogo. Filtran por FASE y no por etapa a
+ * propósito —lo explica el comentario que hay sobre los contadores—; con
+ * `etapa` la lista saldría más corta que la cifra pulsada. Las que no
+ * tienen un listado detrás se quedan sin enlace, que es más honesto que
+ * llevar a una pantalla que no contesta la pregunta.
  * ---------------------------------------------------------------------
  */
 import { Button, Chip, Progress } from "@heroui/react";
 import {
   Activity,
+  ArrowUpRight,
   Building2,
   CalendarClock,
   CheckCircle2,
@@ -155,33 +164,50 @@ export function PaginaPanel() {
         <MisMarcasDeUnVistazo miId={usuario.id} numeros={misNumeros} />
       )}
 
-      {/* --- Los cinco contadores --- */}
+      {/* --- Los cinco contadores ---
+          Todos llevan al tablero con el filtro puesto: una cifra suelta
+          no se puede comprobar, y lo primero que se pregunta al verla es
+          «¿cuáles son?».
+
+          Filtran por FASE (`?fase=`) y no por etapa (`?etapa=`), que no
+          son lo mismo: la etapa mete cada marca en un único cajón —una
+          con propuesta ya no cuenta como en aproximación—, mientras que
+          estos contadores cuentan casillas marcadas. Con `etapa` la
+          lista saldría más corta que el número pulsado. */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
         <TarjetaDeMetrica
+          enlace="/marcas"
           etiqueta="Marcas registradas"
           icono={<Building2 className="size-4" />}
           valor={formatearNumero(contadores.totalMarcas)}
         />
         <TarjetaDeMetrica
           color={COLOR_DE_FASE.aproximacion}
+          enlace="/marcas?fase=aproximacion"
           etiqueta="En aproximación"
           icono={<Handshake className="size-4" />}
           valor={formatearNumero(contadores.enAproximacion)}
         />
         <TarjetaDeMetrica
           color={COLOR_DE_FASE.prospeccion}
+          enlace="/marcas?fase=prospeccion"
           etiqueta="Prospección completa"
           icono={<Search className="size-4" />}
           valor={formatearNumero(contadores.enProspeccion)}
         />
         <TarjetaDeMetrica
           color={COLOR_DE_FASE.propuesta}
+          enlace="/marcas?fase=propuesta"
           etiqueta="Con propuesta"
           icono={<CheckCircle2 className="size-4" />}
           valor={formatearNumero(contadores.conPropuesta)}
         />
         <TarjetaDeMetrica
           destacada
+          // El importe solo lo suman las marcas con propuesta (regla 4),
+          // y salen de mayor a menor: quien pulsa un total quiere ver
+          // primero lo que más pesa dentro de él.
+          enlace="/marcas?fase=propuesta&orden=valor_desc"
           etiqueta="Valor propuesto / año"
           icono={<Wallet className="size-4" />}
           valor={formatearDineroAbreviado(contadores.valorPropuestoAnual)}
@@ -192,14 +218,19 @@ export function PaginaPanel() {
           Van en su propia fila y no mezclados con los de arriba porque
           responden a otra pregunta: aquellos cuentan marcas y propuestas
           enviadas; estos, cuánto se espera vender de las propiedades. */}
+      {/* Estos dos no llevan al tablero de marcas sino al catálogo:
+          allí están desglosados propiedad a propiedad, que es de donde
+          salen las dos sumas. */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <TarjetaDeMetrica
+          enlace="/propiedades"
           etiqueta="Meta de venta del catálogo"
           icono={<Target className="size-4" />}
           valor={formatearDineroAbreviado(contadores.forecastDePropiedades)}
         />
         <TarjetaDeMetrica
           color={COLOR_DE_FASE.propuesta}
+          enlace="/propiedades"
           etiqueta="Pronosticado por el equipo (OVP)"
           icono={<TrendingUp className="size-4" />}
           valor={formatearDineroAbreviado(contadores.ovpPronosticado)}
@@ -581,33 +612,41 @@ function PanelDelAgente({
           mismo, aquí en primer plano porque son TODO su panel. */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <TarjetaDeMetrica
+          enlace={`/marcas?vendedor=${usuario.id}`}
           etiqueta="Marcas asignadas"
           icono={<Building2 className="size-4" />}
           valor={formatearNumero(misNumeros.totalMarcas)}
         />
         <TarjetaDeMetrica
           color={COLOR_DE_FASE.aproximacion}
+          enlace={`/marcas?vendedor=${usuario.id}&fase=aproximacion`}
           etiqueta="En aproximación"
           icono={<Handshake className="size-4" />}
           valor={formatearNumero(misNumeros.enAproximacion)}
         />
         <TarjetaDeMetrica
           color={COLOR_DE_FASE.prospeccion}
+          enlace={`/marcas?vendedor=${usuario.id}&fase=prospeccion`}
           etiqueta="Prospección completa"
           icono={<Search className="size-4" />}
           valor={formatearNumero(misNumeros.enProspeccion)}
         />
         <TarjetaDeMetrica
           color={COLOR_DE_FASE.propuesta}
+          enlace={`/marcas?vendedor=${usuario.id}&fase=propuesta`}
           etiqueta="Con propuesta"
           icono={<CheckCircle2 className="size-4" />}
           valor={formatearNumero(misNumeros.conPropuesta)}
         />
         <TarjetaDeMetrica
+          enlace={`/marcas?vendedor=${usuario.id}&fase=propuesta&orden=valor_desc`}
           etiqueta="Valor propuesto / año"
           icono={<Wallet className="size-4" />}
           valor={formatearDineroAbreviado(misNumeros.valorPropuestoAnual)}
         />
+        {/* El pronóstico se queda sin enlace: no sale de un listado de
+            marcas sino de los checklists, y está desglosado ahí abajo,
+            en «Mis propiedades». */}
         <TarjetaDeMetrica
           destacada
           etiqueta="Mi pronóstico (OVP)"
@@ -734,20 +773,30 @@ function TarjetaDeMetrica({
   icono,
   color,
   destacada = false,
+  enlace,
 }: {
   etiqueta: string;
   valor: string;
   icono: React.ReactNode;
   color?: string;
   destacada?: boolean;
+  /**
+   * El listado del que sale la cifra.
+   *
+   * Se deja sin poner a propósito en las cifras que no tienen una lista
+   * detrás que enseñar: una tarjeta que no se puede pulsar es mejor que
+   * una que promete el detalle y lleva a otra cosa.
+   */
+  enlace?: string;
 }) {
-  return (
-    <div
-      className={[
-        "bento-card flex flex-col gap-2 p-4",
-        destacada ? "bg-primary text-primary-foreground border-primary" : "",
-      ].join(" ")}
-    >
+  const clases = [
+    "bento-card flex flex-col gap-2 p-4",
+    destacada ? "bg-primary text-primary-foreground border-primary" : "",
+    enlace ? "bento-card-interactive" : "",
+  ].join(" ");
+
+  const contenido = (
+    <>
       <div className="flex items-center gap-2">
         <span
           className={[
@@ -758,6 +807,19 @@ function TarjetaDeMetrica({
         >
           {icono}
         </span>
+
+        {/* La flecha es la única pista de que la cifra se puede pulsar.
+            Un botón dentro de la tarjeta competiría con el número, que
+            es lo que se viene a leer. */}
+        {enlace !== undefined && (
+          <ArrowUpRight
+            aria-hidden
+            className={[
+              "ml-auto size-4",
+              destacada ? "text-primary-foreground/60" : "text-default-300",
+            ].join(" ")}
+          />
+        )}
       </div>
 
       <div>
@@ -771,7 +833,17 @@ function TarjetaDeMetrica({
           {etiqueta}
         </p>
       </div>
-    </div>
+    </>
+  );
+
+  if (enlace === undefined) {
+    return <div className={clases}>{contenido}</div>;
+  }
+
+  return (
+    <Link className={clases} to={enlace}>
+      {contenido}
+    </Link>
   );
 }
 
@@ -1010,15 +1082,24 @@ function MisMarcasDeUnVistazo({
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <CifraPropia etiqueta="Asignadas" valor={formatearNumero(numeros.totalMarcas)} />
         <CifraPropia
+          enlace={`/marcas?vendedor=${miId}`}
+          etiqueta="Asignadas"
+          valor={formatearNumero(numeros.totalMarcas)}
+        />
+        <CifraPropia
+          enlace={`/marcas?vendedor=${miId}&fase=prospeccion`}
           etiqueta="En prospección"
           valor={formatearNumero(numeros.enProspeccion)}
         />
         <CifraPropia
+          enlace={`/marcas?vendedor=${miId}&fase=propuesta`}
           etiqueta="Con propuesta"
           valor={formatearNumero(numeros.conPropuesta)}
         />
+        {/* Las dos últimas no llevan a ningún sitio: el pronóstico sale
+            de los checklists, y las acciones, del calendario que ya está
+            en esta misma pantalla. */}
         <CifraPropia
           destacada
           etiqueta="Mi pronóstico"
@@ -1037,13 +1118,16 @@ function CifraPropia({
   etiqueta,
   valor,
   destacada = false,
+  enlace,
 }: {
   etiqueta: string;
   valor: string;
   destacada?: boolean;
+  /** El listado del que sale la cifra, cuando hay uno. */
+  enlace?: string;
 }) {
-  return (
-    <div className="rounded-xl bg-content1 px-3 py-2.5">
+  const contenido = (
+    <>
       <p className="text-[11px] leading-tight text-default-500">{etiqueta}</p>
       <p
         className={[
@@ -1053,6 +1137,19 @@ function CifraPropia({
       >
         {valor}
       </p>
-    </div>
+    </>
+  );
+
+  if (enlace === undefined) {
+    return <div className="rounded-xl bg-content1 px-3 py-2.5">{contenido}</div>;
+  }
+
+  return (
+    <Link
+      className="block rounded-xl bg-content1 px-3 py-2.5 transition hover:ring-2 hover:ring-primary/40"
+      to={enlace}
+    >
+      {contenido}
+    </Link>
   );
 }

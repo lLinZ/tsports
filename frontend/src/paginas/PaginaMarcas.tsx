@@ -8,6 +8,21 @@
  * lo que permite guardar una vista en marcadores o pasarle a un
  * compañero el enlace exacto de lo que estás viendo.
  *
+ * Esa misma dirección es la que convierte los contadores del panel en
+ * botones: pulsar «13 con propuesta» abre esta pantalla con `?fase=`
+ * puesto. Ojo con la diferencia entre los dos filtros de avance, porque
+ * no significan lo mismo:
+ *
+ *   · `?etapa=` es el selector de aquí arriba. Reparte las marcas en
+ *     cajones que no se pisan: una marca con propuesta cuenta como «con
+ *     propuesta» y ya no aparece en «en aproximación».
+ *   · `?fase=` es lo que cuentan los contadores del panel: si esa
+ *     casilla está marcada, sin mirar las otras dos.
+ *
+ * Por eso el mismo avance se filtra de dos maneras, y por eso poner los
+ * dos a la vez no tendría sentido: `cambiarFiltro` quita uno al poner
+ * el otro.
+ *
  * La búsqueda se aplica con un pequeño retardo para no lanzar una
  * consulta por cada tecla pulsada.
  * ---------------------------------------------------------------------
@@ -34,17 +49,18 @@ import { TarjetaDeMarca } from "@/componentes/crm/TarjetaDeMarca";
 import { useCampanasActivas } from "@/hooks/useCampanas";
 import { useCatalogos } from "@/hooks/useCatalogos";
 import {
+  useAgentesDeMarcas,
   useAlternarFase,
   useFichaDeMarca,
   useListadoDeMarcas,
 } from "@/hooks/useMarcas";
 import { usePropiedadesOfrecibles } from "@/hooks/usePropiedades";
-import { useVendedores } from "@/hooks/useVendedores";
 import { useUsuarioAutenticado } from "@/providers/ProveedorSesion";
 import { avisarDeError } from "@/utilidades/avisos";
 import { formatearNumero } from "@/utilidades/formato";
 import type {
   EtapaDeMarca,
+  FaseDeMarca,
   FiltrosDeMarcas,
   InversionEnPatrocinios,
   Marca,
@@ -59,6 +75,19 @@ const OPCIONES_DE_ETAPA: Array<{ valor: EtapaDeMarca | ""; etiqueta: string }> =
   { valor: "propuesta", etiqueta: "Con propuesta" },
   { valor: "completa", etiqueta: "Proceso completo" },
 ];
+
+/**
+ * Cómo se llama cada fase cuando llega como filtro desde el panel.
+ *
+ * Son los mismos rótulos que llevan los contadores del resumen, a
+ * propósito: quien pulsa «Con propuesta» tiene que reconocer de dónde
+ * viene la lista que está mirando.
+ */
+const NOMBRE_DE_LA_FASE: Record<FaseDeMarca, string> = {
+  aproximacion: "En aproximación",
+  prospeccion: "Prospección completa",
+  propuesta: "Con propuesta",
+};
 
 const OPCIONES_DE_ORDEN: Array<{
   valor: FiltrosDeMarcas["orden"];
@@ -88,6 +117,7 @@ export function PaginaMarcas() {
     () => ({
       busqueda: parametrosDeLaUrl.get("busqueda") ?? "",
       etapa: (parametrosDeLaUrl.get("etapa") as EtapaDeMarca) ?? "",
+      fase: (parametrosDeLaUrl.get("fase") as FaseDeMarca) ?? "",
       zona: parametrosDeLaUrl.get("zona") ?? "",
       sector: parametrosDeLaUrl.get("sector") ?? "",
       vendedor: parametrosDeLaUrl.get("vendedor") ?? "",
@@ -132,6 +162,18 @@ export function PaginaMarcas() {
       parametrosNuevos.set(clave, valor);
     }
 
+    // Etapa y fase son dos formas de leer el MISMO avance, así que se
+    // pisan: dejar las dos puestas daría listas vacías imposibles de
+    // entender ("en aproximación" + "con propuesta" no devuelve nada).
+    // Manda la última que se haya tocado.
+    if (clave === "etapa" && valor !== "") {
+      parametrosNuevos.delete("fase");
+    }
+
+    if (clave === "fase" && valor !== "") {
+      parametrosNuevos.delete("etapa");
+    }
+
     establecerParametrosDeLaUrl(parametrosNuevos, { replace: true });
   }
 
@@ -143,6 +185,7 @@ export function PaginaMarcas() {
   const hayFiltrosActivos =
     Boolean(filtrosAplicados.busqueda) ||
     Boolean(filtrosAplicados.etapa) ||
+    Boolean(filtrosAplicados.fase) ||
     Boolean(filtrosAplicados.zona) ||
     Boolean(filtrosAplicados.sector) ||
     Boolean(filtrosAplicados.vendedor) ||
@@ -163,9 +206,19 @@ export function PaginaMarcas() {
   const { campanas: campanasActivas } = useCampanasActivas();
   const { propiedades: propiedadesOfrecibles } = usePropiedadesOfrecibles();
 
-  // Solo la necesita quien puede filtrar por responsable; el hook ya
-  // se calla para un vendedor raso.
-  const { vendedores } = useVendedores();
+  /*
+    La lista del filtro por agente NO es la de vendedores.
+
+    `useVendedores` contesta "a quién puedo asignarle esta marca", y solo
+    trae cuentas de vendedor activas. Aquí la pregunta es otra: "por quién
+    puedo filtrar", y la respuesta tiene que incluir a cualquiera que
+    aparezca llevando marcas —un comercial, un admin, alguien que ya se
+    desactivó—, porque si no, sus marcas no salen al filtrar por nadie.
+    Cada persona viene con su total, que se pinta al lado del nombre.
+  */
+  const { agentes, sinAsignar: totalSinAsignar } = useAgentesDeMarcas({
+    habilitado: usuario.permisos.asignaVendedores,
+  });
 
   /* ---------------------------------------------------------------- */
   /* Ficha                                                            */
@@ -422,9 +475,13 @@ export function PaginaMarcas() {
             >
               {[
                 <SelectItem key="">Todos los agentes</SelectItem>,
-                <SelectItem key="sin_asignar">Sin asignar</SelectItem>,
-                ...vendedores.map((vendedor) => (
-                  <SelectItem key={vendedor.id}>{vendedor.nombre}</SelectItem>
+                <SelectItem key="sin_asignar" textValue="Sin asignar">
+                  Sin asignar ({formatearNumero(totalSinAsignar)})
+                </SelectItem>,
+                ...agentes.map((agente) => (
+                  <SelectItem key={agente.id} textValue={agente.nombre}>
+                    {agente.nombre} ({formatearNumero(agente.totalMarcas)})
+                  </SelectItem>
                 )),
               ]}
             </Select>
@@ -468,6 +525,17 @@ export function PaginaMarcas() {
                 «{filtrosAplicados.busqueda}»
               </Chip>
             )}
+            {filtrosAplicados.fase && (
+              <Chip
+                color="primary"
+                onClose={() => cambiarFiltro("fase", "")}
+                radius="lg"
+                size="sm"
+                variant="flat"
+              >
+                {NOMBRE_DE_LA_FASE[filtrosAplicados.fase]}
+              </Chip>
+            )}
             {filtrosAplicados.zona && (
               <Chip radius="lg" size="sm" variant="flat">
                 Zona: {filtrosAplicados.zona === "sin_zona" ? "sin zona" : filtrosAplicados.zona}
@@ -478,6 +546,21 @@ export function PaginaMarcas() {
                 Sin agente asignado
               </Chip>
             )}
+            {filtrosAplicados.vendedor &&
+              filtrosAplicados.vendedor !== "sin_asignar" && (
+                <Chip
+                  color="primary"
+                  onClose={() => cambiarFiltro("vendedor", "")}
+                  radius="lg"
+                  size="sm"
+                  variant="flat"
+                >
+                  Agente:{" "}
+                  {agentes.find(
+                    (agente) => agente.id === filtrosAplicados.vendedor,
+                  )?.nombre ?? "el seleccionado"}
+                </Chip>
+              )}
             {filtrosAplicados.campana && (
               <Chip radius="lg" size="sm" variant="flat">
                 Campaña:{" "}

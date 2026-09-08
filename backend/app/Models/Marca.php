@@ -307,6 +307,67 @@ class Marca extends Model
         return $consulta->where('zona', $zona);
     }
 
+    /**
+     * Filtra por el agente que lleva la marca.
+     *
+     * La promesa de este filtro es simple: al elegir a una persona salen
+     * SUS marcas, todas. Cumplirla pide algo más que comparar el id,
+     * porque una marca puede llevar el nombre de alguien y no su id:
+     *
+     *   · Cuentas duplicadas. Si a la misma persona se le creó la cuenta
+     *     dos veces, sus marcas quedan repartidas entre dos ids y el
+     *     desplegable solo ofrece uno.
+     *   · Filas cargadas contra la base de datos, sin pasar por la
+     *     aplicación: traen el nombre escrito y el id vacío.
+     *
+     * En los dos casos la marca es suya para el equipo, así que también
+     * se busca por el nombre que quedó grabado en la fila. Comparar
+     * nombres tiene un riesgo asumido —dos personas distintas llamadas
+     * igual se mezclarían—, y se acepta a sabiendas: en un equipo de
+     * siete personas ese choque no ocurre, y la alternativa es lo que
+     * pasaba antes, que era perder marcas sin avisar.
+     *
+     * El valor puede ser el id de una cuenta o directamente un nombre,
+     * para que el desplegable pueda ofrecer también a quien aparece
+     * escrito en las marcas pero ya no tiene cuenta.
+     */
+    public function scopeDeVendedor(Builder $consulta, ?string $vendedor): Builder
+    {
+        $valorLimpio = trim((string) $vendedor);
+
+        if ($valorLimpio === '') {
+            return $consulta;
+        }
+
+        // Sin dueño de verdad: ni id ni nombre. Una fila con el nombre
+        // puesto ya no cuenta como huérfana, porque ahora sale al
+        // filtrar por esa persona.
+        if ($valorLimpio === 'sin_asignar') {
+            return $consulta->whereNull('vendedor_asignado_id')
+                ->where(function (Builder $subconsulta): void {
+                    $subconsulta->whereNull('vendedor_asignado_nombre')
+                        ->orWhere('vendedor_asignado_nombre', '');
+                });
+        }
+
+        $usuario = User::query()->find($valorLimpio);
+
+        // Si llega un nombre en vez de un id —la opción que ofrece el
+        // desplegable para quien ya no tiene cuenta— se busca solo por él.
+        $nombreBuscado = $usuario?->nombreParaMostrar() ?? $valorLimpio;
+
+        return $consulta->where(function (Builder $subconsulta) use ($usuario, $nombreBuscado): void {
+            if ($usuario !== null) {
+                $subconsulta->orWhere('vendedor_asignado_id', $usuario->id);
+            }
+
+            $subconsulta->orWhereRaw(
+                'LOWER(TRIM(vendedor_asignado_nombre)) = ?',
+                [mb_strtolower(trim($nombreBuscado))],
+            );
+        });
+    }
+
     /** Filtra por campaña; "sin_campana" trae las que no tienen ninguna. */
     public function scopeDeCampana(Builder $consulta, ?string $idDeLaCampana): Builder
     {
@@ -389,6 +450,38 @@ class Marca extends Model
             'sin_iniciar' => $consulta->where('fase_aproximacion_completada', false)
                 ->where('fase_prospeccion_completada', false)
                 ->where('fase_propuesta_completada', false),
+
+            default => $consulta,
+        };
+    }
+
+    /**
+     * Filtra por UNA fase marcada, sin mirar las otras dos.
+     *
+     * No es lo mismo que `enEtapa()`, y la diferencia es justo la que
+     * hacía falta para poder pulsar los contadores del panel:
+     *
+     *   · `enEtapa('aproximacion')` reparte las marcas en cajones que no
+     *     se pisan, y allí «aproximación» significa «y todavía NO hay
+     *     propuesta enviada».
+     *   · `conLaFase('aproximacion')` contesta «¿tiene esa casilla
+     *     marcada?», que es exactamente lo que cuenta el contador del
+     *     panel.
+     *
+     * Los dos criterios son legítimos y cada uno tiene su sitio: el
+     * selector de avance del tablero usa el primero, para que una marca
+     * no aparezca en dos filtros a la vez; los contadores usan el
+     * segundo, porque miden el trabajo hecho en cada fase aunque la
+     * marca haya seguido avanzando. Si al pulsar «88 en aproximación» se
+     * filtrase por etapa saldrían menos de 88, y el tablero parecería
+     * estar mintiendo en una de las dos pantallas.
+     */
+    public function scopeConLaFase(Builder $consulta, ?string $fase): Builder
+    {
+        return match ($fase) {
+            'aproximacion' => $consulta->where('fase_aproximacion_completada', true),
+            'prospeccion' => $consulta->where('fase_prospeccion_completada', true),
+            'propuesta' => $consulta->where('fase_propuesta_completada', true),
 
             default => $consulta,
         };

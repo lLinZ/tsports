@@ -9,6 +9,7 @@ import { clienteHttp } from "@/api/clienteHttp";
 import type {
   CatalogosDelSistema,
   PeriodoDelCalendario,
+  PersonaDeAuditoria,
   VistaDelCalendario,
   RegistroDeActividad,
   ResumenDelPanel,
@@ -73,15 +74,44 @@ export async function eliminarImagen(idDeLaImagen: string): Promise<void> {
   await clienteHttp.delete(`/media/${idDeLaImagen}`);
 }
 
-/** Historial de auditoría. Solo lo puede consultar un administrador. */
+/**
+ * Historial de auditoría. Solo lo puede consultar un administrador.
+ *
+ * Los filtros vacíos no se envían: así el servidor no tiene que
+ * distinguir entre "sin filtro" y "filtro en blanco", y la petición se
+ * queda limpia en el inspector.
+ *
+ * Devuelve también el total, que es la cifra que se enseña arriba: el
+ * listado viene paginado y contar lo recibido mentiría.
+ */
 export async function obtenerAuditoria(filtros?: {
+  desde?: string;
+  hasta?: string;
   usuario?: string;
   entidad?: string;
   accion?: string;
-}): Promise<RegistroDeActividad[]> {
-  const { data } = await clienteHttp.get<{ data: RegistroDeActividad[] }>(
-    "/admin/auditoria",
-    { params: filtros ?? {} },
+}): Promise<{ registros: RegistroDeActividad[]; total: number }> {
+  const parametros: Record<string, string> = {};
+
+  for (const [clave, valor] of Object.entries(filtros ?? {})) {
+    if (valor) parametros[clave] = valor;
+  }
+
+  const { data } = await clienteHttp.get<{
+    data: RegistroDeActividad[];
+    meta?: { total: number };
+  }>("/admin/auditoria", { params: parametros });
+
+  return { registros: data.data, total: data.meta?.total ?? data.data.length };
+}
+
+/**
+ * Quién aparece en el historial, con cuántos movimientos tiene cada uno.
+ * Sale del propio historial, así que incluye a quien ya no tiene cuenta.
+ */
+export async function listarPersonasDeAuditoria(): Promise<PersonaDeAuditoria[]> {
+  const { data } = await clienteHttp.get<{ data: PersonaDeAuditoria[] }>(
+    "/admin/auditoria/personas",
   );
 
   return data.data;

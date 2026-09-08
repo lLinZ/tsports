@@ -203,6 +203,17 @@ export type EtapaDeMarca =
   | "propuesta"
   | "completa";
 
+/**
+ * Una fase suelta del proceso.
+ *
+ * No es lo mismo que `EtapaDeMarca` y la diferencia importa: la etapa
+ * mete cada marca en un único cajón (con propuesta ya NO cuenta como en
+ * aproximación), mientras que la fase solo dice si esa casilla está
+ * marcada. Los contadores del panel cuentan fases, y por eso al pulsar
+ * uno el tablero filtra por fase y no por etapa.
+ */
+export type FaseDeMarca = "aproximacion" | "prospeccion" | "propuesta";
+
 /** Si la marca ya invierte hoy en patrocinios. */
 export type InversionEnPatrocinios = "desconocido" | "si" | "no";
 
@@ -318,9 +329,34 @@ export interface DatosDeMarcaParaGuardar {
 }
 
 /** Filtros del tablero, tal y como viajan en la consulta. */
+/**
+ * Una persona tal y como sale en el filtro por agente del tablero.
+ *
+ * No es una cuenta: es quien de verdad aparece llevando marcas. Puede
+ * no tener cuenta (`tieneCuenta: false`) si su nombre quedó escrito en
+ * las marcas y la cuenta ya no existe; en ese caso `id` es el nombre,
+ * que es con lo que el servidor sabe buscarla.
+ */
+export interface AgenteConMarcas {
+  id: string;
+  nombre: string;
+  totalMarcas: number;
+  tieneCuenta: boolean;
+}
+
+/** Una persona tal y como sale en el filtro del historial de auditoría. */
+export interface PersonaDeAuditoria {
+  /** Id de su cuenta, o su nombre si ya no tiene cuenta. */
+  id: string;
+  nombre: string;
+  totalMovimientos: number;
+}
+
 export interface FiltrosDeMarcas {
   busqueda: string;
   etapa: EtapaDeMarca | "";
+  /** Una fase marcada, sin mirar las otras dos. Llega al pulsar un contador del panel. */
+  fase: FaseDeMarca | "";
   zona: string;
   sector: string;
   vendedor: string;

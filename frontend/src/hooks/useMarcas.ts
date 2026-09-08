@@ -18,6 +18,7 @@ import {
 import {
   actualizarMarca,
   alternarFaseDeMarca,
+  listarAgentesDeMarcas,
   anotarAccionDeCampana,
   asignarVendedorAMarca,
   crearComentario,
@@ -53,6 +54,7 @@ export const clavesDeMarcas = {
   ficha: (idDeLaMarca: string) => ["marcas", "ficha", idDeLaMarca] as const,
   comentarios: (idDeLaMarca: string) => ["marcas", "comentarios", idDeLaMarca] as const,
   resumenDelPanel: ["panel", "resumen"] as const,
+  agentes: ["marcas", "agentes"] as const,
 };
 
 /* ==================================================================== */
@@ -76,6 +78,31 @@ export function useListadoDeMarcas(filtros: Partial<FiltrosDeMarcas>) {
     estaRefrescando: consulta.isFetching,
     error: consulta.error,
     recargar: consulta.refetch,
+  };
+}
+
+/**
+ * Las personas que pueden salir en el filtro por agente, con cuántas
+ * marcas lleva cada una.
+ *
+ * Es una lista distinta de la de `useVendedores`, y a propósito: aquella
+ * es "a quién puedo asignarle una marca" (cuentas de vendedor activas) y
+ * esta es "por quién puedo filtrar" (quien realmente aparece llevando
+ * marcas, tenga el rol que tenga y aunque su cuenta ya no esté). Usar la
+ * primera para filtrar dejaba marcas que no se podían encontrar por
+ * ningún agente.
+ */
+export function useAgentesDeMarcas({ habilitado = true } = {}) {
+  const consulta = useQuery({
+    queryKey: clavesDeMarcas.agentes,
+    queryFn: listarAgentesDeMarcas,
+    enabled: habilitado,
+  });
+
+  return {
+    agentes: consulta.data?.agentes ?? [],
+    sinAsignar: consulta.data?.sinAsignar ?? 0,
+    estaCargando: consulta.isLoading,
   };
 }
 

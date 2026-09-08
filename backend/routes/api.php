@@ -93,6 +93,11 @@ Route::middleware('auth:sanctum')->group(function (): void {
     /* ---------- Marcas (el CRM propiamente dicho) ---------- */
     Route::get('/marcas', [MarcaController::class, 'index']);
     Route::post('/marcas', [MarcaController::class, 'store']);
+
+    // Va ANTES de /marcas/{marca}: si no, Laravel leería "agentes" como
+    // el identificador de una marca y respondería 404.
+    Route::get('/marcas/agentes', [MarcaController::class, 'agentes']);
+
     Route::get('/marcas/{marca}', [MarcaController::class, 'show']);
     Route::put('/marcas/{marca}', [MarcaController::class, 'update']);
     Route::delete('/marcas/{marca}', [MarcaController::class, 'destroy']);
@@ -154,5 +159,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
         /* ---------- Auditoría ---------- */
         Route::get('/auditoria', [AuditoriaController::class, 'index']);
+        // Va ANTES de nada que use un comodín: es la lista de personas
+        // que alimenta el filtro por persona del historial.
+        Route::get('/auditoria/personas', [AuditoriaController::class, 'personas']);
     });
 });

@@ -11,6 +11,7 @@
 import { clienteHttp } from "@/api/clienteHttp";
 import type {
   AccionDeCampanaEnElHistorial,
+  AgenteConMarcas,
   ComentarioDeMarca,
   DatosDeAccionParaCorregir,
   DatosDeMarcaParaGuardar,
@@ -41,6 +42,7 @@ export async function listarMarcas(
 
   if (filtros.busqueda?.trim()) parametrosDeConsulta.busqueda = filtros.busqueda.trim();
   if (filtros.etapa) parametrosDeConsulta.etapa = filtros.etapa;
+  if (filtros.fase) parametrosDeConsulta.fase = filtros.fase;
   if (filtros.zona) parametrosDeConsulta.zona = filtros.zona;
   if (filtros.sector) parametrosDeConsulta.sector = filtros.sector;
   if (filtros.vendedor) parametrosDeConsulta.vendedor = filtros.vendedor;
@@ -57,6 +59,22 @@ export async function listarMarcas(
     marcas: data.data,
     total: data.meta?.total ?? data.data.length,
   };
+}
+
+/**
+ * Quién sale en el filtro por agente: los que llevan marcas de verdad,
+ * con su total, más los vendedores activos que aún no llevan ninguna.
+ */
+export async function listarAgentesDeMarcas(): Promise<{
+  agentes: AgenteConMarcas[];
+  sinAsignar: number;
+}> {
+  const { data } = await clienteHttp.get<{
+    data: AgenteConMarcas[];
+    sinAsignar: number;
+  }>("/marcas/agentes");
+
+  return { agentes: data.data, sinAsignar: data.sinAsignar };
 }
 
 /** Ficha completa de una marca, con su bitácora incluida. */
