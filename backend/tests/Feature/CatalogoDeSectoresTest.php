@@ -8,7 +8,6 @@ use App\Enums\RolUsuario;
 use App\Models\Marca;
 use App\Models\Sector;
 use App\Models\User;
-use Database\Seeders\SectoresInicialesSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -90,22 +89,22 @@ class CatalogoDeSectoresTest extends TestCase
     {
         $comercial = $this->crearUsuario(RolUsuario::Comercial);
 
-        $sector = Sector::create(['nombre' => 'Tecnologia', 'orden' => 1]);
+        $sector = Sector::query()->where('nombre', 'Tecnología')->firstOrFail();
 
-        Marca::create(['nombre_marca' => 'Una', 'sector' => 'Tecnologia']);
-        Marca::create(['nombre_marca' => 'Otra', 'sector' => 'Tecnologia']);
+        Marca::create(['nombre_marca' => 'Una', 'sector' => 'Tecnología']);
+        Marca::create(['nombre_marca' => 'Otra', 'sector' => 'Tecnología']);
         Marca::create(['nombre_marca' => 'De otro rubro', 'sector' => 'Bebidas']);
 
         $this->actingAs($comercial)
-            ->putJson('/api/sectores/'.$sector->id, ['nombre' => 'Tecnología'])
+            ->putJson('/api/sectores/'.$sector->id, ['nombre' => 'Tecnología e informática'])
             ->assertOk()
-            ->assertJsonPath('data.nombre', 'Tecnología')
+            ->assertJsonPath('data.nombre', 'Tecnología e informática')
             ->assertJsonPath('data.totalMarcas', 2);
 
         // Las dos marcas se van con el nombre nuevo; la de otro rubro no
         // se toca.
-        $this->assertSame(2, Marca::query()->where('sector', 'Tecnología')->count());
-        $this->assertSame(0, Marca::query()->where('sector', 'Tecnologia')->count());
+        $this->assertSame(2, Marca::query()->where('sector', 'Tecnología e informática')->count());
+        $this->assertSame(0, Marca::query()->where('sector', 'Tecnología')->count());
         $this->assertSame(1, Marca::query()->where('sector', 'Bebidas')->count());
     }
 
@@ -117,7 +116,8 @@ class CatalogoDeSectoresTest extends TestCase
     {
         $comercial = $this->crearUsuario(RolUsuario::Comercial);
 
-        $sector = Sector::create(['nombre' => 'Bebidas', 'orden' => 1]);
+        // Ya existe: lo puso la migración.
+        $sector = Sector::query()->where('nombre', 'Bebidas')->firstOrFail();
         Marca::create(['nombre_marca' => 'Refrescos del Caribe', 'sector' => 'Bebidas']);
 
         $respuesta = $this->actingAs($comercial)->deleteJson('/api/sectores/'.$sector->id);
@@ -148,7 +148,7 @@ class CatalogoDeSectoresTest extends TestCase
     {
         $comercial = $this->crearUsuario(RolUsuario::Comercial);
 
-        $sector = Sector::create(['nombre' => 'Bebidas', 'orden' => 1]);
+        $sector = Sector::query()->where('nombre', 'Bebidas')->firstOrFail();
         $marca = Marca::create(['nombre_marca' => 'Refrescos del Caribe', 'sector' => 'Bebidas']);
 
         $this->actingAs($comercial)
@@ -179,7 +179,7 @@ class CatalogoDeSectoresTest extends TestCase
     {
         $agente = $this->crearUsuario(RolUsuario::Vendedor);
 
-        $sector = Sector::create(['nombre' => 'Bebidas', 'orden' => 1]);
+        $sector = Sector::query()->where('nombre', 'Bebidas')->firstOrFail();
 
         // Verlo sí: lo necesita para el selector de la ficha.
         $this->actingAs($agente)->getJson('/api/sectores')->assertOk();
@@ -193,24 +193,36 @@ class CatalogoDeSectoresTest extends TestCase
      | El catálogo de partida
      |-----------------------------------------------------------------*/
 
-    public function test_el_catalogo_inicial_carga_los_doce_sectores(): void
+    public function test_la_migracion_deja_el_catalogo_con_los_doce_sectores(): void
     {
-        $this->seed(SectoresInicialesSeeder::class);
-
+        // Sin sembrar nada: los pone la propia migración, y tiene que ser
+        // así porque el guion de despliegue aplica migraciones pero no
+        // siembra. Con la tabla vacía la validación rechazaría CUALQUIER
+        // marca con sector, que son todas.
         $this->assertSame(12, Sector::query()->count());
 
         // Los nombres tienen que ser EXACTOS: las marcas guardan el
         // sector como texto y una tilde de más las dejaría huérfanas.
         $this->assertDatabaseHas('sectores', ['nombre' => 'Tecnología']);
         $this->assertDatabaseHas('sectores', ['nombre' => 'Banca y finanzas']);
+
+        // Y en el orden en que el equipo los nombra, no alfabético.
+        $this->assertSame(
+            ['Alimentos', 'Bebidas', 'Telecomunicaciones'],
+            array_slice(Sector::nombresActivos(), 0, 3),
+        );
     }
 
-    public function test_volver_a_sembrar_no_duplica_los_sectores(): void
+    public function test_una_marca_de_las_que_ya_existen_se_puede_guardar(): void
     {
-        $this->seed(SectoresInicialesSeeder::class);
-        $this->seed(SectoresInicialesSeeder::class);
+        $comercial = $this->crearUsuario(RolUsuario::Comercial);
 
-        $this->assertSame(12, Sector::query()->count());
+        // La comprobación que de verdad protege el despliegue: las 102
+        // marcas de producción tienen rubro, y si el catálogo llegara
+        // vacío ninguna se podría guardar.
+        $this->actingAs($comercial)
+            ->postJson('/api/marcas', ['nombreMarca' => 'Refrescos', 'sector' => 'Bebidas'])
+            ->assertCreated();
     }
 
     /* ------------------------------------------------------------------

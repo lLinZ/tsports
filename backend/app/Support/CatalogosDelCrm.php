@@ -33,33 +33,6 @@ final class CatalogosDelCrm
         'Oriente',
     ];
 
-    /**
-     * Los sectores DE PARTIDA, y solo eso.
-     *
-     * Desde el 2026-09-08 los rubros viven en la tabla `sectores` y se
-     * gestionan desde el panel: el equipo necesitaba añadir uno sin
-     * esperar a un despliegue. Esta lista se quedó porque es la que
-     * siembra el catálogo la primera vez (`SectoresInicialesSeeder`).
-     *
-     * NO se use para validar ni para pintar un selector: para eso están
-     * `Sector::nombresAdmitidos()` y `Sector::nombresActivos()`, que sí
-     * saben de los que el equipo haya añadido después.
-     */
-    public const SECTORES_INICIALES = [
-        'Alimentos',
-        'Bebidas',
-        'Telecomunicaciones',
-        'Banca y finanzas',
-        'Retail',
-        'Automotriz',
-        'Tecnología',
-        'Salud',
-        'Educación',
-        'Deportes',
-        'Entretenimiento',
-        'Otro',
-    ];
-
     /** Dónde se detectó la marca por primera vez (acciones BTL). */
     public const VIAS_DE_PROSPECCION = [
         'Instagram',
