@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>TS Sports &middot; Informe de cambios &middot; Septiembre 2026</title>
+<style>
+  @font-face { font-family: "Inter"; font-weight: 400; font-style: normal; font-display: block;
+               src: url("fuentes/Inter-400-latin.woff2") format("woff2"); }
+  @font-face { font-family: "Inter"; font-weight: 400; font-style: normal; font-display: block;
+               src: url("fuentes/Inter-400-latinext.woff2") format("woff2");
+               unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+                              U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+2113, U+2C60-2C7F; }
+
+  @font-face { font-family: "Inter"; font-weight: 500; font-style: normal; font-display: block;
+               src: url("fuentes/Inter-500-latin.woff2") format("woff2"); }
+  @font-face { font-family: "Inter"; font-weight: 500; font-style: normal; font-display: block;
+               src: url("fuentes/Inter-500-latinext.woff2") format("woff2");
+               unicode-range: U+0100-02BA, U+1E00-1E9F, U+2C60-2C7F; }
+
+  @font-face { font-family: "Inter"; font-weight: 600; font-style: normal; font-display: block;
+               src: url("fuentes/Inter-600-latin.woff2") format("woff2"); }
+  @font-face { font-family: "Inter"; font-weight: 600; font-style: normal; font-display: block;
+               src: url("fuentes/Inter-600-latinext.woff2") format("woff2");
+               unicode-range: U+0100-02BA, U+1E00-1E9F, U+2C60-2C7F; }
+
+  @font-face { font-family: "Inter"; font-weight: 700; font-style: normal; font-display: block;
+               src: url("fuentes/Inter-700-latin.woff2") format("woff2"); }
+  @font-face { font-family: "Inter"; font-weight: 700; font-style: normal; font-display: block;
+               src: url("fuentes/Inter-700-latinext.woff2") format("woff2");
+               unicode-range: U+0100-02BA, U+1E00-1E9F, U+2C60-2C7F; }
+
+  /* ZONA DE MARCA — TS Sports */
+  :root {
+    --azul:     #1B9AAA;   /* El color de la casa */
+    --rojo:     #E5484D;
+    --amarillo: #F5A524;
+    --verde:    #17A34A;
+
+    --negro:    #202124;
+    --gris:     #5F6368;
+    --gris-sua: #80868B;
+    --linea:    #E8EAED;
+    --fondo:    #F8F9FA;
+  }
+
+  @page {
+    size: A4;
+    margin: 18mm 16mm 20mm 16mm;
+    @bottom-center {
+      content: counter(page);
+      font-family: "Inter", sans-serif;
+      font-size: 8.6pt;
+      font-weight: 500;
+      color: #80868B;
+    }
+  }
+  @page:first { margin: 0; }
+
+  * { box-sizing: border-box; }
+
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  body {
+    margin: 0;
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 10.2pt;
+    line-height: 1.62;
+    color: var(--gris);
+    font-feature-settings: "cv05" 1, "ss01" 1;
+  }
+
+  /* ---------------------------- Portada --------------------------- */
+  .portada {
+    height: 297mm;
+    padding: 30mm 24mm 26mm;
+    display: flex;
+    flex-direction: column;
+    page-break-after: always;
+  }
+  .marca-portada {
+    display: flex; align-items: center; gap: 11px;
+    font-size: 13pt; font-weight: 700; color: var(--negro);
+    letter-spacing: -0.02em;
+  }
+  .cuadro-logo {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: var(--azul); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12pt; font-weight: 700; letter-spacing: -0.03em;
+  }
+  .portada h1 {
+    margin: 62mm 0 0; font-size: 40pt; line-height: 1.06;
+    font-weight: 700; color: var(--negro); letter-spacing: -0.035em;
+  }
+  .portada .bajada {
+    margin: 16px 0 0; font-size: 12.5pt; line-height: 1.55;
+    color: var(--gris); max-width: 118mm; font-weight: 400;
+  }
+  .tiras { display: flex; gap: 7px; margin: 34px 0 0; }
+  .tiras span { height: 6px; width: 58px; border-radius: 3px; }
+  .pie-portada {
+    margin-top: auto; padding-top: 16px; border-top: 1px solid var(--linea);
+    display: flex; justify-content: space-between;
+    font-size: 8.6pt; color: var(--gris-sua);
+  }
+
+  /* ---------------------------- Índice ---------------------------- */
+  .indice { page-break-after: always; }
+  .indice ol { list-style: none; margin: 0; padding: 0; counter-reset: cap; }
+  .indice > ol > li { counter-increment: cap; margin-bottom: 3px; }
+  .indice > ol > li > a {
+    display: flex; align-items: baseline; gap: 10px;
+    padding: 8px 0; border-bottom: 1px solid var(--linea);
+    text-decoration: none; color: var(--negro);
+    font-size: 10.6pt; font-weight: 600;
+  }
+  .indice .num {
+    flex: 0 0 22px; font-size: 9pt; font-weight: 700;
+    color: var(--azul); font-variant-numeric: tabular-nums;
+  }
+  .indice .rel { flex: 1; }
+  .indice .sub {
+    font-weight: 400; font-size: 9.2pt; color: var(--gris-sua);
+    padding: 2px 0 6px 32px;
+  }
+
+  /* ---------------------------- Secciones ------------------------- */
+  h2 {
+    margin: 0 0 4px; font-size: 19pt; font-weight: 700;
+    color: var(--negro); letter-spacing: -0.028em; line-height: 1.2;
+  }
+  .seccion { page-break-before: always; }
+  .seccion:first-of-type { page-break-before: avoid; }
+  .cinta { display: flex; align-items: center; gap: 10px; margin-bottom: 3px; }
+  .cinta .indicador { width: 26px; height: 4px; border-radius: 2px; }
+  .cinta .capitulo {
+    font-size: 8.4pt; font-weight: 700; letter-spacing: 0.13em;
+    text-transform: uppercase; color: var(--gris-sua);
+  }
+  .entradilla {
+    margin: 0 0 22px; font-size: 10.6pt; color: var(--gris);
+    max-width: 145mm;
+  }
+
+  h3 {
+    margin: 26px 0 8px; font-size: 12.2pt; font-weight: 600;
+    color: var(--negro); letter-spacing: -0.015em;
+  }
+  h4 {
+    margin: 18px 0 6px; font-size: 10.4pt; font-weight: 600; color: var(--negro);
+  }
+  h3, h4 { page-break-after: avoid; break-after: avoid; }
+  p { margin: 0 0 10px; }
+  strong { color: var(--negro); font-weight: 600; }
+  em { font-style: normal; font-weight: 500; color: var(--negro); }
+  code {
+    font-family: "Inter", monospace; font-size: 9.2pt;
+    background: var(--fondo); border: 1px solid var(--linea);
+    border-radius: 4px; padding: 1px 5px; color: var(--negro);
+  }
+
+  /* --------------------------- Pasos ------------------------------ */
+  ol.pasos { counter-reset: paso; list-style: none; margin: 12px 0 16px; padding: 0; }
+  ol.pasos > li {
+    counter-increment: paso; position: relative;
+    padding: 0 0 13px 34px; page-break-inside: avoid;
+  }
+  ol.pasos > li::before {
+    content: counter(paso);
+    position: absolute; left: 0; top: 0;
+    width: 21px; height: 21px; border-radius: 50%;
+    background: var(--azul); color: #fff;
+    font-size: 8.6pt; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  ol.pasos > li::after {
+    content: ""; position: absolute; left: 10px; top: 25px; bottom: 3px;
+    width: 1px; background: var(--linea);
+  }
+  ol.pasos > li:last-child::after { display: none; }
+  ol.pasos > li p { margin: 0 0 3px; }
+  ol.pasos > li p:first-child { color: var(--negro); font-weight: 500; padding-top: 1px; }
+
+  ul.lista { margin: 8px 0 14px; padding-left: 17px; }
+  ul.lista li { margin-bottom: 5px; padding-left: 3px; }
+  ul.lista li::marker { color: var(--azul); }
+
+  /* --------------------------- Avisos ----------------------------- */
+  .aviso {
+    margin: 14px 0; padding: 11px 14px; border-radius: 8px;
+    background: var(--fondo); border-left: 3px solid var(--gris-sua);
+    font-size: 9.6pt; page-break-inside: avoid;
+  }
+  .aviso p { margin: 0; }
+  .aviso p + p { margin-top: 6px; }
+  .aviso .rotulo {
+    display: block; font-size: 8.2pt; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px;
+  }
+  .aviso.ojo   { border-left-color: var(--amarillo); background: #FEF7E0; }
+  .aviso.ojo .rotulo { color: #B06000; }
+  .aviso.alto  { border-left-color: var(--rojo); background: #FCE8E6; }
+  .aviso.alto .rotulo { color: #C5221F; }
+  .aviso.bien  { border-left-color: var(--verde); background: #E6F4EA; }
+  .aviso.bien .rotulo { color: #137333; }
+  .aviso.dato  { border-left-color: var(--azul); background: #E4F4F6; }
+  .aviso.dato .rotulo { color: #12707C; }
+
+  /* --------------------------- Tablas ----------------------------- */
+  table {
+    width: 100%; border-collapse: collapse; margin: 12px 0 18px;
+    font-size: 9.4pt; page-break-inside: avoid;
+  }
+  th {
+    text-align: left; padding: 8px 10px;
+    border-bottom: 2px solid var(--negro);
+    font-size: 8.4pt; font-weight: 700; color: var(--negro);
+    letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  td { padding: 8px 10px; border-bottom: 1px solid var(--linea); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  td strong { font-weight: 600; }
+  .si { color: var(--verde); font-weight: 700; }
+  .no { color: var(--rojo); font-weight: 700; }
+  .parte { color: var(--amarillo); font-weight: 700; }
+
+  /* --------------------------- Fichas ----------------------------- */
+  .fichas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0 18px; }
+  .ficha {
+    border: 1px solid var(--linea); border-radius: 9px; padding: 12px 14px;
+    page-break-inside: avoid;
+  }
+  .ficha .titulo {
+    font-size: 9.8pt; font-weight: 600; color: var(--negro); margin-bottom: 3px;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .ficha .punto { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+  .ficha p { margin: 0; font-size: 9.2pt; }
+
+  .ruta {
+    display: inline-block; background: var(--negro); color: #fff;
+    border-radius: 5px; padding: 2px 8px;
+    font-size: 8.8pt; font-weight: 600; letter-spacing: 0.01em;
+  }
+
+  /* Antes y después, para contar un arreglo sin tecnicismos. */
+  .comparativa { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0 18px; }
+  .comparativa .caja {
+    border-radius: 9px; padding: 12px 14px; page-break-inside: avoid;
+    border: 1px solid var(--linea);
+  }
+  .comparativa .antes { background: #FCE8E6; border-color: #F5C6C2; }
+  .comparativa .despues { background: #E6F4EA; border-color: #BFE3CB; }
+  .comparativa .rotulo {
+    display: block; font-size: 8.2pt; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 5px;
+  }
+  .comparativa .antes .rotulo { color: #C5221F; }
+  .comparativa .despues .rotulo { color: #137333; }
+  .comparativa p { margin: 0; font-size: 9.4pt; }
+</style>
+</head>
+<body>
+
+<!-- ============================ PORTADA ============================ -->
+<div class="portada">
+  <div class="marca-portada">
+    <span class="cuadro-logo">TS</span>
+    <span>TS Sports</span>
+  </div>
+
+  <h1>Informe de<br>cambios</h1>
+
+  <p class="bajada">
+    Qué se arregló y qué se añadió en el CRM de patrocinios durante la
+    primera semana de septiembre, contado sin tecnicismos y con lo que
+    cada cosa significa para el trabajo del equipo.
+  </p>
+
+  <div class="tiras">
+    <span style="background:var(--azul)"></span>
+    <span style="background:var(--rojo)"></span>
+    <span style="background:var(--amarillo)"></span>
+    <span style="background:var(--verde)"></span>
+  </div>
+
+  <div class="pie-portada">
+    <span>tsports.tech</span>
+    <span>Septiembre de 2026</span>
+  </div>
+</div>
+
+<!-- ============================= INDICE ============================ -->
+<section class="indice">
+  <div class="cinta">
+    <span class="indicador" style="background:var(--azul)"></span>
+    <span class="capitulo">Contenido</span>
+  </div>
+  <h2>Qué hay en este documento</h2>
+  <p class="entradilla">
+    Si solo se va a leer una página, que sea la primera: el resumen dice
+    qué cambió y en qué estado está cada cosa. El último apartado es el
+    único que pide acción por parte del equipo.
+  </p>
+
+  <ol>
+    <li><a href="#uno"><span class="num">01</span><span class="rel">Resumen</span></a>
+      <div class="sub">Los cinco cambios y su estado, en una página</div></li>
+    <li><a href="#dos"><span class="num">02</span><span class="rel">Alta de cuentas</span></a>
+      <div class="sub">El error al crear una persona nueva en Equipo</div></li>
+    <li><a href="#tres"><span class="num">03</span><span class="rel">El filtro por agente</span></a>
+      <div class="sub">Marcas que no aparecían al buscar por una persona</div></li>
+    <li><a href="#cuatro"><span class="num">04</span><span class="rel">El historial</span></a>
+      <div class="sub">Cuatro filtros nuevos en la pantalla de Auditoría</div></li>
+    <li><a href="#cinco"><span class="num">05</span><span class="rel">El panel</span></a>
+      <div class="sub">Cifras que ahora se pulsan y llevan a su detalle</div></li>
+    <li><a href="#seis"><span class="num">06</span><span class="rel">Cada agente, su cartera</span></a>
+      <div class="sub">El cambio de acceso y lo que trae consigo</div></li>
+    <li><a href="#siete"><span class="num">07</span><span class="rel">Qué hace falta ahora</span></a>
+      <div class="sub">Dos tareas para el equipo y cómo comprobarlo</div></li>
+  </ol>
+</section>
+
+<!-- ============================== 01 =============================== -->
+<section class="seccion" id="uno">
+  <div class="cinta">
+    <span class="indicador" style="background:var(--azul)"></span>
+    <span class="capitulo">01 &middot; Resumen</span>
+  </div>
+  <h2>Lo que cambió</h2>
+  <p class="entradilla">
+    Cinco asuntos. Tres eran fallos que daban la cara en el uso diario y
+    dos son mejoras que pidió el equipo. Todo está probado y subido; lo
+    único que falta es publicarlo en el servidor.
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:34%">Asunto</th>
+        <th style="width:44%">Qué ocurría / qué se pidió</th>
+        <th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Alta de cuentas</strong></td>
+        <td>Al crear una persona nueva salía un error y la lista no se
+            refrescaba, aunque la cuenta sí se había creado.</td>
+        <td><span class="si">Resuelto</span></td>
+      </tr>
+      <tr>
+        <td><strong>Filtro por agente</strong></td>
+        <td>Al filtrar por una persona no salían todas sus marcas.</td>
+        <td><span class="si">Resuelto</span></td>
+      </tr>
+      <tr>
+        <td><strong>Filtros del historial</strong></td>
+        <td>No se podía acotar la auditoría por fecha, persona ni acción.</td>
+        <td><span class="si">Añadido</span></td>
+      </tr>
+      <tr>
+        <td><strong>Cifras del panel</strong></td>
+        <td>Los números del resumen no llevaban a ningún sitio: no había
+            forma de ver de dónde salían.</td>
+        <td><span class="si">Añadido</span></td>
+      </tr>
+      <tr>
+        <td><strong>Acceso de los agentes</strong></td>
+        <td>Cada agente veía las marcas de todo el equipo.</td>
+        <td><span class="si">Resuelto</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Cómo se garantiza que no vuelva a pasar</h3>
+  <p>
+    Cada uno de estos arreglos lleva detrás <strong>pruebas
+    automáticas</strong>: comprobaciones que el sistema ejecuta solo y
+    que se ponen en rojo si alguien vuelve a romper esa regla. Hoy son
+    <strong>152</strong> y todas están en verde.
+  </p>
+  <p>
+    No es un dato de adorno. Dos de los fallos de esta semana se
+    detectaron precisamente así, antes de que llegaran al equipo: uno de
+    ellos habría permitido que dos personas con el mismo nombre vieran la
+    cartera de la otra.
+  </p>
+
+  <div class="aviso dato">
+    <span class="rotulo">De dónde salen las cifras</span>
+    <p>Los números de marcas y de cuentas que aparecen en este informe
+    son los que el propio sistema mostraba en producción el 8 de
+    septiembre: <strong>102 marcas</strong> y <strong>11 cuentas</strong>
+    de personas del equipo.</p>
+  </div>
+</section>
+
+<!-- ============================== 02 =============================== -->
+<section class="seccion" id="dos">
+  <div class="cinta">
+    <span class="indicador" style="background:var(--rojo)"></span>
+    <span class="capitulo">02 &middot; Cuentas</span>
+  </div>
+  <h2>El alta de cuentas dejaba a medias</h2>
+  <p class="entradilla">
+    Es el fallo más incómodo de los tres, porque hacía dudar de si el
+    trabajo se había guardado o no.
+  </p>
+
+  <h3>Qué se veía</h3>
+  <p>
+    Al dar de alta a una persona desde <span class="ruta">Equipo /
+    Nueva cuenta</span>, la pantalla respondía con un error del servidor
+    y la persona no aparecía en la lista. Lo natural era pensar que no se
+    había creado y volver a intentarlo.
+  </p>
+
+  <div class="comparativa">
+    <div class="caja antes">
+      <span class="rotulo">Antes</span>
+      <p>Error en pantalla, la lista sin cambios y la cuenta creada de
+      todos modos. Al recargar la página aparecía, y a veces por
+      duplicado si se había reintentado.</p>
+    </div>
+    <div class="caja despues">
+      <span class="rotulo">Ahora</span>
+      <p>La cuenta se crea y aparece en la lista al instante, sin
+      recargar y sin mensaje de error.</p>
+    </div>
+  </div>
+
+  <h3>Por qué pasaba</h3>
+  <p>
+    Una cuenta nueva se guarda con unas preferencias de partida —el tema
+    claro u oscuro y el color de perfil— que el sistema daba por hechas
+    pero que, en el momento exacto de crearla, todavía no tenía a mano.
+    Al intentar mostrárselas a la pantalla, fallaba. La cuenta ya estaba
+    guardada; lo que se rompía era el mensaje de vuelta, y por eso la
+    lista nunca llegaba a actualizarse.
+  </p>
+
+  <h3>Dos arreglos más del mismo formulario</h3>
+  <ul class="lista">
+    <li><strong>Dos altas seguidas.</strong> Al crear una cuenta y abrir
+      inmediatamente otra, el formulario aparecía con los datos de la
+      anterior.</li>
+    <li><strong>Campos descolocados.</strong> Rol y Zona quedaban a
+      distinta altura que el resto, y el selector de Rol se descolgaba al
+      fondo de su columna.</li>
+  </ul>
+
+  <div class="aviso bien">
+    <span class="rotulo">Cómo se comprueba</span>
+    <p>Crear una cuenta de prueba en <span class="ruta">Equipo</span>:
+    tiene que aparecer en la lista sola, sin recargar. Después se puede
+    desactivar desde su propia ficha.</p>
+  </div>
+</section>
+
+<!-- ============================== 03 =============================== -->
+<section class="seccion" id="tres">
+  <div class="cinta">
+    <span class="indicador" style="background:var(--amarillo)"></span>
+    <span class="capitulo">03 &middot; Filtro por agente</span>
+  </div>
+  <h2>Marcas que no aparecían al buscar</h2>
+  <p class="entradilla">
+    Lo reportó Antonio: al filtrar el tablero por una agente concreta
+    salía una sola marca, aunque ella llevara varias. Tenía razón, y
+    había tres motivos distintos detrás.
+  </p>
+
+  <h3>Los tres agujeros</h3>
+  <ul class="lista">
+    <li><strong>El desplegable no ofrecía a todo el mundo.</strong> Solo
+      listaba a las personas con perfil de agente. Una marca asignada a
+      un comercial, a un administrador o a alguien dado de baja no se
+      podía pedir por nadie: no había forma de llegar a ella desde el
+      filtro.</li>
+    <li><strong>Cuentas repetidas.</strong> Cuando una misma persona
+      tiene dos cuentas en el sistema, sus marcas quedan repartidas entre
+      las dos y el filtro solo traía las de una. En el equipo hay al
+      menos dos nombres en esta situación.</li>
+    <li><strong>Marcas que traen el nombre pero no la cuenta.</strong> De
+      la migración del sistema anterior quedaron fichas con el nombre de
+      la persona escrito, pero sin el vínculo a su cuenta. El filtro no
+      las encontraba.</li>
+  </ul>
+
+  <h3>Qué se hizo</h3>
+  <p>
+    Ahora el filtro busca por <strong>la persona</strong> y no solo por
+    su cuenta: recoge las tres situaciones anteriores. Y el desplegable
+    ya no sale de una lista de perfiles, sino de <em>quién lleva marcas
+    de verdad</em>, con todas las cuentas activas incluidas aunque no
+    lleven ninguna.
+  </p>
+  <p>
+    Además, cada nombre lleva <strong>su número al lado</strong>:
+    <code>Daymar Marcano (23)</code>. Se elige y salen esas 23. Si alguna
+    vez no cuadrara, se vería de inmediato en vez de tener que
+    sospecharlo.
+  </p>
+
+  <div class="aviso bien">
+    <span class="rotulo">Resultado</span>
+    <p>Una agente que aparecía con <strong>1</strong> marca pasó a
+    aparecer con <strong>3</strong> en cuanto se publicó el cambio. La
+    comprobación de fondo es que la suma de todas las personas del
+    desplegable, más las marcas sin asignar, da exactamente el total de
+    marcas del sistema: no se pierde ninguna por el camino.</p>
+  </div>
+
+</section>
+
+<!-- ============================== 04 =============================== -->
+<section class="seccion" id="cuatro">
+  <div class="cinta">
+    <span class="indicador" style="background:var(--amarillo)"></span>
+    <span class="capitulo">04 &middot; Historial</span>
+  </div>
+  <h2>El historial, ahora con filtros</h2>
+  <p class="entradilla">
+    La pantalla de <span class="ruta">Auditoría</span> guarda una línea
+    por cada cosa que hace el equipo, así que crece muy rápido y sin
+    filtros deja de servir a las pocas semanas.
+  </p>
+
+  <h3>Los cuatro filtros</h3>
+  <p>Se combinan entre sí, y el resultado se puede acotar todo lo que
+  haga falta: por ejemplo, lo que borró una persona concreta la semana
+  pasada.</p>
+
+  <div class="fichas">
+    <div class="ficha">
+      <div class="titulo"><span class="punto" style="background:var(--azul)"></span>Por fecha</div>
+      <p>Desde y hasta. Los dos días entran completos.</p>
+    </div>
+    <div class="ficha">
+      <div class="titulo"><span class="punto" style="background:var(--verde)"></span>Por persona</div>
+      <p>Con su número de movimientos al lado. Incluye a quien ya no
+      tiene cuenta.</p>
+    </div>
+    <div class="ficha">
+      <div class="titulo"><span class="punto" style="background:var(--amarillo)"></span>Por acción</div>
+      <p>Creó, editó, eliminó, comentó, publicó la web o entró.</p>
+    </div>
+    <div class="ficha">
+      <div class="titulo"><span class="punto" style="background:var(--rojo)"></span>Por tipo</div>
+      <p>Marcas, cuentas o web pública.</p>
+    </div>
+  </div>
+
+  <div class="aviso ojo">
+    <span class="rotulo">Un tropiezo por el camino</span>
+    <p>La primera versión de estos filtros salió con un fallo que Antonio
+    detectó el mismo día: faltaban personas en el desplegable y, al
+    elegir a alguien, unas veces salía el historial entero y otras no
+    salía nada. Era un solo error de programación con tres síntomas
+    distintos. Se corrigió y se añadieron las comprobaciones automáticas
+    que faltaban, que son justo las que lo habrían impedido.</p>
+  </div>
+
+  <div class="aviso bien">
+    <span class="rotulo">Cómo se comprueba</span>
+    <p>En <span class="ruta">Auditoría</span>, elegir a una persona del
+    desplegable: el número que aparece junto a su nombre tiene que ser el
+    mismo que el de movimientos que salen en pantalla.</p>
+  </div>
+</section>
+
+<!-- ============================== 05 =============================== -->
+<section class="seccion" id="cinco">
+  <div class="cinta">
+    <span class="indicador" style="background:var(--verde)"></span>
+    <span class="capitulo">05 &middot; El panel</span>
+  </div>
+  <h2>Las cifras ahora se pulsan</h2>
+  <p class="entradilla">
+    Lo pidió Antonio con una frase que resume bien el problema: si
+    aparecen 13 marcas con propuesta, poder pulsar ahí y ver cuáles son
+    esas 13.
+  </p>
+
+  <h3>Qué se puede pulsar</h3>
+  <p>
+    Todos los contadores del resumen llevan al tablero con el filtro ya
+    puesto. Se reconocen por una flecha pequeña en la esquina y porque la
+    tarjeta se eleva al pasar el ratón.
+  </p>
+
+  <table>
+    <thead>
+      <tr><th style="width:46%">Cifra del panel</th><th>A dónde lleva</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Marcas registradas</strong></td><td>El tablero completo</td></tr>
+      <tr><td><strong>En aproximación</strong>, <strong>Prospección completa</strong>, <strong>Con propuesta</strong></td><td>Las marcas que tienen esa fase marcada</td></tr>
+      <tr><td><strong>Valor propuesto / año</strong></td><td>Las marcas con propuesta, de mayor a menor importe</td></tr>
+      <tr><td><strong>Meta del catálogo</strong> y <strong>Pronosticado (OVP)</strong></td><td>El catálogo de propiedades, desglosado</td></tr>
+      <tr><td><strong>Mis marcas</strong></td><td>El tablero filtrado por esa persona y esa fase</td></tr>
+    </tbody>
+  </table>
+
+  <p>
+    Las cifras que no tienen detrás una lista que enseñar —el pronóstico
+    y las acciones pendientes— se quedaron sin enlace a propósito: es
+    preferible una tarjeta que no se pulsa a una que promete un detalle y
+    lleva a otra pantalla.
+  </p>
+
+  <div class="aviso dato">
+    <span class="rotulo">Un detalle que importaba</span>
+    <p>El contador dice «88 en aproximación» contando todas las marcas
+    con esa casilla marcada, mientras que el buscador del tablero
+    clasifica cada marca en una sola etapa. Enlazarlos sin más habría
+    hecho que al pulsar 88 aparecieran 75, y el sistema parecería estar
+    mintiendo en una de las dos pantallas. Se añadió una forma de filtrar
+    que cuenta igual que el contador, y una comprobación que lo vigila.</p>
+  </div>
+
+  <h3>El panel de cada agente</h3>
+  <p>
+    El resumen <strong>no es la misma pantalla para todos</strong>, y no
+    por lo que se enseña sino por lo que se envía:
+  </p>
+  <ul class="lista">
+    <li><strong>Administrador y comercial</strong> ven el cuadro completo
+      de la agencia: el pipeline, el reparto por zona, la inversión por
+      sector y la carga de trabajo de cada agente.</li>
+    <li><strong>Cada agente</strong> ve su propia pantalla: su agenda,
+      sus marcas, sus propiedades y su pronóstico. Las cifras de la
+      agencia <em>no le llegan al navegador</em>.</li>
+  </ul>
+</section>
+
+<!-- ============================== 06 =============================== -->
+<section class="seccion" id="seis">
+  <div class="cinta">
+    <span class="indicador" style="background:var(--rojo)"></span>
+    <span class="capitulo">06 &middot; Acceso</span>
+  </div>
+  <h2>Cada agente, su propia cartera</h2>
+  <p class="entradilla">
+    Es el cambio de mayor calado de esta semana, porque modifica una
+    regla de funcionamiento y no solo una pantalla.
+  </p>
+
+  <h3>Cómo queda</h3>
+  <div class="fichas">
+    <div class="ficha">
+      <div class="titulo"><span class="punto" style="background:var(--azul)"></span>Administrador</div>
+      <p>Todas las marcas. Además, cuentas y web pública.</p>
+    </div>
+    <div class="ficha">
+      <div class="titulo"><span class="punto" style="background:var(--azul)"></span>Comercial</div>
+      <p>Todas las marcas, porque es quien reparte el trabajo: no se
+      puede asignar lo que no se ve.</p>
+    </div>
+    <div class="ficha">
+      <div class="titulo"><span class="punto" style="background:var(--verde)"></span>Agente</div>
+      <p>Únicamente las marcas que tiene asignadas. Ni el tablero, ni la
+      ficha, ni la bitácora de las demás.</p>
+    </div>
+    <div class="ficha">
+      <div class="titulo"><span class="punto" style="background:var(--amarillo)"></span>Sin cambios</div>
+      <p>Quién puede editar y quién puede borrar sigue exactamente igual
+      que antes.</p>
+    </div>
+  </div>
+
+  <p>
+    El corte lo hace el servidor, no la pantalla: las marcas de los demás
+    <strong>no salen del sistema</strong>. Escribir a mano la dirección
+    de una marca ajena tampoco funciona. Por el mismo motivo, la lista de
+    <em>quién lleva cuántas marcas</em> pasó a ser información de quien
+    reparte el trabajo.
+  </p>
+
+  <div class="aviso alto">
+    <span class="rotulo">Lo que este cambio trae consigo</span>
+    <p>Los contactos que entran por el formulario de la web nacen
+    <strong>sin dueño</strong>. Hasta ahora, el primer agente que los
+    trabajaba se los quedaba. Con el cambio, un agente ya no los ve, así
+    que <strong>alguien tiene que repartirlos</strong>.</p>
+    <p>El 8 de septiembre había <strong>39 marcas sin agente
+    asignado</strong> de las 102 del sistema. A partir de la publicación
+    de este cambio, esas 39 no las ve ningún agente hasta que se les
+    asigne una persona.</p>
+  </div>
+
+  <h3>Una decisión que conviene conocer</h3>
+  <p>
+    Para <em>buscar</em>, una marca es de una persona tanto si lleva su
+    cuenta como si solo lleva su nombre escrito —así se recuperan las de
+    la migración—. Para <em>dar acceso</em>, en cambio, solo vale la
+    cuenta: un nombre se repite entre personas y además se puede cambiar
+    desde el perfil, así que usarlo para conceder acceso significaría que
+    dos personas llamadas igual se leen la cartera la una a la otra.
+    Ocurrió mientras se programaba, y lo detectó una prueba automática.
+  </p>
+
+  <div class="aviso bien">
+    <span class="rotulo">Cómo se comprueba</span>
+    <p>Entrar con una cuenta de agente y abrir
+    <span class="ruta">Marcas</span>: el contador de arriba tiene que
+    coincidir con lo que dice su propio panel, y no debe aparecer ninguna
+    marca de otra persona.</p>
+  </div>
+</section>
+
+<!-- ============================== 07 =============================== -->
+<section class="seccion" id="siete">
+  <div class="cinta">
+    <span class="indicador" style="background:var(--azul)"></span>
+    <span class="capitulo">07 &middot; Siguiente paso</span>
+  </div>
+  <h2>Qué hace falta ahora</h2>
+  <p class="entradilla">
+    Todo lo anterior está programado, probado y subido. Quedan dos tareas
+    del equipo y una de publicación.
+  </p>
+
+  <h3>Del equipo</h3>
+  <ol class="pasos">
+    <li><p>Repartir las 39 marcas sin agente asignado</p>
+        <p>Es la tarea urgente: mientras no tengan dueño, ningún agente
+        las ve. Se hace desde <span class="ruta">Marcas</span> eligiendo
+        <em>Sin asignar</em> en el filtro de agentes y pulsando el
+        círculo de cada tarjeta.</p></li>
+    <li><p>Revisar las cuentas repetidas</p>
+        <p>Hay personas con dos cuentas en el sistema. El filtro por
+        agente ya las une al buscar, pero cada persona solo entra con una
+        de ellas, y solo ve las marcas ligadas a esa. Conviene decidir
+        cuál se queda y reasignar sus marcas.</p></li>
+  </ol>
+
+  <h3>De publicación</h3>
+  <p>
+    Los cambios de los apartados 03 al 06 se publican ejecutando el
+    despliegue habitual en el servidor. El sitio queda un par de minutos
+    en mantenimiento y, si algo fallara, la versión anterior se queda en
+    pie.
+  </p>
+
+  <div class="aviso ojo">
+    <span class="rotulo">Recordatorio pendiente de antes</span>
+    <p>Sigue sin resolverse un asunto de seguridad anterior a esta
+    semana: <strong>siete cuentas mantienen una contraseña que llegó a
+    estar publicada</strong>, incluida la del administrador. Se cierra
+    únicamente cambiando esas contraseñas desde
+    <span class="ruta">Equipo</span>. Tampoco hay todavía una copia de
+    seguridad automática de la base de datos; la última se hizo a mano.</p>
+  </div>
+
+  <h3>Resumen de la semana</h3>
+  <table>
+    <thead>
+      <tr><th style="width:50%">Concepto</th><th>Cifra</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Fallos corregidos</td><td><strong>3</strong> (alta de cuentas, filtro por agente, desplegable del historial)</td></tr>
+      <tr><td>Funciones nuevas</td><td><strong>3</strong> (cifras pulsables, filtros de auditoría, acceso por cartera)</td></tr>
+      <tr><td>Comprobaciones automáticas</td><td><strong>152</strong>, todas en verde</td></tr>
+      <tr><td>Pendiente del equipo</td><td>Repartir 39 marcas y unificar cuentas repetidas</td></tr>
+    </tbody>
+  </table>
+</section>
+
+</body>
+</html>
