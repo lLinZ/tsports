@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Enums\OrigenMarca;
-use App\Enums\RolUsuario;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\GuardarMarcaRequest;
 use App\Http\Resources\RecursoMarca;
@@ -79,13 +78,12 @@ class MarcaController extends Controller
      * GET /api/marcas/agentes
      * Quién puede salir en el filtro por agente del tablero.
      *
-     * No es la lista de cuentas: es la lista de quien REALMENTE lleva
-     * marcas, más los vendedores activos aunque todavía no lleven
-     * ninguna. La diferencia importa porque una marca se puede asignar a
-     * cualquier cuenta —también a un admin, a un comercial o a alguien
-     * que luego se desactivó—, y con la lista de cuentas activas esas
-     * marcas quedaban fuera del desplegable: no había forma de filtrarlas
-     * por nadie y parecía que el filtro las perdía.
+     * Es quien REALMENTE lleva marcas —tenga el rol que tenga y aunque su
+     * cuenta ya no exista— más todas las cuentas activas, con cero. Antes
+     * la lista salía de los vendedores activos, y eso dejaba fuera del
+     * desplegable las marcas asignadas a un admin, a un comercial o a
+     * alguien desactivado: no había forma de pedirlas por nadie y parecía
+     * que el filtro las perdía.
      *
      * Cada persona viene con su total, para que al elegirla se pueda
      * comprobar de un vistazo que el tablero devuelve esa misma cifra.
@@ -105,12 +103,20 @@ class MarcaController extends Controller
         // lista distinta en el servidor y en las pruebas. Además, un
         // «daymar marcano» escrito a mano tiene que sumar con su
         // «Daymar Marcano», no salir aparte con su propio contador.
-        $asignadas = Marca::query()
+        //
+        // Se consulta con `DB::table` y el identificador NO se llama
+        // `id`: Eloquent castea al tipo de la clave primaria cualquier
+        // columna que llegue con ese alias, y en una tabla de clave
+        // entera eso convierte un UUID en un número. Aquí `marcas` tiene
+        // clave UUID y no mordía, pero la misma línea copiada en la
+        // auditoría dejó su desplegable inservible; no se deja el patrón
+        // suelto en el código para que no vuelva a copiarse.
+        $asignadas = DB::table('marcas')
             ->selectRaw('LOWER(TRIM(vendedor_asignado_nombre)) as clave')
             // De las variantes escritas se enseña la primera por orden,
             // que con las mayúsculas delante es la bien escrita.
             ->selectRaw('MIN(TRIM(vendedor_asignado_nombre)) as nombre')
-            ->selectRaw('MIN(vendedor_asignado_id) as id')
+            ->selectRaw('MIN(vendedor_asignado_id) as vendedor_id')
             ->selectRaw('COUNT(*) as total')
             ->whereNotNull('vendedor_asignado_nombre')
             ->where('vendedor_asignado_nombre', '!=', '')
@@ -122,28 +128,30 @@ class MarcaController extends Controller
         // que se ve en el resto del sistema y el que se actualiza si esa
         // persona se cambia el nombre.
         $cuentas = User::query()
-            ->whereIn('id', $asignadas->pluck('id')->filter()->all())
+            ->whereIn('id', $asignadas->pluck('vendedor_id')->filter()->all())
             ->get()
             ->keyBy('id');
 
         $agentes = $asignadas->map(static function ($fila) use ($cuentas): array {
-            $cuenta = $fila->id === null ? null : $cuentas->get($fila->id);
+            $cuenta = $fila->vendedor_id === null ? null : $cuentas->get($fila->vendedor_id);
 
             return [
                 // El id sirve para que el filtro siga viajando por id
                 // cuando existe cuenta; si no la hay, viaja el nombre.
-                'id' => $fila->id ?: (string) $fila->nombre,
+                'id' => $fila->vendedor_id ?: (string) $fila->nombre,
                 'nombre' => $cuenta?->nombreParaMostrar() ?? (string) $fila->nombre,
                 'totalMarcas' => (int) $fila->total,
                 'tieneCuenta' => $cuenta !== null,
             ];
         })->values()->all();
 
-        // Los vendedores activos que aún no llevan ninguna marca también
-        // salen: el filtro tiene que poder contestar "ninguna" en vez de
-        // esconder a la persona.
-        $vendedoresSinMarcas = User::query()
-            ->where('rol', RolUsuario::Vendedor->value)
+        // Las cuentas activas que aún no llevan ninguna marca también
+        // salen, con cero. Y salen TODAS, no solo las de rol vendedor:
+        // una marca se puede asignar a cualquier cuenta, así que limitar
+        // la lista por rol es lo que dejaba marcas imposibles de pedir.
+        // Que alguien falte del desplegable se lee como un fallo; verlo
+        // con un cero contesta la pregunta.
+        $cuentasSinMarcas = User::query()
             ->where('activo', true)
             ->orderBy('name')
             ->get()
@@ -159,7 +167,7 @@ class MarcaController extends Controller
             ->values()
             ->all();
 
-        $todos = array_merge($agentes, $vendedoresSinMarcas);
+        $todos = array_merge($agentes, $cuentasSinMarcas);
 
         usort($todos, static fn (array $uno, array $otro): int => strcasecmp($uno['nombre'], $otro['nombre']));
 

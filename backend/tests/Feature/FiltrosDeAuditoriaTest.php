@@ -192,6 +192,109 @@ class FiltrosDeAuditoriaTest extends TestCase
         $this->assertSame(1, $totalesPorNombre['Antonio Linares']);
     }
 
+    public function test_cada_persona_del_desplegable_devuelve_sus_movimientos(): void
+    {
+        $admin = $this->crearAdmin('Antonio Linares');
+        $daymar = $this->crearUsuario(RolUsuario::Vendedor, 'Daymar Marcano');
+        $dayrene = $this->crearUsuario(RolUsuario::Vendedor, 'Dayrene Marcano');
+        // La misma persona con la cuenta duplicada: el desplegable la
+        // enseña una vez y con todo lo suyo, así que el filtro tiene que
+        // devolver también lo que hizo desde la otra cuenta.
+        $daymarDuplicada = $this->crearUsuario(RolUsuario::Vendedor, 'Daymar Marcano');
+
+        foreach ([$admin, $daymar, $daymar, $dayrene, $daymarDuplicada] as $autor) {
+            RegistroActividad::anotar($autor, RegistroActividad::ACCION_CREO, 'marca', null, 'Algo');
+        }
+
+        RegistroActividad::create([
+            'usuario_id' => null,
+            'usuario_nombre' => 'Persona que se fue',
+            'accion' => RegistroActividad::ACCION_ACTUALIZO,
+            'entidad_tipo' => 'marca',
+            'descripcion' => 'Lo último que hizo',
+        ]);
+
+        $personas = $this->actingAs($admin)
+            ->getJson('/api/admin/auditoria/personas')
+            ->assertOk()
+            ->json('data');
+
+        // Esta es la prueba que faltaba y por la que el fallo llegó a
+        // producción: no basta con que el desplegable liste a la gente y
+        // sus totales, tiene que poder PEDIRSE lo de cada uno con el
+        // identificador que él mismo devuelve.
+        foreach ($personas as $persona) {
+            $devueltos = $this->actingAs($admin)
+                ->getJson('/api/admin/auditoria?usuario='.urlencode((string) $persona['id']))
+                ->assertOk()
+                ->json('meta.total');
+
+            $this->assertSame(
+                $persona['totalMovimientos'],
+                $devueltos,
+                'El desplegable y el filtro no coinciden para '.$persona['nombre'],
+            );
+        }
+
+        // Y ninguna clave se repite: dos personas con el mismo
+        // identificador harían que el desplegable perdiera a una.
+        $identificadores = array_column($personas, 'id');
+
+        $this->assertSame(
+            count($identificadores),
+            count(array_unique($identificadores)),
+            'Hay personas compartiendo identificador en el desplegable.',
+        );
+
+        // Y lo que suman todas las personas es el historial entero: si
+        // algún movimiento no fuera de nadie, esta cuenta no cuadraría.
+        $this->assertSame(
+            RegistroActividad::query()->count(),
+            array_sum(array_column($personas, 'totalMovimientos')),
+        );
+    }
+
+    public function test_el_identificador_del_desplegable_es_el_de_la_cuenta(): void
+    {
+        $admin = $this->crearAdmin();
+        $daymar = $this->crearUsuario(RolUsuario::Vendedor, 'Daymar Marcano');
+
+        RegistroActividad::anotar($daymar, RegistroActividad::ACCION_CREO, 'marca', null, 'Algo');
+
+        $personas = $this->actingAs($admin)
+            ->getJson('/api/admin/auditoria/personas')
+            ->assertOk()
+            ->json('data');
+
+        $suya = collect($personas)->firstWhere('nombre', 'Daymar Marcano');
+
+        // El identificador tiene que ser su UUID entero. Cuando se leía
+        // con el modelo, Eloquent lo casteaba al tipo de la clave
+        // primaria de `registros_actividad` —un entero— y llegaba un "1".
+        $this->assertSame($daymar->id, $suya['id']);
+    }
+
+    public function test_las_cuentas_que_aun_no_han_hecho_nada_salen_con_cero(): void
+    {
+        $admin = $this->crearAdmin();
+        $recienLlegada = $this->crearUsuario(RolUsuario::Vendedor, 'Recién Llegada');
+
+        RegistroActividad::anotar($admin, RegistroActividad::ACCION_CREO, 'marca', null, 'Algo');
+
+        $personas = $this->actingAs($admin)
+            ->getJson('/api/admin/auditoria/personas')
+            ->assertOk()
+            ->json('data');
+
+        $suya = collect($personas)->firstWhere('nombre', 'Recién Llegada');
+
+        // Que alguien falte del desplegable se lee como un fallo del
+        // sistema; verlo con un cero contesta la pregunta.
+        $this->assertNotNull($suya, 'La cuenta sin movimientos no sale en el desplegable.');
+        $this->assertSame(0, $suya['totalMovimientos']);
+        $this->assertSame($recienLlegada->id, $suya['id']);
+    }
+
     /* ------------------------------------------------------------------
      | Permisos
      |-----------------------------------------------------------------*/
