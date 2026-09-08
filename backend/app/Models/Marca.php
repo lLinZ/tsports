@@ -314,11 +314,15 @@ class Marca extends Model
      * SUS marcas, todas. Cumplirla pide algo más que comparar el id,
      * porque una marca puede llevar el nombre de alguien y no su id:
      *
-     *   · Cuentas duplicadas. Si a la misma persona se le creó la cuenta
-     *     dos veces, sus marcas quedan repartidas entre dos ids y el
-     *     desplegable solo ofrece uno.
-     *   · Filas cargadas contra la base de datos, sin pasar por la
-     *     aplicación: traen el nombre escrito y el id vacío.
+     *   · Filas con el nombre escrito y el id vacío. Es el caso REAL y
+     *     el que motivó esto: la migración las dejó así cuando el
+     *     vendedor de la fila antigua no correspondía a ninguna cuenta
+     *     nueva. Antonio filtró por una agente, vio 1 marca de las
+     *     varias que lleva, y estas eran las que faltaban.
+     *   · Cuentas duplicadas. Si a la misma persona se le llegara a
+     *     crear la cuenta dos veces, sus marcas quedarían repartidas
+     *     entre dos ids. No consta que ocurra en el equipo; el mismo
+     *     criterio lo cubre sin coste, así que se deja dicho.
      *
      * En los dos casos la marca es suya para el equipo, así que también
      * se busca por el nombre que quedó grabado en la fila. Comparar

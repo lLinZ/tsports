@@ -68,9 +68,9 @@ class AuditoriaController extends Controller
         // La persona puede llegar como id de cuenta o como nombre, y se
         // busca por las dos cosas: el historial graba el nombre además
         // del id, así que se puede seguir consultando lo que hizo alguien
-        // cuya cuenta ya se borró, y una persona con la cuenta duplicada
-        // sale entera en vez de repartida entre sus dos ids. Es la misma
-        // regla que sigue el filtro por agente del tablero.
+        // cuya cuenta ya se borró. De paso, si una misma persona llegara
+        // a tener dos cuentas, saldría entera en vez de repartida. Es la
+        // misma regla que sigue el filtro por agente del tablero.
         //
         // Se comprueba contra la cadena vacía y no con `empty()`: para PHP
         // la cadena "0" está vacía, así que un filtro que valiera "0" se
