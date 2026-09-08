@@ -16,9 +16,10 @@ use App\Models\User;
  * leer, probar y cambiar sin tocar la base de datos.
  *
  * Resumen de las reglas:
- *   · VER      → cualquier persona con sesión ve todas las marcas. Se
- *                decidió así para que un vendedor pueda consultar qué
- *                marcas están ya trabajadas y no duplicar esfuerzo.
+ *   · VER      → admin y comercial, todas. El agente, solo su cartera:
+ *                quien reparte el trabajo necesita el tablero entero,
+ *                pero para trabajar una marca no hace falta ver las de
+ *                los compañeros.
  *   · CREAR    → cualquier persona con sesión.
  *   · EDITAR   → admin y comercial, siempre. El vendedor, solo las que
  *                tiene asignadas o las que aún no tienen dueño (las que
@@ -34,12 +35,25 @@ class MarcaPolicy
         return $usuario->activo;
     }
 
-    /** Abrir la ficha de una marca concreta. */
+    /**
+     * Abrir la ficha de una marca concreta.
+     *
+     * El listado ya viene acotado, pero esto no sobra: sin ello,
+     * escribir a mano la dirección de una marca ajena —o pulsar un
+     * enlace viejo— seguiría abriendo su ficha entera, con su contacto
+     * y su bitácora.
+     */
     public function view(User $usuario, Marca $marca): bool
     {
-        unset($marca); // Todas las marcas son visibles para todo el equipo.
+        if (! $usuario->activo) {
+            return false;
+        }
 
-        return $usuario->activo;
+        if ($usuario->rol->veTodasLasMarcas()) {
+            return true;
+        }
+
+        return $usuario->laMarcaEsSuya($marca);
     }
 
     /** Dar de alta una marca nueva. */

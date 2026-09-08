@@ -16,32 +16,76 @@ use Tests\TestCase;
  * La bitácora es el hilo de la columna derecha de la ficha. Sus reglas
  * son dos y conviene que queden fijadas:
  *
- *   · COMENTAR → cualquiera que pueda ver la marca, aunque no pueda
- *     editarla. Si un vendedor se entera de algo de una marca que
- *     trabaja otro, lo natural es que pueda avisarle por el hilo.
+ *   · COMENTAR → cualquiera que pueda VER la marca. Como un agente solo
+ *     ve su cartera, en la práctica comenta lo suyo; admin y comercial,
+ *     cualquier marca.
  *   · BORRAR   → solo el autor de la entrada, o un administrador.
+ *
+ * La primera regla se escribió cuando el agente veía todas las marcas y
+ * decía "aunque no pueda editarla". Al pasar el tablero a enseñarle solo
+ * lo suyo, ese caso dejó de existir: lo que ve, lo edita. Estas pruebas
+ * se actualizaron con el cambio en vez de relajarlo, que es lo que
+ * convierte una regla de negocio en una promesa comprobable.
  */
 class BitacoraDeMarcasTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_quien_ve_la_marca_puede_comentarla_aunque_no_pueda_editarla(): void
+    public function test_un_agente_comenta_en_su_marca(): void
     {
-        $vendedorPropietario = $this->crearUsuario(RolUsuario::Vendedor);
-        $otroVendedor = $this->crearUsuario(RolUsuario::Vendedor, 'Otro Vendedor');
+        $agente = $this->crearUsuario(RolUsuario::Vendedor, 'La Agente');
 
         $marca = Marca::create([
-            'nombre_marca' => 'Marca ajena',
-            'vendedor_asignado_id' => $vendedorPropietario->id,
+            'nombre_marca' => 'Marca suya',
+            'vendedor_asignado_id' => $agente->id,
         ]);
 
-        $respuesta = $this->actingAs($otroVendedor)
+        $respuesta = $this->actingAs($agente)
             ->postJson("/api/marcas/{$marca->id}/comentarios", [
                 'cuerpo' => 'Los vi patrocinando el torneo del sábado.',
             ]);
 
         $respuesta->assertStatus(201);
-        $this->assertSame('Otro Vendedor', $respuesta->json('data.autorNombre'));
+        $this->assertSame('La Agente', $respuesta->json('data.autorNombre'));
+    }
+
+    public function test_un_agente_no_comenta_en_la_marca_de_otro(): void
+    {
+        $duenia = $this->crearUsuario(RolUsuario::Vendedor, 'La Dueña');
+        $otroAgente = $this->crearUsuario(RolUsuario::Vendedor, 'Otro Agente');
+
+        $marca = Marca::create([
+            'nombre_marca' => 'Marca ajena',
+            'vendedor_asignado_id' => $duenia->id,
+        ]);
+
+        // Ni la ve en el tablero ni puede escribir en su hilo escribiendo
+        // la dirección a mano.
+        $this->actingAs($otroAgente)
+            ->postJson("/api/marcas/{$marca->id}/comentarios", [
+                'cuerpo' => 'Un apunte en una marca que no es mía.',
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseCount('comentarios_marca', 0);
+    }
+
+    public function test_un_comercial_comenta_en_la_marca_de_cualquiera(): void
+    {
+        $agente = $this->crearUsuario(RolUsuario::Vendedor, 'La Agente');
+        $comercial = $this->crearUsuario(RolUsuario::Comercial, 'El Comercial');
+
+        $marca = Marca::create([
+            'nombre_marca' => 'Marca de la agente',
+            'vendedor_asignado_id' => $agente->id,
+        ]);
+
+        // Quien reparte el trabajo sigue pudiendo avisar por el hilo.
+        $this->actingAs($comercial)
+            ->postJson("/api/marcas/{$marca->id}/comentarios", [
+                'cuerpo' => 'Llamaron preguntando por la propuesta.',
+            ])
+            ->assertStatus(201);
     }
 
     public function test_el_hilo_se_lee_en_orden_cronologico(): void
@@ -81,7 +125,11 @@ class BitacoraDeMarcasTest extends TestCase
         $autor = $this->crearUsuario(RolUsuario::Vendedor, 'Autor Del Comentario');
         $otraPersona = $this->crearUsuario(RolUsuario::Comercial, 'Otra Persona');
 
-        $marca = Marca::create(['nombre_marca' => 'Marca con hilo']);
+        // Asignada al autor: un agente solo alcanza su propia cartera.
+        $marca = Marca::create([
+            'nombre_marca' => 'Marca con hilo',
+            'vendedor_asignado_id' => $autor->id,
+        ]);
 
         $idDelComentario = $this->actingAs($autor)
             ->postJson("/api/marcas/{$marca->id}/comentarios", ['cuerpo' => 'Apunte mío'])
@@ -104,7 +152,10 @@ class BitacoraDeMarcasTest extends TestCase
         $autor = $this->crearUsuario(RolUsuario::Vendedor);
         $administrador = $this->crearUsuario(RolUsuario::Admin, 'La Administradora');
 
-        $marca = Marca::create(['nombre_marca' => 'Marca con hilo']);
+        $marca = Marca::create([
+            'nombre_marca' => 'Marca con hilo',
+            'vendedor_asignado_id' => $autor->id,
+        ]);
 
         $idDelComentario = $this->actingAs($autor)
             ->postJson("/api/marcas/{$marca->id}/comentarios", ['cuerpo' => 'Apunte a moderar'])

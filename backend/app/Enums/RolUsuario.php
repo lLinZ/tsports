@@ -21,7 +21,8 @@ enum RolUsuario: string
     case Comercial = 'comercial';
 
     /**
-     * Ve todas las marcas, pero solo edita las que tiene asignadas.
+     * Trabaja su propia cartera: ve y edita las marcas que tiene
+     * asignadas, y ninguna más.
      *
      * En la interfaz se llama AGENTE. El valor guardado sigue siendo
      * "vendedor" a propósito: está escrito en la columna `rol` de las
@@ -52,6 +53,28 @@ enum RolUsuario: string
      * Admin y comercial sí; el vendedor solo toca lo suyo.
      */
     public function puedeEditarCualquierMarca(): bool
+    {
+        return $this === self::Admin || $this === self::Comercial;
+    }
+
+    /**
+     * ¿Ve TODAS las marcas del tablero, o solo las suyas?
+     *
+     * Quien reparte el trabajo necesita el tablero entero: no se puede
+     * asignar lo que no se ve. El agente trabaja su cartera, y las marcas
+     * de sus compañeros no le hacen falta para eso.
+     *
+     * El corte lo hace el SERVIDOR, no la interfaz: las marcas ajenas no
+     * llegan al navegador. Esconderlas al pintar habría dejado los datos
+     * de toda la cartera viajando en cada respuesta, legibles desde el
+     * inspector.
+     *
+     * Consecuencia buscada: los leads que entran por la web nacen sin
+     * dueño y un agente ya no los ve, así que dejan de adoptarse solos.
+     * Ahora es el comercial quien los reparte, que es justo lo que el
+     * equipo pidió al decidir esto.
+     */
+    public function veTodasLasMarcas(): bool
     {
         return $this === self::Admin || $this === self::Comercial;
     }

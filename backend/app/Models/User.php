@@ -163,10 +163,40 @@ class User extends Authenticatable
     }
 
     /**
+     * ¿Esta marca es de esta persona?
+     *
+     * Se decide en un solo sitio porque la respuesta se usa en tres: qué
+     * marcas le llegan al tablero, qué fichas puede abrir y cuáles puede
+     * editar. Con tres copias, tarde o temprano una diría que sí donde
+     * otra dice que no.
+     *
+     * Compara el ID Y NADA MÁS, a diferencia del filtro por agente del
+     * tablero, que además busca por el nombre grabado en la fila. La
+     * diferencia es deliberada y la marca la naturaleza de cada uno:
+     *
+     *   · El filtro es una comodidad para encontrar marcas. Que dos
+     *     personas llamadas igual se mezclen ahí despista un rato.
+     *   · Esto es un permiso. Que dos personas llamadas igual se mezclen
+     *     aquí significa que una lee la cartera de la otra, y el nombre
+     *     no es un identificador: se repite y se puede editar.
+     *
+     * Lo cazó una prueba de la bitácora, donde dos vendedores de prueba
+     * compartían nombre y el intruso pasó a poder anotar en la marca
+     * ajena. Por eso las marcas que llevan el nombre de alguien sin su id
+     * NO son suyas para el sistema: son trabajo pendiente de asignar, y
+     * el comercial las localiza con el filtro justamente para arreglarlas.
+     */
+    public function laMarcaEsSuya(Marca $marca): bool
+    {
+        return $marca->vendedor_asignado_id === $this->id;
+    }
+
+    /**
      * ¿Puede editar esta marca concreta?
-     * Admin y comercial pueden con todas; el vendedor solo con las que
-     * tiene asignadas. Además, cualquiera puede trabajar una marca que
-     * llegó por la web y todavía no tiene dueño (la "adopta").
+     * Admin y comercial pueden con todas; el agente solo con las suyas.
+     * Además, cualquiera que ALCANCE una marca sin dueño puede trabajarla
+     * y se la queda. Para un agente eso ya no ocurre —no le llegan—, pero
+     * la regla sigue viva para quien sí las ve.
      */
     public function puedeEditarLaMarca(Marca $marca): bool
     {
@@ -174,7 +204,7 @@ class User extends Authenticatable
             return true;
         }
 
-        if ($marca->vendedor_asignado_id === $this->id) {
+        if ($this->laMarcaEsSuya($marca)) {
             return true;
         }
 

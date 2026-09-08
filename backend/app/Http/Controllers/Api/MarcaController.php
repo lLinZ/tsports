@@ -43,7 +43,25 @@ class MarcaController extends Controller
     {
         $this->authorize('viewAny', Marca::class);
 
+        /** @var User $usuarioQueMira */
+        $usuarioQueMira = $peticion->user();
+
         $consulta = Marca::query()
+            // Un agente solo recibe su cartera. Se acota aquí, en la
+            // consulta, y no al pintar: así las marcas de sus compañeros
+            // ni siquiera salen del servidor.
+            //
+            // Por ID y no por nombre: esto decide quién ve qué, y el
+            // nombre se repite entre personas (ver `laMarcaEsSuya`). Una
+            // marca que lleve su nombre sin su id no le llega, y está
+            // bien que no le llegue: es trabajo sin asignar.
+            ->when(
+                ! $usuarioQueMira->rol->veTodasLasMarcas(),
+                fn ($subconsulta) => $subconsulta->where(
+                    'vendedor_asignado_id',
+                    $usuarioQueMira->id,
+                ),
+            )
             ->withCount('comentarios')
             // El checklist viaja con cada marca porque la tarjeta del
             // tablero enseña el pronóstico acumulado sin abrir la ficha.
@@ -90,7 +108,11 @@ class MarcaController extends Controller
      */
     public function agentes(): JsonResponse
     {
-        $this->authorize('viewAny', Marca::class);
+        // Es información de toda la cartera —quién lleva cuánto—, así que
+        // la pide quien reparte el trabajo, no cualquiera con sesión. Un
+        // agente que llamara a esta ruta a mano se llevaría el reparto
+        // completo del equipo.
+        $this->authorize('asignarVendedor', Marca::class);
 
         // Lo que hay escrito en las marcas, agrupado por persona. Se
         // agrupa por NOMBRE y no por id para que dos cuentas de la misma

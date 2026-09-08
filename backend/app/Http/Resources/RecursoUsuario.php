@@ -60,6 +60,7 @@ class RecursoUsuario extends JsonResource
                 'eliminaMarcas' => $this->rol->puedeEliminarMarcas(),
                 'editaLaWeb' => $this->rol->puedeEditarLaWeb(),
                 'gestionaElCatalogoComercial' => $this->rol->puedeGestionarElCatalogoComercial(),
+                'veTodasLasMarcas' => $this->rol->veTodasLasMarcas(),
                 'veLasCifrasDeTodaLaEmpresa' => $this->rol->veLasCifrasDeTodaLaEmpresa(),
             ],
 

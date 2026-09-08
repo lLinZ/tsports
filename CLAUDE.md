@@ -273,14 +273,27 @@ Salieron del cliente y están implementadas a propósito así:
 4. **El valor solo cuenta con propuesta enviada.** Sin propuesta, el
    importe se guarda a cero.
 
-5. **Los leads de la web nacen sin dueño**, y el primero del equipo que
-   los trabaja se los queda ("adopción"). En la versión de Supabase esto
-   fallaba en silencio y fue el error más caro de depurar.
+5. **Los leads de la web nacen sin dueño**, y quien los alcanza y los
+   trabaja se los queda ("adopción"). Desde el 2026-09-08 un agente ya
+   no los alcanza —solo ve lo asignado—, así que en la práctica los
+   reparte el comercial; la adopción sigue viva para quien sí los ve. En
+   la versión de Supabase esto fallaba en silencio y fue el error más
+   caro de depurar.
 
 6. **Roles:**
    - `admin` → todo: cuentas, web y marcas.
    - `comercial` → todas las marcas; asigna vendedores.
-   - `vendedor` → ve todas las marcas, edita solo las suyas, no borra.
+   - `vendedor` (en pantalla, AGENTE) → **ve y edita solo las marcas que
+     tiene asignadas**, y no borra. Hasta el 2026-09-08 las veía todas;
+     se cambió a petición del equipo, con el argumento de que quien
+     reparte es el comercial. El corte lo hace el servidor: las marcas
+     ajenas no salen en la respuesta, ni por el listado ni por la ficha.
+   - "Suya" se decide **por el id** del vendedor asignado y nunca por su
+     nombre. El nombre se repite entre personas y además se puede editar;
+     usarlo para dar acceso abriría la cartera de una a la otra. El
+     filtro por agente del tablero sí busca además por nombre, pero eso
+     es una comodidad de búsqueda para quien ya lo ve todo, no un
+     permiso.
 
 7. **Nadie cambia su propio rol ni su propia zona.** Ni un admin. Si el
    único administrador se rebajase, no quedaría nadie capaz de dar

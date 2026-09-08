@@ -150,6 +150,8 @@ class PanelController extends Controller
             return [];
         }
 
+        // Por id, igual que el tablero: las dos pantallas tienen que
+        // decirle lo mismo a la misma persona.
         $agregados = Marca::query()
             ->where('vendedor_asignado_id', $usuario->id)
             ->selectRaw('COUNT(*) as total')
