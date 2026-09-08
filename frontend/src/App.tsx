@@ -34,6 +34,7 @@ import { PaginaMarcas } from "@/paginas/PaginaMarcas";
 import { PaginaNoEncontrada } from "@/paginas/PaginaNoEncontrada";
 import { PaginaPanel } from "@/paginas/PaginaPanel";
 import { PaginaPropiedades } from "@/paginas/PaginaPropiedades";
+import { PaginaSectores } from "@/paginas/PaginaSectores";
 import { PaginaPerfil } from "@/paginas/PaginaPerfil";
 import { PaginaUsuarios } from "@/paginas/PaginaUsuarios";
 import { PaginaWebPublica } from "@/paginas/publico/PaginaWebPublica";
@@ -106,6 +107,21 @@ function RutasDeLaAplicacion() {
           </RutaProtegida>
         }
         path="/propiedades"
+      />
+
+      {/* Los rubros los consulta todo el equipo —el selector de la ficha
+          los necesita— pero la pantalla que los administra es de quien
+          gestiona el catálogo: a un agente solo le daría botones que no
+          puede pulsar. */}
+      <Route
+        element={
+          <RutaProtegida
+            requiere={(usuario) => usuario.permisos.gestionaElCatalogoComercial}
+          >
+            <PaginaSectores />
+          </RutaProtegida>
+        }
+        path="/sectores"
       />
 
       {/* Las campañas las planifica quien decide el calendario comercial

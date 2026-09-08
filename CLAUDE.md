@@ -120,8 +120,13 @@ dos versiones dejan de coincidir. Ejemplos de cómo se resuelve aquí:
 - Los permisos viven en `App\Enums\RolUsuario` y en `App\Policies\*`. La
   interfaz **nunca** compara roles: lee las banderas de `usuario.permisos`
   que ya vienen resueltas del servidor.
-- Las listas cerradas (zonas, sectores, vías) viven en
+- Las listas cerradas (zonas y vías) viven en
   `App\Support\CatalogosDelCrm` y el frontend las pide a `/api/catalogos`.
+  Los **sectores** ya NO: desde el 2026-09-08 son una tabla que el equipo
+  gestiona desde el panel (regla 15). `/api/catalogos` los sigue
+  sirviendo, así que ningún selector cambió; lo que cambió es de dónde
+  salen. `CatalogosDelCrm::SECTORES_INICIALES` es solo la semilla, no se
+  usa para validar.
 - La fase de prospección la calcula el modelo `Marca` al guardar. La
   interfaz muestra una previsualización en vivo, pero la verdad es del
   servidor.
@@ -346,7 +351,34 @@ Salieron del cliente y están implementadas a propósito así:
     que seguir diciendo lo que de verdad pasó. Guardar la ficha sin
     cambiar campaña ni fecha no repite la línea.
 
-14. **Las fechas sin hora se construyen como fecha local.** Una cadena
+14. **Los listados largos se recorren con scroll infinito.** El tablero
+    de marcas y el historial de auditoría vienen paginados del servidor
+    (60 y 50 por página) y la interfaz va pidiendo la siguiente al
+    llegar al final, con `useScrollInfinito`. No se pone un paginador:
+    el equipo recorre el tablero desplazándose.
+
+    El orden de `/api/marcas` lleva **desempate por `id`** y no es
+    cosmético: ninguno de los criterios que ofrece el selector es único
+    —hay marcas con el mismo valor, el mismo nombre y la misma fecha de
+    creación—, y sin desempate la base de datos puede devolverlas en
+    distinto orden en cada página, con lo que el recorrido repetiría
+    unas y se saltaría otras sin dar ningún error.
+
+15. **Los sectores son un catálogo editable**, no una lista del código.
+    La marca guarda el sector como TEXTO (`marcas.sector`), no por
+    relación, y de ahí salen las dos reglas que protege
+    `SectorController`:
+
+    - **Renombrar arrastra a sus marcas**, en una transacción. Si no,
+      las marcas de ese rubro apuntarían a un nombre que ya no está en
+      el catálogo y desaparecerían del reparto por sector del resumen.
+    - **Un sector en uso no se borra**: se desactiva. Desactivado sale
+      del selector pero las marcas que ya lo llevan lo conservan, y por
+      eso la validación de la marca admite TODOS los sectores y no solo
+      los activos (si no, editarle el teléfono a una de esas marcas
+      fallaría por un campo que nadie tocó).
+
+16. **Las fechas sin hora se construyen como fecha local.** Una cadena
     "2026-09-20" la interpreta el navegador como medianoche UTC, y en
     Venezuela (UTC-4) se ve como el 19. `utilidades/formato.ts` las
     detecta y las arma a mano; no usar `new Date(cadena)` con fechas de

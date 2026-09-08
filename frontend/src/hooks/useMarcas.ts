@@ -10,6 +10,7 @@
  * ---------------------------------------------------------------------
  */
 import {
+  useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
@@ -61,21 +62,41 @@ export const clavesDeMarcas = {
 /* Lectura                                                             */
 /* ==================================================================== */
 
-/** El listado del tablero, con los filtros aplicados. */
+/**
+ * El listado del tablero, con los filtros aplicados y por páginas.
+ *
+ * El servidor devuelve el tablero paginado, y esto va pidiendo las
+ * páginas conforme se baja. Antes solo se pedía la primera y las demás
+ * marcas eran inalcanzables desde la interfaz.
+ *
+ * Las páginas se concatenan en una sola lista: la pantalla no sabe nada
+ * de páginas, solo recibe marcas y un `pedirMasMarcas`.
+ */
 export function useListadoDeMarcas(filtros: Partial<FiltrosDeMarcas>) {
-  const consulta = useQuery({
+  const consulta = useInfiniteQuery({
     queryKey: clavesDeMarcas.listado(filtros),
-    queryFn: () => listarMarcas(filtros),
+    queryFn: ({ pageParam }) => listarMarcas(filtros, pageParam),
+    initialPageParam: 1,
+    getNextPageParam: (ultima) =>
+      ultima.pagina < ultima.ultimaPagina ? ultima.pagina + 1 : undefined,
     // Mantiene en pantalla el resultado anterior mientras llega el
     // nuevo: al escribir en el buscador la lista no parpadea a vacío.
     placeholderData: (datosAnteriores) => datosAnteriores,
   });
 
   return {
-    marcas: consulta.data?.marcas ?? [],
-    total: consulta.data?.total ?? 0,
+    marcas: consulta.data?.pages.flatMap((pagina) => pagina.marcas) ?? [],
+    // El total es el de TODO el listado filtrado, no el de lo que hay
+    // cargado en pantalla: es lo que la cabecera necesita decir.
+    total: consulta.data?.pages[0]?.total ?? 0,
     estaCargando: consulta.isLoading,
-    estaRefrescando: consulta.isFetching,
+    // `isFetching` se pone a cierto también al traer una página más, y
+    // eso haría girar el botón de recargar en cada desplazamiento. Aquí
+    // interesa solo cuando se está rehaciendo la consulta entera.
+    estaRefrescando: consulta.isFetching && !consulta.isFetchingNextPage,
+    hayMasMarcas: consulta.hasNextPage,
+    estaTrayendoMas: consulta.isFetchingNextPage,
+    pedirMasMarcas: consulta.fetchNextPage,
     error: consulta.error,
     recargar: consulta.refetch,
   };

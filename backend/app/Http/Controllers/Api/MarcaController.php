@@ -676,12 +676,22 @@ class MarcaController extends Controller
      */
     private function aplicarOrden(mixed $consulta, string $criterioDeOrden): mixed
     {
-        return match ($criterioDeOrden) {
+        $ordenada = match ($criterioDeOrden) {
             'valor_desc' => $consulta->orderByDesc('valor_anual_usd'),
             'valor_asc' => $consulta->orderBy('valor_anual_usd'),
             'nombre' => $consulta->orderBy('nombre_marca'),
             'antiguas' => $consulta->orderBy('created_at'),
             default => $consulta->orderByDesc('created_at'),
         };
+
+        // Desempate fijo, y no es cosmético: el tablero se lee por
+        // páginas conforme se baja, y ninguno de los criterios de arriba
+        // es único —hay marcas con el mismo valor, con el mismo nombre y
+        // creadas en el mismo segundo, como las 102 que entraron juntas
+        // en la migración—. Sin un desempate estable, la base de datos
+        // puede devolver esas filas en un orden distinto en cada
+        // petición, y entonces el scroll infinito repite unas marcas y
+        // se salta otras sin que nadie entienda por qué.
+        return $ordenada->orderBy('id');
     }
 }

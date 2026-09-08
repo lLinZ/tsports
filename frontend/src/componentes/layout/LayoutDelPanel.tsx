@@ -34,6 +34,7 @@ import {
   Menu,
   Package,
   ScrollText,
+  Shapes,
   UserCircle,
   Users,
 } from "lucide-react";
@@ -95,6 +96,16 @@ const ENTRADAS_DEL_MENU: EntradaDeMenu[] = [
     // eso lo hacen admin y comercial. El vendedor las usa —les asigna
     // marcas desde la ficha, con su selector— pero no las gestiona, así
     // que esta pantalla solo le daría opciones que no puede pulsar.
+    laPuedeVer: (usuario) => usuario.permisos.gestionaElCatalogoComercial,
+  },
+  {
+    ruta: "/sectores",
+    etiqueta: "Sectores",
+    descripcion: "Los rubros de las marcas",
+    icono: Shapes,
+    // Mismo criterio que las campañas: clasificar una marca lo hace
+    // cualquiera desde su ficha, pero decidir QUÉ rubros existen es una
+    // decisión de catálogo.
     laPuedeVer: (usuario) => usuario.permisos.gestionaElCatalogoComercial,
   },
   {

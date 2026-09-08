@@ -6,6 +6,7 @@ namespace App\Http\Requests;
 
 use App\Enums\InversionEnPatrocinios;
 use App\Models\Propiedad;
+use App\Models\Sector;
 use App\Support\CatalogosDelCrm;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -46,7 +47,11 @@ class GuardarMarcaRequest extends FormRequest
         return [
             // --- Identificación de la marca ---
             'nombreMarca' => ['required', 'string', 'max:180'],
-            'sector' => ['nullable', 'string', Rule::in(CatalogosDelCrm::SECTORES)],
+            // Se admiten TODOS los sectores del catálogo, también los
+            // desactivados: una marca clasificada en un rubro que luego
+            // se retiró tiene que poder seguir guardándose, o editarle
+            // el teléfono fallaría por un campo que nadie tocó.
+            'sector' => ['nullable', 'string', Rule::in(Sector::nombresAdmitidos())],
             'logoUrl' => ['nullable', 'string', 'max:2048'],
             'zona' => ['nullable', 'string', Rule::in(CatalogosDelCrm::ZONAS)],
             'invierteActualmente' => ['nullable', Rule::in(InversionEnPatrocinios::valores())],
@@ -203,7 +208,7 @@ class GuardarMarcaRequest extends FormRequest
         return [
             'nombreMarca.required' => 'Ponle nombre a la marca.',
             'emailContacto.email' => 'El correo del contacto no tiene un formato válido.',
-            'sector.in' => 'Ese sector no está en la lista de sectores permitidos.',
+            'sector.in' => 'Ese sector no está en el catálogo. Puede añadirse desde Sectores.',
             'zona.in' => 'Esa zona no está en la lista de zonas permitidas.',
             'vendedorAsignadoId.exists' => 'El agente que intentas asignar ya no existe.',
             'fechaCampana.date_format' => 'La fecha de la campaña no tiene un formato válido.',

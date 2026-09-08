@@ -36,6 +36,7 @@ use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\MiPerfilController;
 use App\Http\Controllers\Api\PanelController;
 use App\Http\Controllers\Api\PropiedadController;
+use App\Http\Controllers\Api\SectorController;
 use App\Http\Controllers\Api\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
@@ -119,6 +120,15 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/propiedades', [PropiedadController::class, 'store']);
     Route::put('/propiedades/{propiedad}', [PropiedadController::class, 'update']);
     Route::delete('/propiedades/{propiedad}', [PropiedadController::class, 'destroy']);
+
+    /* ---------- Sectores (el rubro de cada marca) ----------
+     | El catálogo lo consulta todo el equipo, porque hace falta para el
+     | selector de la ficha; crearlos y retirarlos lo decide quien
+     | gestiona el catálogo comercial, y eso lo aplica SectorPolicy.     */
+    Route::get('/sectores', [SectorController::class, 'index']);
+    Route::post('/sectores', [SectorController::class, 'store']);
+    Route::put('/sectores/{sector}', [SectorController::class, 'update']);
+    Route::delete('/sectores/{sector}', [SectorController::class, 'destroy']);
 
     /* ---------- Campañas comerciales ---------- */
     Route::get('/campanas', [CampanaController::class, 'index']);

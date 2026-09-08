@@ -44,6 +44,7 @@ class DatabaseSeeder extends Seeder
         // comerciales que está trabajando, así que se cargan también en
         // producción.
         $this->call(PropiedadesIopSeeder::class);
+        $this->call(SectoresInicialesSeeder::class);
         $this->call(CampanasInicialesSeeder::class);
 
         if (! app()->isProduction()) {

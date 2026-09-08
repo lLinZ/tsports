@@ -316,7 +316,11 @@
       <div class="sub">Cifras que ahora se pulsan y llevan a su detalle</div></li>
     <li><a href="#seis"><span class="num">06</span><span class="rel">Cada agente, su cartera</span></a>
       <div class="sub">El cambio de acceso y lo que trae consigo</div></li>
-    <li><a href="#siete"><span class="num">07</span><span class="rel">Qué hace falta ahora</span></a>
+    <li><a href="#siete"><span class="num">07</span><span class="rel">Listas completas</span></a>
+      <div class="sub">Marcas que no se podían ver por quedar fuera de página</div></li>
+    <li><a href="#ocho"><span class="num">08</span><span class="rel">Sectores</span></a>
+      <div class="sub">Añadir y editar rubros sin depender del programador</div></li>
+    <li><a href="#nueve"><span class="num">09</span><span class="rel">Qué hace falta ahora</span></a>
       <div class="sub">Dos tareas para el equipo y cómo comprobarlo</div></li>
   </ol>
 </section>
@@ -329,9 +333,9 @@
   </div>
   <h2>Lo que cambió</h2>
   <p class="entradilla">
-    Cinco asuntos. Tres eran fallos que daban la cara en el uso diario y
-    dos son mejoras que pidió el equipo. Todo está probado y subido; lo
-    único que falta es publicarlo en el servidor.
+    Siete asuntos. Cuatro eran fallos que daban la cara en el uso diario
+    y tres son mejoras que pidió el equipo. Todo está probado y subido;
+    lo único que falta es publicarlo en el servidor.
   </p>
 
   <table>
@@ -370,6 +374,18 @@
         <td>Cada agente veía las marcas de todo el equipo.</td>
         <td><span class="si">Resuelto</span></td>
       </tr>
+      <tr>
+        <td><strong>Listas cortadas</strong></td>
+        <td>El tablero solo enseñaba 60 marcas de 102, y no había forma
+            de llegar al resto.</td>
+        <td><span class="si">Resuelto</span></td>
+      </tr>
+      <tr>
+        <td><strong>Sectores</strong></td>
+        <td>No había manera de añadir un rubro nuevo sin tocar el
+            programa.</td>
+        <td><span class="si">Añadido</span></td>
+      </tr>
     </tbody>
   </table>
 
@@ -378,7 +394,7 @@
     Cada uno de estos arreglos lleva detrás <strong>pruebas
     automáticas</strong>: comprobaciones que el sistema ejecuta solo y
     que se ponen en rojo si alguien vuelve a romper esa regla. Hoy son
-    <strong>152</strong> y todas están en verde.
+    <strong>166</strong> y todas están en verde.
   </p>
   <p>
     No es un dato de adorno. Dos de los fallos de esta semana se
@@ -713,8 +729,132 @@
 <!-- ============================== 07 =============================== -->
 <section class="seccion" id="siete">
   <div class="cinta">
+    <span class="indicador" style="background:var(--amarillo)"></span>
+    <span class="capitulo">07 &middot; Listas completas</span>
+  </div>
+  <h2>Marcas que no se podían ver</h2>
+  <p class="entradilla">
+    Salió al revisar lo anterior, y es de los fallos que no se notan
+    porque nada avisa: la pantalla no da error, simplemente enseña menos
+    de lo que hay.
+  </p>
+
+  <h3>Qué ocurría</h3>
+  <p>
+    El tablero pide las marcas al servidor <strong>de sesenta en
+    sesenta</strong>, que es lo normal para que la pantalla cargue
+    rápido. Lo que faltaba era el resto: la interfaz nunca pedía el
+    segundo grupo y tampoco tenía botones de página.
+  </p>
+
+  <div class="comparativa">
+    <div class="caja antes">
+      <span class="rotulo">Antes</span>
+      <p>De las <strong>102 marcas</strong> del sistema solo se podía
+      llegar a <strong>60</strong>. Las otras 42 solo aparecían si se
+      daba con un filtro que las dejara dentro de las primeras sesenta.</p>
+    </div>
+    <div class="caja despues">
+      <span class="rotulo">Ahora</span>
+      <p>Al llegar al final de la cuadrícula se cargan solas las
+      siguientes, hasta terminar. Al final se lee «No hay más marcas que
+      mostrar», así que se sabe cuándo se acabó.</p>
+    </div>
+  </div>
+
+  <p>
+    Lo mismo pasaba con el historial de <span class="ruta">Auditoría</span>,
+    que enseñaba los últimos cincuenta movimientos y no dejaba llegar más
+    atrás. Las dos pantallas funcionan ya igual, y ninguna lleva
+    paginador: el equipo recorre el tablero desplazándose, no saltando de
+    página en página.
+  </p>
+
+  <div class="aviso dato">
+    <span class="rotulo">Un detalle que evita un fallo peor</span>
+    <p>Cuando una lista se lee por partes, todas las partes tienen que
+    encajar. Si dos marcas tienen el mismo valor, el mismo nombre o la
+    misma fecha —como las 102 que entraron juntas en la migración—, el
+    sistema podía devolverlas en distinto orden en cada petición, y
+    entonces al bajar se repetirían unas y se saltarían otras sin dar
+    ningún error. Se fijó un criterio de desempate y hay una comprobación
+    automática que recorre 140 marcas creadas en el mismo instante y
+    exige que salgan todas, una sola vez cada una.</p>
+  </div>
+
+  <div class="aviso bien">
+    <span class="rotulo">Cómo se comprueba</span>
+    <p>Abrir <span class="ruta">Marcas</span> sin filtros: la cabecera
+    dice el total, y bajando hasta el final se tienen que poder ver todas
+    esas marcas.</p>
+  </div>
+</section>
+
+<!-- ============================== 08 =============================== -->
+<section class="seccion" id="ocho">
+  <div class="cinta">
+    <span class="indicador" style="background:var(--verde)"></span>
+    <span class="capitulo">08 &middot; Sectores</span>
+  </div>
+  <h2>Los rubros, ahora en manos del equipo</h2>
+  <p class="entradilla">
+    Los doce sectores estaban escritos dentro del programa. Añadir uno
+    nuevo significaba pedir un cambio de código y esperar a una
+    publicación; mientras tanto, esas marcas se quedaban en «Otro».
+  </p>
+
+  <h3>Qué se puede hacer ahora</h3>
+  <p>
+    Hay una pantalla nueva, <span class="ruta">Sectores</span>, en el
+    menú lateral. Desde ahí se añaden, se renombran y se retiran, y cada
+    rubro muestra cuántas marcas tiene dentro. Un sector nuevo aparece de
+    inmediato en el selector de la ficha de cualquier marca.
+  </p>
+
+  <div class="fichas">
+    <div class="ficha">
+      <div class="titulo"><span class="punto" style="background:var(--verde)"></span>Añadir</div>
+      <p>Un nombre y listo. Se puede usar en el acto.</p>
+    </div>
+    <div class="ficha">
+      <div class="titulo"><span class="punto" style="background:var(--azul)"></span>Renombrar</div>
+      <p>El cambio se lo lleva también a sus marcas, así que no se
+      queda ninguna descolgada.</p>
+    </div>
+    <div class="ficha">
+      <div class="titulo"><span class="punto" style="background:var(--amarillo)"></span>Retirar</div>
+      <p>Deja de ofrecerse al clasificar, pero las marcas que ya lo
+      tienen lo conservan.</p>
+    </div>
+    <div class="ficha">
+      <div class="titulo"><span class="punto" style="background:var(--rojo)"></span>Borrar</div>
+      <p>Solo si no lo usa ninguna marca. Con marcas dentro el sistema
+      lo impide y explica por qué.</p>
+    </div>
+  </div>
+
+  <div class="aviso ojo">
+    <span class="rotulo">Por qué no se puede borrar un sector en uso</span>
+    <p>La marca guarda el nombre del rubro. Borrar «Bebidas» con marcas
+    dentro las dejaría con un sector que ya no existe en el catálogo:
+    seguirían ahí, pero desaparecerían del reparto por sector del
+    resumen. Por eso lo que se ofrece es retirarlo, que consigue lo mismo
+    —quitarlo de en medio— sin tocar nada.</p>
+  </div>
+
+  <p>
+    Lo gestionan administrador y comercial, el mismo criterio que las
+    campañas y el catálogo de propiedades: clasificar una marca lo hace
+    cualquiera desde su ficha, pero decidir qué rubros existen es una
+    decisión de catálogo.
+  </p>
+</section>
+
+<!-- ============================== 09 =============================== -->
+<section class="seccion" id="nueve">
+  <div class="cinta">
     <span class="indicador" style="background:var(--azul)"></span>
-    <span class="capitulo">07 &middot; Siguiente paso</span>
+    <span class="capitulo">09 &middot; Siguiente paso</span>
   </div>
   <h2>Qué hace falta ahora</h2>
   <p class="entradilla">
@@ -738,20 +878,19 @@
 
   <h3>De publicación</h3>
   <p>
-    Los cambios de los apartados 03 al 06 se publican ejecutando el
-    despliegue habitual en el servidor. El sitio queda un par de minutos
-    en mantenimiento y, si algo fallara, la versión anterior se queda en
-    pie.
+    Los apartados 03 al 08 se publican con el despliegue habitual. El
+    sitio queda un par de minutos en mantenimiento y, si algo fallara, la
+    versión anterior se queda en pie. Esta vez se crea además la tabla de
+    sectores con los doce de siempre, así que nada cambia de sitio.
   </p>
 
   <div class="aviso ojo">
     <span class="rotulo">Recordatorio pendiente de antes</span>
-    <p>Sigue sin resolverse un asunto de seguridad anterior a esta
-    semana: <strong>siete cuentas mantienen una contraseña que llegó a
-    estar publicada</strong>, incluida la del administrador. Se cierra
-    únicamente cambiando esas contraseñas desde
-    <span class="ruta">Equipo</span>. Tampoco hay todavía una copia de
-    seguridad automática de la base de datos; la última se hizo a mano.</p>
+    <p>De antes de esta semana: <strong>siete cuentas mantienen una
+    contraseña que llegó a estar publicada</strong>, incluida la del
+    administrador. Se cierra cambiándolas desde
+    <span class="ruta">Equipo</span>. Tampoco hay copia de seguridad
+    automática de la base; la última se hizo a mano.</p>
   </div>
 
   <h3>Resumen de la semana</h3>
@@ -760,9 +899,10 @@
       <tr><th style="width:50%">Concepto</th><th>Cifra</th></tr>
     </thead>
     <tbody>
-      <tr><td>Fallos corregidos</td><td><strong>3</strong> (alta de cuentas, filtro por agente, desplegable del historial)</td></tr>
-      <tr><td>Funciones nuevas</td><td><strong>3</strong> (cifras pulsables, filtros de auditoría, acceso por cartera)</td></tr>
-      <tr><td>Comprobaciones automáticas</td><td><strong>152</strong>, todas en verde</td></tr>
+      <tr><td>Fallos corregidos</td><td><strong>4</strong> (alta de cuentas, filtro por agente, desplegable del historial, listas cortadas)</td></tr>
+      <tr><td>Funciones nuevas</td><td><strong>3</strong> (cifras pulsables, filtros de auditoría, catálogo de sectores)</td></tr>
+      <tr><td>Reglas cambiadas</td><td><strong>1</strong> (cada agente ve solo su cartera)</td></tr>
+      <tr><td>Comprobaciones automáticas</td><td><strong>166</strong>, todas en verde</td></tr>
       <tr><td>Pendiente del equipo</td><td>Repartir 39 marcas y unificar cuentas repetidas</td></tr>
     </tbody>
   </table>

@@ -75,34 +75,53 @@ export async function eliminarImagen(idDeLaImagen: string): Promise<void> {
 }
 
 /**
- * Historial de auditoría. Solo lo puede consultar un administrador.
+ * Una página del historial de auditoría. Solo la consulta un
+ * administrador.
  *
  * Los filtros vacíos no se envían: así el servidor no tiene que
  * distinguir entre "sin filtro" y "filtro en blanco", y la petición se
  * queda limpia en el inspector.
  *
- * Devuelve también el total, que es la cifra que se enseña arriba: el
- * listado viene paginado y contar lo recibido mentiría.
+ * Devuelve el total —la cifra que se enseña arriba, que no es lo que
+ * trae esta página— y en qué página va, que es lo que necesita el
+ * scroll infinito. El historial es la lista que más crece del sistema:
+ * sin pedir las páginas siguientes solo se veían los últimos cincuenta
+ * movimientos y no había forma de llegar más atrás.
  */
-export async function obtenerAuditoria(filtros?: {
-  desde?: string;
-  hasta?: string;
-  usuario?: string;
-  entidad?: string;
-  accion?: string;
-}): Promise<{ registros: RegistroDeActividad[]; total: number }> {
+export async function obtenerAuditoria(
+  filtros?: {
+    desde?: string;
+    hasta?: string;
+    usuario?: string;
+    entidad?: string;
+    accion?: string;
+  },
+  pagina = 1,
+): Promise<{
+  registros: RegistroDeActividad[];
+  total: number;
+  pagina: number;
+  ultimaPagina: number;
+}> {
   const parametros: Record<string, string> = {};
 
   for (const [clave, valor] of Object.entries(filtros ?? {})) {
     if (valor) parametros[clave] = valor;
   }
 
+  if (pagina > 1) parametros.page = String(pagina);
+
   const { data } = await clienteHttp.get<{
     data: RegistroDeActividad[];
-    meta?: { total: number };
+    meta?: { total: number; current_page: number; last_page: number };
   }>("/admin/auditoria", { params: parametros });
 
-  return { registros: data.data, total: data.meta?.total ?? data.data.length };
+  return {
+    registros: data.data,
+    total: data.meta?.total ?? data.data.length,
+    pagina: data.meta?.current_page ?? 1,
+    ultimaPagina: data.meta?.last_page ?? 1,
+  };
 }
 
 /**

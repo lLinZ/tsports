@@ -24,7 +24,7 @@
 import { Button, Chip, Input, Select, SelectItem } from "@heroui/react";
 import { ScrollText, X } from "lucide-react";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { mensajeDeError } from "@/api/clienteHttp";
 import { listarPersonasDeAuditoria, obtenerAuditoria } from "@/api/sistema";
 import {
@@ -32,6 +32,7 @@ import {
   BloqueDeError,
   EstadoVacio,
 } from "@/componentes/comunes/EstadosDePantalla";
+import { useScrollInfinito } from "@/hooks/useScrollInfinito";
 import {
   formatearFechaYHora,
   formatearNumero,
@@ -103,11 +104,14 @@ export function PaginaAuditoria() {
 
   const hayFiltrosActivos = Object.values(filtros).some((valor) => valor !== "");
 
-  const consultaDeAuditoria = useQuery({
+  const consultaDeAuditoria = useInfiniteQuery({
     // Los filtros entran enteros en la clave: cambiar cualquiera pide de
     // nuevo, y volver a una combinación ya vista la saca de la caché.
     queryKey: ["auditoria", filtros],
-    queryFn: () => obtenerAuditoria(filtros),
+    queryFn: ({ pageParam }) => obtenerAuditoria(filtros, pageParam),
+    initialPageParam: 1,
+    getNextPageParam: (ultima) =>
+      ultima.pagina < ultima.ultimaPagina ? ultima.pagina + 1 : undefined,
   });
 
   /**
@@ -125,8 +129,19 @@ export function PaginaAuditoria() {
   });
 
   const personas = consultaDePersonas.data ?? [];
-  const registros = consultaDeAuditoria.data?.registros ?? [];
-  const total = consultaDeAuditoria.data?.total ?? 0;
+
+  // Las páginas se concatenan: la pantalla pinta una sola lista y el
+  // total sigue siendo el de TODO el historial filtrado, no el de lo
+  // que hay cargado.
+  const registros =
+    consultaDeAuditoria.data?.pages.flatMap((pagina) => pagina.registros) ?? [];
+  const total = consultaDeAuditoria.data?.pages[0]?.total ?? 0;
+
+  const finalDelHistorial = useScrollInfinito({
+    hayMas: consultaDeAuditoria.hasNextPage,
+    estaCargando: consultaDeAuditoria.isFetchingNextPage,
+    pedirMas: () => void consultaDeAuditoria.fetchNextPage(),
+  });
 
   return (
     <div className="space-y-5">
@@ -282,6 +297,7 @@ export function PaginaAuditoria() {
             }
           />
         ) : (
+          <>
           <ol className="space-y-1">
             {registros.map((registro) => (
               <li
@@ -316,6 +332,33 @@ export function PaginaAuditoria() {
               </li>
             ))}
           </ol>
+
+          {/*
+            El centinela del scroll infinito, con su botón de reserva por
+            si el observador no llega a dispararse. Se queda montado
+            siempre: al cambiar un filtro puede volver a haber páginas.
+          */}
+          <div ref={finalDelHistorial} className="flex justify-center pt-4">
+            {consultaDeAuditoria.isFetchingNextPage ? (
+              <span className="text-sm text-default-400">
+                Cargando más movimientos…
+              </span>
+            ) : consultaDeAuditoria.hasNextPage ? (
+              <Button
+                radius="lg"
+                size="sm"
+                variant="flat"
+                onPress={() => void consultaDeAuditoria.fetchNextPage()}
+              >
+                Ver más movimientos
+              </Button>
+            ) : (
+              <span className="text-xs text-default-300">
+                Final del historial
+              </span>
+            )}
+          </div>
+          </>
         )}
       </div>
     </div>

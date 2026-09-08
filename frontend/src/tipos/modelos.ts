@@ -330,6 +330,22 @@ export interface DatosDeMarcaParaGuardar {
 
 /** Filtros del tablero, tal y como viajan en la consulta. */
 /**
+ * Un rubro del catálogo.
+ *
+ * La marca guarda el sector como TEXTO, no por relación, así que
+ * `totalMarcas` se cuenta por el nombre. Es el dato con el que la
+ * pantalla decide si un sector se puede borrar o solo desactivar, y lo
+ * que avisa de cuántas marcas arrastra un renombrado.
+ */
+export interface Sector {
+  id: string;
+  nombre: string;
+  orden: number;
+  activo: boolean;
+  totalMarcas: number;
+}
+
+/**
  * Una persona tal y como sale en el filtro por agente del tablero.
  *
  * No es una cuenta: es quien de verdad aparece llevando marcas. Puede

@@ -8,11 +8,13 @@ use App\Models\Campana;
 use App\Models\EventoDeCampana;
 use App\Models\Marca;
 use App\Models\Propiedad;
+use App\Models\Sector;
 use App\Models\User;
 use App\Policies\CampanaPolicy;
 use App\Policies\EventoDeCampanaPolicy;
 use App\Policies\MarcaPolicy;
 use App\Policies\PropiedadPolicy;
+use App\Policies\SectorPolicy;
 use App\Policies\UserPolicy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
@@ -50,6 +52,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Propiedad::class, PropiedadPolicy::class);
         Gate::policy(Campana::class, CampanaPolicy::class);
         Gate::policy(EventoDeCampana::class, EventoDeCampanaPolicy::class);
+        Gate::policy(Sector::class, SectorPolicy::class);
 
         // Comprobaciones estrictas de Eloquent, solo fuera de producción.
         Model::shouldBeStrict(! $this->app->isProduction());

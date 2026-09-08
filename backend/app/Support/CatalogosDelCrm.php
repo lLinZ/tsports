@@ -8,6 +8,7 @@ use App\Enums\InversionEnPatrocinios;
 use App\Enums\RolUsuario;
 use App\Enums\TemaInterfaz;
 use App\Models\Propiedad;
+use App\Models\Sector;
 
 /**
  * CatalogosDelCrm — listas cerradas que comparten backend y frontend.
@@ -32,8 +33,19 @@ final class CatalogosDelCrm
         'Oriente',
     ];
 
-    /** Rubro al que pertenece la marca; se usa para segmentar el pipeline. */
-    public const SECTORES = [
+    /**
+     * Los sectores DE PARTIDA, y solo eso.
+     *
+     * Desde el 2026-09-08 los rubros viven en la tabla `sectores` y se
+     * gestionan desde el panel: el equipo necesitaba añadir uno sin
+     * esperar a un despliegue. Esta lista se quedó porque es la que
+     * siembra el catálogo la primera vez (`SectoresInicialesSeeder`).
+     *
+     * NO se use para validar ni para pintar un selector: para eso están
+     * `Sector::nombresAdmitidos()` y `Sector::nombresActivos()`, que sí
+     * saben de los que el equipo haya añadido después.
+     */
+    public const SECTORES_INICIALES = [
         'Alimentos',
         'Bebidas',
         'Telecomunicaciones',
@@ -94,7 +106,9 @@ final class CatalogosDelCrm
             // que el formulario de un producto IOP no lo lleve escrito a
             // mano y pueda cambiarse desde el modelo Propiedad.
             'porcentajeForecastPorDefecto' => Propiedad::PORCENTAJE_FORECAST_POR_DEFECTO,
-            'sectores' => self::SECTORES,
+            // Salen de la tabla, no de la constante: son los que el
+            // equipo tenga hoy, incluidos los que haya añadido.
+            'sectores' => Sector::nombresActivos(),
             'viasDeProspeccion' => self::VIAS_DE_PROSPECCION,
             'viasDeAproximacion' => self::VIAS_DE_APROXIMACION,
             'coloresDeAcento' => self::COLORES_DE_ACENTO,

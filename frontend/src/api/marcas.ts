@@ -27,18 +27,30 @@ interface RespuestaPaginada<T> {
 
 export interface ResultadoDeListado {
   marcas: Marca[];
+  /** El total con los filtros puestos, no lo que trae esta página. */
   total: number;
+  pagina: number;
+  ultimaPagina: number;
 }
 
 /**
- * Trae el listado del tablero aplicando los filtros de la interfaz.
+ * Trae una página del tablero aplicando los filtros de la interfaz.
+ *
  * Los filtros vacíos no se envían, para no ensuciar la URL ni obligar al
  * backend a distinguir entre "sin filtro" y "filtro en blanco".
+ *
+ * Devuelve además en qué página va y cuál es la última, que es lo que
+ * necesita el scroll infinito para saber si tiene que seguir pidiendo.
+ * Antes esta función ignoraba la paginación por completo: se quedaba con
+ * la primera página y las demás marcas no había forma de verlas.
  */
 export async function listarMarcas(
   filtros: Partial<FiltrosDeMarcas>,
+  pagina = 1,
 ): Promise<ResultadoDeListado> {
   const parametrosDeConsulta: Record<string, string> = {};
+
+  if (pagina > 1) parametrosDeConsulta.page = String(pagina);
 
   if (filtros.busqueda?.trim()) parametrosDeConsulta.busqueda = filtros.busqueda.trim();
   if (filtros.etapa) parametrosDeConsulta.etapa = filtros.etapa;
@@ -58,6 +70,8 @@ export async function listarMarcas(
   return {
     marcas: data.data,
     total: data.meta?.total ?? data.data.length,
+    pagina: data.meta?.current_page ?? 1,
+    ultimaPagina: data.meta?.last_page ?? 1,
   };
 }
 

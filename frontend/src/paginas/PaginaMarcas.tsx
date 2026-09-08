@@ -55,6 +55,7 @@ import {
   useListadoDeMarcas,
 } from "@/hooks/useMarcas";
 import { usePropiedadesOfrecibles } from "@/hooks/usePropiedades";
+import { useScrollInfinito } from "@/hooks/useScrollInfinito";
 import { useUsuarioAutenticado } from "@/providers/ProveedorSesion";
 import { avisarDeError } from "@/utilidades/avisos";
 import { formatearNumero } from "@/utilidades/formato";
@@ -199,6 +200,15 @@ export function PaginaMarcas() {
 
   const listado = useListadoDeMarcas(filtrosAplicados);
   const alternarFase = useAlternarFase();
+
+  // El final de la cuadrícula pide la página siguiente al asomar. El
+  // tablero se recorre desplazándose, que es como lo usa el equipo, en
+  // vez de con un paginador.
+  const finalDeLaCuadricula = useScrollInfinito({
+    hayMas: listado.hayMasMarcas,
+    estaCargando: listado.estaTrayendoMas,
+    pedirMas: () => void listado.pedirMasMarcas(),
+  });
 
   // Campañas y propiedades para sus dos selectores. Las dos consultas ya
   // están cacheadas para toda la sesión desde la ficha de una marca, así
@@ -632,18 +642,51 @@ export function PaginaMarcas() {
           />
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {listado.marcas.map((marca) => (
-            <TarjetaDeMarca
-              key={marca.id}
-              alAbrirFicha={abrirFichaDe}
-              alAlternarFase={(marcaPulsada, fase, completada) =>
-                void alternarLaFaseDeUnaMarca(marcaPulsada, fase, completada)
-              }
-              marca={marca}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {listado.marcas.map((marca) => (
+              <TarjetaDeMarca
+                key={marca.id}
+                alAbrirFicha={abrirFichaDe}
+                alAlternarFase={(marcaPulsada, fase, completada) =>
+                  void alternarLaFaseDeUnaMarca(marcaPulsada, fase, completada)
+                }
+                marca={marca}
+              />
+            ))}
+          </div>
+
+          {/*
+            El centinela del scroll infinito. Se queda montado siempre,
+            también cuando ya no quedan páginas: si se desmontara, al
+            cambiar un filtro y volver a haber más no habría nada que
+            observar.
+
+            El botón es la red de seguridad. El observador puede no
+            dispararse —un navegador viejo, o la pestaña en segundo
+            plano— y entonces la única forma de seguir sería recargar.
+          */}
+          <div ref={finalDeLaCuadricula} className="flex justify-center py-2">
+            {listado.estaTrayendoMas ? (
+              <span className="text-sm text-default-400">Cargando más marcas…</span>
+            ) : listado.hayMasMarcas ? (
+              <Button
+                radius="lg"
+                size="sm"
+                variant="flat"
+                onPress={() => void listado.pedirMasMarcas()}
+              >
+                Ver más marcas
+              </Button>
+            ) : (
+              listado.marcas.length > 0 && (
+                <span className="text-xs text-default-300">
+                  No hay más marcas que mostrar
+                </span>
+              )
+            )}
+          </div>
+        </>
       )}
 
       <ModalDeMarca
