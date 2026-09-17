@@ -4,13 +4,17 @@
  * El árbol de proveedores y el mapa de rutas de toda la aplicación.
  *
  * ORDEN DE LOS PROVEEDORES (importa):
- *   Enrutador → HeroUI → Tema → Consultas → Sesión
+ *   Enrutador → HeroUI → Tema → Consultas → Sesión → Tiempo real
  *
  *   · El TEMA va por fuera de la SESIÓN porque la pantalla de login ya
  *     tiene que respetar el modo oscuro guardado, antes de saber quién
  *     está entrando.
  *   · La SESIÓN va por dentro del TEMA porque, en cuanto conoce al
  *     usuario, le empuja sus preferencias visuales del servidor.
+ *   · El TIEMPO REAL va por dentro de la SESIÓN porque sin saber quién
+ *     es la persona no hay canal privado al que suscribirse. Va aquí
+ *     arriba y no en el layout del panel para que la conexión no se
+ *     corte y se vuelva a abrir en cada cambio de pantalla.
  *
  * RUTAS:
  *   /            → la web pública (sin sesión)
@@ -26,6 +30,7 @@ import { LayoutDelPanel } from "@/componentes/layout/LayoutDelPanel";
 import { ProveedorConsultas } from "@/providers/ProveedorConsultas";
 import { ProveedorSesion, useSesion } from "@/providers/ProveedorSesion";
 import { ProveedorTema } from "@/providers/ProveedorTema";
+import { ProveedorTiempoReal } from "@/providers/ProveedorTiempoReal";
 import { PaginaAuditoria } from "@/paginas/PaginaAuditoria";
 import { PaginaCampanas } from "@/paginas/PaginaCampanas";
 import { PaginaContenidoWeb } from "@/paginas/PaginaContenidoWeb";
@@ -65,7 +70,9 @@ function ProveedoresDeLaAplicacion({ children }: { children: ReactNode }) {
 
       <ProveedorTema>
         <ProveedorConsultas>
-          <ProveedorSesion>{children}</ProveedorSesion>
+          <ProveedorSesion>
+            <ProveedorTiempoReal>{children}</ProveedorTiempoReal>
+          </ProveedorSesion>
         </ProveedorConsultas>
       </ProveedorTema>
     </HeroUIProvider>

@@ -44,6 +44,7 @@ import {
   BotonDeTema,
   MenuDeColorAcento,
 } from "@/componentes/comunes/ControlesDeApariencia";
+import { IndicadorDeConexion } from "@/componentes/layout/IndicadorDeConexion";
 import { useCatalogos } from "@/hooks/useCatalogos";
 import { useSesion, useUsuarioAutenticado } from "@/providers/ProveedorSesion";
 import { inicialesDe } from "@/utilidades/formato";
@@ -345,6 +346,7 @@ function BarraSuperior({
       </h1>
 
       <div className="flex items-center gap-1">
+        <IndicadorDeConexion />
         <MenuDeColorAcento coloresDisponibles={catalogos?.coloresDeAcento} />
         <BotonDeTema />
 

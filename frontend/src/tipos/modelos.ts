@@ -806,3 +806,15 @@ export interface MensajeDeContacto {
   /** Trampa para robots: debe viajar siempre vacío. */
   sitioWeb: string;
 }
+
+/* ==================================================================== */
+/* Tiempo real                                                          */
+/* ==================================================================== */
+
+/** Lo que devuelve GET /api/tiempo-real (TiempoRealController). */
+export interface ConfiguracionDeTiempoReal {
+  /** Falso si el servidor no tiene Reverb encendido: no se intenta conectar. */
+  activo: boolean;
+  /** La clave pública de Reverb. Solo viene cuando `activo` es verdadero. */
+  clave: string | null;
+}

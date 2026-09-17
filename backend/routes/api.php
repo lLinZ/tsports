@@ -37,6 +37,7 @@ use App\Http\Controllers\Api\MiPerfilController;
 use App\Http\Controllers\Api\PanelController;
 use App\Http\Controllers\Api\PropiedadController;
 use App\Http\Controllers\Api\SectorController;
+use App\Http\Controllers\Api\TiempoRealController;
 use App\Http\Controllers\Api\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
@@ -69,6 +70,12 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/auth/yo', [AutenticacionController::class, 'usuarioActual']);
     Route::post('/auth/logout', [AutenticacionController::class, 'cerrarSesion']);
     Route::post('/auth/cambiar-password', [AutenticacionController::class, 'cambiarPassword']);
+
+    /* ---------- Tiempo real ----------
+     | Si el WebSocket está encendido y con qué clave se entra. La
+     | autorización de cada canal privado va aparte, en
+     | /api/broadcasting/auth, registrada en bootstrap/app.php.          */
+    Route::get('/tiempo-real', [TiempoRealController::class, 'configuracion']);
 
     Route::get('/mi-perfil', [MiPerfilController::class, 'show']);
     Route::put('/mi-perfil', [MiPerfilController::class, 'update']);
