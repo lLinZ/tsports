@@ -1,0 +1,38 @@
+# =====================================================================
+#  TS SPORTS — Unidad de systemd para el trabajador de la cola
+#  ---------------------------------------------------------------------
+#  El driver de cola ya es "database" desde el principio (la tabla
+#  `jobs` existe desde la primera migración): lo único que faltaba era
+#  un proceso que la consuma. `deploy/instalar-vps.sh` instala esta
+#  unidad y `deploy/desplegar.sh` la reinicia en cada despliegue con
+#  `php artisan queue:restart` (deja que termine el trabajo en curso; el
+#  `Restart=always` de aquí abajo es quien la vuelve a levantar).
+#
+#  --max-time=3600 recicla el proceso cada hora: así no acumula memoria
+#  indefinidamente si algún trabajo tiene una fuga. --tries=3 evita que
+#  un trabajo que falla se repita para siempre.
+#
+#  INSTALACIÓN (la hace instalar-vps.sh; a mano sería así)
+#    sudo cp deploy/tsports-queue.service /etc/systemd/system/
+#    sudo systemctl daemon-reload
+#    sudo systemctl enable --now tsports-queue
+#
+#  SUSTITUYE ANTES: /var/www/tsports → la ruta donde clonaste el repositorio.
+# =====================================================================
+
+[Unit]
+Description=TS Sports — trabajador de la cola de Laravel
+After=network.target mysql.service mariadb.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/tsports/backend
+ExecStart=/usr/bin/php /var/www/tsports/backend/artisan queue:work --sleep=3 --tries=3 --max-time=3600
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

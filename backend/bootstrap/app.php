@@ -34,6 +34,17 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    // Los canales de Reverb (routes/channels.php) se cargan aparte y NO
+    // con el parámetro `channels` de withRouting(): ese registra de
+    // fábrica /broadcasting/auth bajo el grupo `web`, pensado para
+    // cookie de sesión. Aquí solo hay tokens Bearer de Sanctum, así que
+    // la ruta de autenticación se declara con sus propios atributos para
+    // que quede en /api/broadcasting/auth, con auth:sanctum y heredando
+    // el formato de error en español del grupo `api` (ver más abajo).
+    ->withBroadcasting(
+        __DIR__.'/../routes/channels.php',
+        attributes: ['prefix' => 'api', 'middleware' => ['api', 'auth:sanctum']],
+    )
     ->withMiddleware(function (Middleware $middleware): void {
         // CORS: necesario mientras el frontend corre en otro puerto
         // (Vite en :5173 y Laravel en :8000). En producción los dos

@@ -62,6 +62,20 @@ PASSWORD_BASE_DE_DATOS="${PASSWORD_BASE_DE_DATOS:-$(openssl rand -base64 32 | tr
 CORREO_DEL_ADMINISTRADOR="${CORREO_DEL_ADMINISTRADOR:-admin@tssports.com}"
 PASSWORD_DEL_ADMINISTRADOR="${PASSWORD_DEL_ADMINISTRADOR:-$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-16)}"
 
+# Credenciales del propio servidor Reverb (tiempo real), no de un
+# servicio externo: no hay que anotarlas ni compartirlas con nadie. Se
+# generan igual que la contraseña de la base de datos.
+#
+# IMPORTANTE: no pueden quedar vacías. Con REVERB_APP_KEY/SECRET/ID sin
+# rellenar, Laravel intenta construir el cliente de Reverb ya al
+# arrancar —no solo al usarlo— y CUALQUIER comando de artisan falla,
+# incluidos los de más abajo (key:generate, migrate, db:seed). Por eso
+# se generan aquí, antes de tocar el .env, y no se deja para "rellenar
+# luego a mano".
+REVERB_APP_ID="${REVERB_APP_ID:-$(openssl rand -hex 8)}"
+REVERB_APP_KEY="${REVERB_APP_KEY:-$(openssl rand -hex 16)}"
+REVERB_APP_SECRET="${REVERB_APP_SECRET:-$(openssl rand -hex 16)}"
+
 readonly VERSION_DE_NODE="22"
 
 # Versión mínima de PHP que admite Laravel 12. Si la distribución trae
@@ -70,6 +84,12 @@ readonly VERSION_DE_NODE="22"
 readonly VERSION_MINIMA_DE_PHP="8.2"
 
 readonly CARPETA_DEL_PROYECTO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Los servicios de systemd se nombran por la carpeta (tsports-queue,
+# tsports-test-queue…), igual que en desplegar.sh, que es quien los
+# reinicia: si los nombres no coincidieran, desplegar reiniciaría un
+# servicio que no existe y el nuevo código no llegaría a la cola.
+readonly NOMBRE_DE_LA_INSTALACION="$(basename "${CARPETA_DEL_PROYECTO}")"
 
 # ---------------------------------------------------------------------
 # Qué distribución es y cómo se pide permiso de root
@@ -316,6 +336,13 @@ else
   sed -i "s|^ADMIN_EMAIL=.*|ADMIN_EMAIL=${CORREO_DEL_ADMINISTRADOR}|"       "${CARPETA_DEL_PROYECTO}/backend/.env"
   sed -i "s|^ADMIN_PASSWORD=.*|ADMIN_PASSWORD=${PASSWORD_DEL_ADMINISTRADOR}|" "${CARPETA_DEL_PROYECTO}/backend/.env"
   sed -i "s|^FRONTEND_URLS=.*|FRONTEND_URLS=https://${DOMINIO}|"            "${CARPETA_DEL_PROYECTO}/backend/.env"
+  sed -i "s|^REVERB_APP_ID=.*|REVERB_APP_ID=${REVERB_APP_ID}|"              "${CARPETA_DEL_PROYECTO}/backend/.env"
+  sed -i "s|^REVERB_APP_KEY=.*|REVERB_APP_KEY=${REVERB_APP_KEY}|"           "${CARPETA_DEL_PROYECTO}/backend/.env"
+  sed -i "s|^REVERB_APP_SECRET=.*|REVERB_APP_SECRET=${REVERB_APP_SECRET}|"  "${CARPETA_DEL_PROYECTO}/backend/.env"
+  # REVERB_HOST se queda en 127.0.0.1, como viene de .env.example, y NO
+  # se pone el dominio: es a dónde publica el backend, por dentro de la
+  # máquina. nginx no reenvía lo que se publica (/apps/), solo lo del
+  # navegador (/app/).
 
   echo "  .env creado y configurado."
 fi
@@ -435,6 +462,31 @@ ${COMO_ROOT} ufw default allow outgoing
 # --force evita la pregunta interactiva, que colgaría el guion.
 ${COMO_ROOT} ufw --force enable
 ${COMO_ROOT} ufw status verbose
+
+# ---------------------------------------------------------------------
+# 6c) Cola y tiempo real (systemd)
+# ---------------------------------------------------------------------
+# Dos procesos permanentes nuevos: el trabajador de la cola (el driver
+# "database" y la tabla `jobs` ya existían; faltaba quien la consumiera)
+# y el servidor de Reverb para WebSockets. Los dos quedan solo en
+# 127.0.0.1: nginx ya sabe reenviar hacia ellos (ver deploy/nginx.conf),
+# así que no hace falta tocar el cortafuegos.
+paso "Instalando la cola y el servidor de tiempo real"
+
+# Las plantillas del repositorio se llaman tsports-*.service; lo que se
+# instala lleva el nombre de esta instalación.
+for PIEZA in queue reverb; do
+  ${COMO_ROOT} sed \
+    -e "s|/var/www/tsports|${CARPETA_DEL_PROYECTO}|g" \
+    "${CARPETA_DEL_PROYECTO}/deploy/tsports-${PIEZA}.service" \
+    | ${COMO_ROOT} tee "/etc/systemd/system/${NOMBRE_DE_LA_INSTALACION}-${PIEZA}.service" >/dev/null
+done
+
+${COMO_ROOT} systemctl daemon-reload
+${COMO_ROOT} systemctl enable --now "${NOMBRE_DE_LA_INSTALACION}-queue"
+${COMO_ROOT} systemctl enable --now "${NOMBRE_DE_LA_INSTALACION}-reverb"
+
+echo "  Cola y Reverb arrancados y activados al inicio."
 
 # ---------------------------------------------------------------------
 # 7) Resumen

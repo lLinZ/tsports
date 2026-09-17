@@ -1,0 +1,36 @@
+# =====================================================================
+#  TS SPORTS — Unidad de systemd para el servidor de Reverb (WebSockets)
+#  ---------------------------------------------------------------------
+#  Escucha solo en 127.0.0.1:8080 (REVERB_SERVER_HOST/PORT del .env):
+#  nginx es quien lo expone al exterior, por el mismo dominio y
+#  certificado que el resto del sitio (ver deploy/nginx.conf, bloque
+#  `location /app/`). No hay que abrir ningún puerto en el cortafuegos.
+#
+#  Un demonio a la vez: esta unidad se instala y se prueba DESPUÉS de
+#  tener rodando `tsports-queue.service`, nunca el mismo día — si algo
+#  falla con los dos recién puestos, es el doble de difícil saber cuál.
+#
+#  INSTALACIÓN (la hace instalar-vps.sh; a mano sería así)
+#    sudo cp deploy/tsports-reverb.service /etc/systemd/system/
+#    sudo systemctl daemon-reload
+#    sudo systemctl enable --now tsports-reverb
+#
+#  SUSTITUYE ANTES: /var/www/tsports → la ruta donde clonaste el repositorio.
+# =====================================================================
+
+[Unit]
+Description=TS Sports — servidor de Reverb (WebSockets)
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/tsports/backend
+ExecStart=/usr/bin/php /var/www/tsports/backend/artisan reverb:start
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

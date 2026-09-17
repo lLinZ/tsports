@@ -26,6 +26,13 @@ readonly CARPETA_DEL_PROYECTO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly CARPETA_BACKEND="${CARPETA_DEL_PROYECTO}/backend"
 readonly CARPETA_FRONTEND="${CARPETA_DEL_PROYECTO}/frontend"
 
+# Nombre de esta instalación, sacado de su carpeta: /var/www/tsports da
+# "tsports" y /var/www/tsports-test da "tsports-test". De ahí salen los
+# nombres de sus servicios de systemd (tsports-reverb, tsports-test-reverb…),
+# y así producción y test conviven en la misma máquina sin que desplegar
+# una reinicie los procesos de la otra. instalar-vps.sh los nombra igual.
+readonly NOMBRE_DE_LA_INSTALACION="$(basename "${CARPETA_DEL_PROYECTO}")"
+
 # Colores para que el registro se lea de un vistazo.
 readonly VERDE='\033[0;32m'
 readonly AMARILLO='\033[1;33m'
@@ -180,6 +187,32 @@ else
 fi
 
 ${COMO_ROOT} systemctl reload nginx 2>/dev/null || aviso "No se pudo recargar nginx."
+
+paso "Reiniciando la cola y el servidor de tiempo real"
+
+# queue:restart no mata el proceso: deja una marca que el worker lee
+# entre trabajos y con la que termina solo. El "Restart=always" de la
+# unidad de systemd es quien lo vuelve a levantar ya con el código
+# nuevo. Sin este paso, el worker seguiría corriendo la versión vieja
+# del código después de cada despliegue, y es un fallo silencioso: todo
+# lo demás se actualiza y los trabajos en cola siguen procesándose, solo
+# que con lógica antigua.
+#
+# Se mira antes si el servicio existe: queue:restart solo deja la marca
+# y "funciona" aunque no haya ningún trabajador que la lea, así que sin
+# esta comprobación nadie se enteraría de que la cola no se consume.
+if systemctl cat "${NOMBRE_DE_LA_INSTALACION}-queue" >/dev/null 2>&1; then
+  php "${CARPETA_BACKEND}/artisan" queue:restart || \
+    aviso "No se pudo avisar a la cola: reinicia ${NOMBRE_DE_LA_INSTALACION}-queue a mano."
+else
+  aviso "No existe el servicio ${NOMBRE_DE_LA_INSTALACION}-queue: nadie consume la cola."
+fi
+
+# Reverb no tiene un "restart" tan fino como la cola: se reinicia entero.
+# Los navegadores conectados pierden el WebSocket un momento y vuelven a
+# entrar solos.
+${COMO_ROOT} systemctl restart "${NOMBRE_DE_LA_INSTALACION}-reverb" 2>/dev/null || \
+  aviso "No se pudo reiniciar ${NOMBRE_DE_LA_INSTALACION}-reverb (¿no está instalado aún?)."
 
 paso "Saliendo del modo mantenimiento"
 php "${CARPETA_BACKEND}/artisan" up
