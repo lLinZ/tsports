@@ -165,17 +165,17 @@
    Esa barra no es la del sistema: la dibuja BarraDeScrollDibujada.tsx,
    que va al lado de la zona. La del sistema se esconde aquí para que no
    salgan dos: en Firefox, en el Mac y en Windows 11, se esconde sola al
-   dejar de desplazar, y ningún CSS la obliga a quedarse. En un aparato
-   solo táctil se deja la del sistema, y la dibujada no sale. */
+   dejar de desplazar, y ningún CSS la obliga a quedarse.
+
+   En cualquier aparato, táctil incluido: el modo dispositivo de las
+   DevTools simula un teléfono táctil, y con él comprueba el equipo cómo
+   se ve la ficha (ver la cabecera de BarraDeScrollDibujada.tsx). */
 @utility barra-de-scroll-fija {
   overflow-y: auto;
+  scrollbar-width: none;
 
-  @media (any-pointer: fine) {
-    scrollbar-width: none;
-
-    &::-webkit-scrollbar {
-      display: none;
-    }
+  &::-webkit-scrollbar {
+    display: none;
   }
 }
 

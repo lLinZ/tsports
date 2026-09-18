@@ -15,8 +15,15 @@
  * arrastran, y un clic en el carril avanza una página.
  *
  * El desplazamiento sigue siendo el del navegador (rueda, trackpad,
- * teclado, dedo): aquí solo se dibuja la barra. En pantalla táctil no
- * sale: allí se espera la del sistema, que aparece al deslizar.
+ * teclado, dedo): aquí solo se dibuja la barra.
+ *
+ * SALE EN CUALQUIER APARATO, TÁCTIL INCLUIDO
+ * Una primera versión no la dibujaba en pantallas táctiles, pensando en
+ * el móvil. Pero el modo dispositivo de las DevTools de Chrome simula un
+ * teléfono táctil, y es justo con lo que el equipo comprueba cómo se ve
+ * la ficha: allí la barra no salía, y parecía que el arreglo no
+ * funcionaba. «Siempre» es siempre. En el móvil no estorba: el carril
+ * cae sobre el margen derecho del formulario, no sobre los campos.
  *
  * CÓMO SE USA
  * Al lado de la zona que se desplaza, sin ningún contenedor posicionado
@@ -219,7 +226,7 @@ export function BarraDeScrollDibujada({ zona }: PropiedadesDeLaBarraDibujada) {
     <div
       ref={referenciaAlCarril}
       aria-hidden="true"
-      className="absolute z-10 hidden w-3 touch-none select-none any-pointer-fine:block"
+      className="absolute z-10 w-3 touch-none select-none"
       onPointerCancel={alSoltarLaPastilla}
       onPointerDown={alPulsarElCarril}
       onPointerMove={alArrastrarLaPastilla}
