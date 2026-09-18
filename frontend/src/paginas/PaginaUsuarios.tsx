@@ -35,7 +35,7 @@ import {
   Tooltip,
 } from "@heroui/react";
 import { KeyRound, Pencil, Plus, ShieldAlert, UserPlus, Users } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { mensajeDeError } from "@/api/clienteHttp";
 import {
@@ -45,6 +45,7 @@ import {
   type DatosDeNuevoUsuario,
   type DatosDeUsuarioParaEditar,
 } from "@/api/usuarios";
+import { BarraDeScrollDibujada } from "@/componentes/comunes/BarraDeScrollDibujada";
 import {
   BloqueDeCarga,
   BloqueDeError,
@@ -298,6 +299,9 @@ function ModalDeUsuario({
 }) {
   const estamosEditando = usuarioEnEdicion !== null;
 
+  /** El cuerpo que se desplaza: su barra se dibuja aparte. */
+  const cuerpoDelModal = useRef<HTMLDivElement>(null);
+
   const [formulario, establecerFormulario] = useState<FormularioDeUsuario>(
     FORMULARIO_DE_USUARIO_VACIO,
   );
@@ -387,8 +391,9 @@ function ModalDeUsuario({
   return (
     <Modal
       // Con el scroll dentro del cuerpo y la barra siempre a la vista, como
-      // en todas las ventanas de alta y edición (ver `barra-de-scroll-fija`
-      // en index.css). La cabecera y los botones quedan siempre a mano.
+      // en todas las ventanas de alta y edición: la clase esconde la del
+      // sistema y la dibuja BarraDeScrollDibujada, debajo del cuerpo. La
+      // cabecera y los botones quedan siempre a mano.
       classNames={{ body: "barra-de-scroll-fija" }}
       isOpen={estaAbierto}
       scrollBehavior="inside"
@@ -407,7 +412,7 @@ function ModalDeUsuario({
           </span>
         </ModalHeader>
 
-        <ModalBody className="gap-4">
+        <ModalBody ref={cuerpoDelModal} className="gap-4">
           <Input
             isRequired
             label="Nombre y apellido"
@@ -550,6 +555,8 @@ function ModalDeUsuario({
             </div>
           )}
         </ModalBody>
+
+        <BarraDeScrollDibujada zona={cuerpoDelModal} />
 
         <ModalFooter>
           <Button radius="lg" variant="light" onPress={alCerrar}>

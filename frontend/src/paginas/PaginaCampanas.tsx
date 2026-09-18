@@ -33,9 +33,10 @@ import {
   Tooltip,
 } from "@heroui/react";
 import { Archive, Megaphone, Pencil, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { mensajeDeError } from "@/api/clienteHttp";
+import { BarraDeScrollDibujada } from "@/componentes/comunes/BarraDeScrollDibujada";
 import { BotonDeActivacion } from "@/componentes/comunes/BotonDeActivacion";
 import {
   BloqueDeCarga,
@@ -347,6 +348,9 @@ function ModalDeCampana({
 }) {
   const { catalogos } = useCatalogos();
 
+  /** El cuerpo que se desplaza: su barra se dibuja aparte. */
+  const cuerpoDelModal = useRef<HTMLDivElement>(null);
+
   const crearCampana = useCrearCampana();
   const actualizarCampana = useActualizarCampana();
   const eliminarCampana = useEliminarCampana();
@@ -464,7 +468,8 @@ function ModalDeCampana({
   return (
     <Modal
       // Barra de scroll siempre a la vista, como en todas las ventanas de
-      // alta y edición (ver `barra-de-scroll-fija` en index.css).
+      // alta y edición: la clase esconde la del sistema y la dibuja
+      // BarraDeScrollDibujada, debajo del cuerpo.
       classNames={{ body: "barra-de-scroll-fija" }}
       isOpen={estaAbierto}
       scrollBehavior="inside"
@@ -481,7 +486,7 @@ function ModalDeCampana({
           </span>
         </ModalHeader>
 
-        <ModalBody className="space-y-5 pb-2">
+        <ModalBody ref={cuerpoDelModal} className="space-y-5 pb-2">
           <Input
             errorMessage={errorDelNombre}
             isInvalid={Boolean(errorDelNombre)}
@@ -603,6 +608,8 @@ function ModalDeCampana({
             </div>
           </div>
         </ModalBody>
+
+        <BarraDeScrollDibujada zona={cuerpoDelModal} />
 
         <ModalFooter className="flex-wrap gap-2">
           {estamosEditando && campanaEnEdicion.puedoEliminarla && (

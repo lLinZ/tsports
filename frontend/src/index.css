@@ -82,15 +82,20 @@
      donde se puede dibujar la barra propia y quedan para Firefox, que no
      la conoce.
 
-     En pantalla táctil (pointer: coarse) no cambia nada: ahí se espera la
-     barra que aparece al desplazar y se va, y una fija le quitaría 12 px
-     de ancho al móvil. */
+     En un aparato solo táctil no cambia nada: ahí se espera la barra que
+     aparece al desplazar y se va, y una fija le quitaría 12 px de ancho al
+     móvil. Se pregunta por `any-pointer` y no por `pointer`: un portátil
+     con pantalla táctil puede decir que su puntero principal es el dedo,
+     y aun así se trabaja con el trackpad.
+
+     Las ventanas de alta y edición no dependen de esto: su barra la dibuja
+     BarraDeScrollDibujada.tsx (ver `barra-de-scroll-fija`, más abajo). */
   * {
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--heroui-default-400)) transparent;
   }
 
-  @media (pointer: fine) {
+  @media (any-pointer: fine) {
     @supports selector(::-webkit-scrollbar) {
       * {
         scrollbar-width: auto;
@@ -152,35 +157,25 @@
   background-color: hsl(var(--heroui-background) / 0.72);
 }
 
-/* Barra de scroll fija de las ventanas de alta y edición (marca,
-   propiedad, campaña, cuenta). La barra vertical se ve SIEMPRE, quepa o
-   no el formulario. Lo pidió el equipo: en el Mac no veían por dónde
+/* La zona que se desplaza en las ventanas de alta y edición (marca,
+   propiedad, campaña, cuenta). Su barra se ve SIEMPRE, quepa o no el
+   formulario: lo pidió el equipo, porque en el Mac no veían por dónde
    bajar hasta la última propiedad del checklist.
 
-   `scroll` deja el carril puesto aunque no haya nada que desplazar, y el
-   carril va pintado de gris: transparente, «siempre puesta» no se vería
-   hasta que el formulario dejara de caber. Que el Mac no la esconda lo
-   consigue la barra propia de @layer base (::-webkit-scrollbar).
-
-   El `!important` es por los modales de HeroUI: a su cuerpo le ponen
-   `overflow-y-auto`, y sin él ganaría la que Tailwind escriba después. */
+   Esa barra no es la del sistema: la dibuja BarraDeScrollDibujada.tsx,
+   que va al lado de la zona. La del sistema se esconde aquí para que no
+   salgan dos: en Firefox, en el Mac y en Windows 11, se esconde sola al
+   dejar de desplazar, y ningún CSS la obliga a quedarse. En un aparato
+   solo táctil se deja la del sistema, y la dibujada no sale. */
 @utility barra-de-scroll-fija {
-  overflow-y: scroll !important;
+  overflow-y: auto;
 
-  @media (pointer: fine) {
-    &::-webkit-scrollbar-track {
-      background-color: hsl(var(--heroui-default-200));
-      background-clip: content-box;
-      border: 3px solid transparent;
-      border-radius: 999px;
+  @media (any-pointer: fine) {
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
     }
-  }
-
-  /* Firefox no dibuja la barra propia: el carril se colorea con la
-     propiedad estándar. En WebKit no se puede poner, porque anularía
-     ::-webkit-scrollbar (ver @layer base). */
-  @supports not selector(::-webkit-scrollbar) {
-    scrollbar-color: hsl(var(--heroui-default-400)) hsl(var(--heroui-default-200));
   }
 }
 

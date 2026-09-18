@@ -216,17 +216,35 @@ el anclaje del carrusel del equipo son CSS puro (`index.css`).
 ### 4.7 La barra de desplazamiento se ve, también en el Mac
 
 Con el trackpad, el Mac esconde la barra de scroll mientras no se
-desplaza, y dentro de un modal eso deja sin pista de que hay más
-formulario debajo. Dos piezas en `index.css` lo resuelven:
+desplaza (y Edge y Firefox en Windows 11 también), y dentro de un modal
+eso deja sin pista de que hay más formulario debajo. Dos piezas lo
+resuelven:
 
-- Con ratón o trackpad se dibuja una barra propia (`::-webkit-scrollbar`),
-  la única que el Mac no esconde. Por eso **no** se ponen
-  `scrollbar-width` ni `scrollbar-color` a todo: desde Chrome 121, con
-  cualquiera de las dos el navegador ignora la barra propia.
-- Las ventanas de alta y edición (marca, propiedad, campaña, cuenta)
-  llevan `barra-de-scroll-fija` en su cuerpo: la barra vertical se ve
-  siempre, quepa o no el formulario. Una ventana de formulario nueva la
-  lleva también (en un `Modal`, `classNames={{ body: "barra-de-scroll-fija" }}`).
+- En todo el panel, con ratón o trackpad, `index.css` pinta una barra
+  propia (`::-webkit-scrollbar`), la única que Chrome, Edge y Safari no
+  esconden. Por eso **no** se ponen `scrollbar-width` ni
+  `scrollbar-color` a todo: desde Chrome 121, con cualquiera de las dos
+  el navegador ignora la barra propia.
+- Las ventanas de alta y edición (marca con su bitácora, propiedad,
+  campaña, cuenta) tienen la barra vertical **siempre** a la vista,
+  quepa o no el formulario, también en Firefox, donde ningún CSS la
+  obliga. Ahí la dibuja `componentes/comunes/BarraDeScrollDibujada.tsx`,
+  y la zona que se desplaza lleva `barra-de-scroll-fija`, que esconde la
+  del sistema para que no salgan dos. Una ventana de formulario nueva
+  lleva las dos piezas:
+
+  ```tsx
+  const cuerpoDelModal = useRef<HTMLDivElement>(null);
+
+  <Modal classNames={{ body: "barra-de-scroll-fija" }} scrollBehavior="inside" …>
+    <ModalContent>
+      <ModalHeader>…</ModalHeader>
+      <ModalBody ref={cuerpoDelModal}>…</ModalBody>
+      <BarraDeScrollDibujada zona={cuerpoDelModal} />
+      <ModalFooter>…</ModalFooter>
+    </ModalContent>
+  </Modal>
+  ```
 
 ---
 

@@ -56,8 +56,9 @@ import {
   Trash2,
   UserRound,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { AccionVigenteDeLaMarca } from "@/api/marcas";
+import { BarraDeScrollDibujada } from "@/componentes/comunes/BarraDeScrollDibujada";
 import { CampoDeImagen } from "@/componentes/comunes/CampoDeImagen";
 import { ChecklistDePropiedades } from "@/componentes/crm/ChecklistDePropiedades";
 import { HistorialDeCampanas } from "@/componentes/crm/HistorialDeCampanas";
@@ -223,6 +224,9 @@ export function ModalDeMarca({
   // Solo cuenta en pantalla estrecha: en una ancha se ven las dos a la vez.
   const [vistaEnPantallaEstrecha, establecerVistaEnPantallaEstrecha] =
     useState<"ficha" | "bitacora">("ficha");
+
+  /** La zona que se desplaza con los pasos: su barra se dibuja aparte. */
+  const zonaDelPaso = useRef<HTMLDivElement>(null);
 
   const estamosEditando = marcaEnEdicion !== null;
   const seEstaViendoLaBitacora = estamosEditando && vistaEnPantallaEstrecha === "bitacora";
@@ -660,9 +664,13 @@ export function ModalDeMarca({
                   difíciles de recorrer con la vista. Se limita a un ancho
                   de lectura cómodo y se centra: el espacio sobrante es
                   margen, no campos de dos palmos.
-                  La barra de scroll va fija: el paso «Avance» no cabe en
-                  un portátil, y en el Mac no se veía por dónde bajar. */}
-              <div className={`barra-de-scroll-fija min-h-0 flex-1 px-4 py-6 sm:px-8 ${ocultoConLaBitacora}`}>
+                  La barra de scroll se dibuja aparte y se ve siempre: el
+                  paso «Avance» no cabe en un portátil, y en el Mac la del
+                  sistema se escondía y no se veía por dónde bajar. */}
+              <div
+                ref={zonaDelPaso}
+                className={`barra-de-scroll-fija min-h-0 flex-1 px-4 py-6 sm:px-8 ${ocultoConLaBitacora}`}
+              >
                 <div className="mx-auto w-full max-w-3xl">
                 {pasoActual === 1 && (
                   <PasoLaMarca
@@ -706,6 +714,8 @@ export function ModalDeMarca({
                 )}
                 </div>
               </div>
+
+              <BarraDeScrollDibujada zona={zonaDelPaso} />
 
               {/* La bitácora en pantalla estrecha, en lugar de la ficha. */}
               {estamosEditando && vistaEnPantallaEstrecha === "bitacora" && (
