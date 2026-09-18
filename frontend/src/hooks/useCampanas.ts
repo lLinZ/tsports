@@ -17,6 +17,7 @@ import {
 } from "@tanstack/react-query";
 import {
   actualizarCampana,
+  cambiarActivaDeCampana,
   crearCampana,
   eliminarCampana,
   listarCampanas,
@@ -98,6 +99,19 @@ export function useActualizarCampana(): UseMutationResult<
 
   return useMutation({
     mutationFn: ({ idDeLaCampana, datos }) => actualizarCampana(idDeLaCampana, datos),
+    onSuccess: invalidarCampanas,
+  });
+}
+
+export function useCambiarActivaDeCampana(): UseMutationResult<
+  Campana,
+  unknown,
+  { idDeLaCampana: string; activa: boolean }
+> {
+  const invalidarCampanas = useInvalidarCampanas();
+
+  return useMutation({
+    mutationFn: ({ idDeLaCampana, activa }) => cambiarActivaDeCampana(idDeLaCampana, activa),
     onSuccess: invalidarCampanas,
   });
 }

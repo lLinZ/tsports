@@ -7,6 +7,8 @@
         tema oscuro se active poniendo class="dark" en <html>.
      3. Los tokens propios del proyecto (tipografía, sombras, radios).
      4. Utilidades de la rejilla bento y detalles finos (scrollbar, focus).
+     5. Los efectos de la web pública.
+     6. Alternativas para navegadores antiguos (Chrome 103).
 
    El color de acento de cada usuario NO se define aquí: se inyecta en
    caliente sobre las variables --heroui-primary-* desde
@@ -228,5 +230,46 @@
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Navegadores antiguos                                                */
+/* ------------------------------------------------------------------ */
+/* Un Mac del equipo lleva macOS 10.12, que se quedó para siempre en
+   Chrome 103 (junio de 2022). Las media queries las reescribe Vite al
+   compilar (build.cssTarget, en vite.config.ts); estas dos cosas no
+   sabe reescribirlas y se cubren aquí. Cada bloque va dentro de un
+   @supports not(...): solo se activa en un navegador que NO entiende la
+   propiedad moderna, y en uno actual no hace nada. */
+
+/* Desplazar y escalar. Tailwind v4 usa las propiedades sueltas
+   `translate` y `scale` (Chrome 104+). Sin ellas, la etiqueta de un campo
+   de HeroUI no sube al rellenarlo y se queda montada encima del texto.
+   Las variables --tw-* sí funcionan en Chrome 103, así que basta con
+   componerlas en un `transform` de los de siempre. */
+@supports not (translate: 0) {
+  [class*="translate-"],
+  [class*="scale-"] {
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y))
+      scale(var(--tw-scale-x), var(--tw-scale-y));
+  }
+}
+
+/* Alturas en `dvh` (Chrome 108+). Las usa el modal a pantalla completa de
+   HeroUI: sin altura, su cuerpo no llega a hacer scroll. En un ordenador
+   `vh` y `dvh` miden lo mismo; solo difieren en el móvil, por la barra
+   del navegador, y los móviles ya entienden `dvh`. */
+@supports not (height: 100dvh) {
+  .h-\[100dvh\] {
+    height: 100vh;
+  }
+
+  .min-h-\[100dvh\] {
+    min-height: 100vh;
+  }
+
+  .h-\[calc\(100dvh_-_var\(--navbar-height\)\)\] {
+    height: calc(100vh - var(--navbar-height));
   }
 }

@@ -97,6 +97,42 @@ class CampanaController extends Controller
     }
 
     /**
+     * PATCH /api/campanas/{campana}/activa
+     *
+     * Una campaña terminada se desactiva, no se borra: deja de ofrecerse
+     * en la ficha, pero sus marcas siguen llevándola y el resumen puede
+     * seguir contándolas por campaña. Borrarla, en cambio, las deja sin
+     * campaña (ver destroy). Va aparte de update para poder hacerlo desde
+     * la tarjeta, sin mandar el formulario entero.
+     */
+    public function activarODesactivar(Request $peticion, Campana $campana): RecursoCampana
+    {
+        $this->authorize('update', $campana);
+
+        $datos = $peticion->validate(
+            ['activa' => ['required', 'boolean']],
+            ['activa.*' => 'Indica si la campaña queda activa o desactivada.'],
+        );
+
+        $campana->activa = (bool) $datos['activa'];
+        $campana->save();
+
+        // Repetir la misma orden no deja una línea más en la auditoría.
+        if ($campana->wasChanged('activa')) {
+            RegistroActividad::anotar(
+                $peticion->user(),
+                RegistroActividad::ACCION_ACTUALIZO,
+                'campana',
+                $campana->id,
+                ($campana->activa ? 'Reactivó' : 'Desactivó').' la campaña '.$campana->nombre,
+                ['antes' => ['activa' => ! $campana->activa], 'despues' => ['activa' => $campana->activa]],
+            );
+        }
+
+        return new RecursoCampana($campana->loadCount('marcas'));
+    }
+
+    /**
      * DELETE /api/campanas/{campana}
      *
      * Las marcas que pertenecían a la campaña NO se borran: se quedan sin

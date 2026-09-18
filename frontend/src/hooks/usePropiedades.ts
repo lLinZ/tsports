@@ -26,6 +26,7 @@ import {
 } from "@tanstack/react-query";
 import {
   actualizarPropiedad,
+  cambiarActivaDePropiedad,
   crearPropiedad,
   eliminarPropiedad,
   listarPropiedades,
@@ -112,6 +113,20 @@ export function useActualizarPropiedad(): UseMutationResult<
   return useMutation({
     mutationFn: ({ idDeLaPropiedad, datos }) =>
       actualizarPropiedad(idDeLaPropiedad, datos),
+    onSuccess: invalidarPropiedades,
+  });
+}
+
+export function useCambiarActivaDePropiedad(): UseMutationResult<
+  Propiedad,
+  unknown,
+  { idDeLaPropiedad: string; activa: boolean }
+> {
+  const invalidarPropiedades = useInvalidarPropiedades();
+
+  return useMutation({
+    mutationFn: ({ idDeLaPropiedad, activa }) =>
+      cambiarActivaDePropiedad(idDeLaPropiedad, activa),
     onSuccess: invalidarPropiedades,
   });
 }
