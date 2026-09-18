@@ -184,5 +184,11 @@ Route::middleware('auth:sanctum')->group(function (): void {
         // Va ANTES de nada que use un comodín: es la lista de personas
         // que alimenta el filtro por persona del historial.
         Route::get('/auditoria/personas', [AuditoriaController::class, 'personas']);
+
+        /* ---------- Tiempo real: pantalla de pruebas ----------
+         | Quién está conectado ahora y mandar avisos de prueba. Solo
+         | admin: lo decide UserPolicy::probarTiempoReal.                  */
+        Route::get('/tiempo-real', [TiempoRealController::class, 'panel']);
+        Route::post('/tiempo-real/prueba', [TiempoRealController::class, 'enviarPrueba']);
     });
 });

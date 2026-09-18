@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Events\PruebaDeTiempoReal;
+use App\Exceptions\FalloDelTiempoReal;
 use App\Models\User;
 use App\Support\TiempoReal;
-use GuzzleHttp\Exception\GuzzleException;
-use Illuminate\Broadcasting\BroadcastException;
 use Illuminate\Console\Command;
 
 /**
@@ -29,6 +27,9 @@ use Illuminate\Console\Command;
  *   · Dice «enviado» y no llega  → el tramo Reverb → navegador: el proxy
  *                                  de nginx en /app/, o que la persona
  *                                  no tiene el panel abierto.
+ *
+ * Lo mismo, con más opciones, está en el panel del administrador
+ * (pantalla «Tiempo real»); los dos envían por TiempoReal.
  */
 class ProbarTiempoReal extends Command
 {
@@ -39,16 +40,6 @@ class ProbarTiempoReal extends Command
 
     public function handle(): int
     {
-        // Con el driver `null` o `log`, event() no falla: el aviso se
-        // tira o se escribe en el registro. Sin esta comprobación el
-        // comando diría «enviado» sin que nada haya salido de la máquina.
-        if (! TiempoReal::estaActivo()) {
-            $this->error('El tiempo real no está activo en esta instalación.');
-            $this->line('Hacen falta BROADCAST_CONNECTION=reverb y REVERB_APP_KEY en el .env, y después php artisan config:cache.');
-
-            return self::FAILURE;
-        }
-
         $correo = (string) $this->argument('correo');
         $destinatario = User::where('email', $correo)->first();
 
@@ -59,17 +50,9 @@ class ProbarTiempoReal extends Command
         }
 
         try {
-            event(new PruebaDeTiempoReal($destinatario));
-        } catch (GuzzleException $error) {
-            // Laravel solo traduce los errores que DEVUELVE Reverb; si no
-            // hay nadie escuchando, sale la excepción de Guzzle tal cual.
-            $this->error('Reverb no contesta: '.$error->getMessage());
-            $this->line('¿Está arrancado el servicio? REVERB_HOST y REVERB_PORT tienen que apuntar a donde escucha (REVERB_SERVER_HOST y REVERB_SERVER_PORT).');
-
-            return self::FAILURE;
-        } catch (BroadcastException $error) {
-            $this->error('Reverb contestó con un error: '.$error->getMessage());
-            $this->line('Suele ser que REVERB_APP_ID, KEY o SECRET no coinciden con los del proceso que está corriendo: reinicia el servicio después de cambiar el .env.');
+            TiempoReal::enviarAvisoDePrueba([$destinatario]);
+        } catch (FalloDelTiempoReal $fallo) {
+            $this->error($fallo->getMessage());
 
             return self::FAILURE;
         }

@@ -818,3 +818,35 @@ export interface ConfiguracionDeTiempoReal {
   /** La clave pública de Reverb. Solo viene cuando `activo` es verdadero. */
   clave: string | null;
 }
+
+/** Una persona del equipo vista desde la pantalla de pruebas del tiempo real. */
+export interface PersonaEnVivo {
+  id: string;
+  nombre: string;
+  rolEtiqueta: string;
+  /** Tiene ahora mismo el panel abierto y suscrito a su canal. */
+  conectada: boolean;
+}
+
+/** Lo que devuelve GET /api/admin/tiempo-real (solo admin). */
+export interface PanelDeTiempoReal {
+  activo: boolean;
+  /** Falso si no se pudo preguntar a Reverb: entonces `conectada` no significa nada. */
+  seSabeQuienEstaConectado: boolean;
+  personas: PersonaEnVivo[];
+}
+
+/** Lo que viaja en el evento `.prueba-de-conexion` (PruebaDeTiempoReal). */
+export interface AvisoDePrueba {
+  titulo: string | null;
+  mensaje: string | null;
+  enviadoPor: string | null;
+  /** Hora del servidor al enviarlo, con milisegundos. */
+  enviadaEn: string;
+}
+
+/** Respuesta de POST /api/admin/tiempo-real/prueba. */
+export interface ResultadoDelAvisoDePrueba {
+  enviados: number;
+  mensaje: string;
+}

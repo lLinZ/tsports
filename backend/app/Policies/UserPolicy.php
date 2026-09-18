@@ -93,4 +93,14 @@ class UserPolicy
     {
         return $usuario->activo && $usuario->esAdministrador();
     }
+
+    /**
+     * Usar la pantalla de pruebas del tiempo real: ver quién está
+     * conectado y mandar avisos de prueba. Solo admin, porque un aviso a
+     * todo el equipo le salta en la pantalla a cada persona.
+     */
+    public function probarTiempoReal(User $usuario): bool
+    {
+        return $usuario->activo && $usuario->esAdministrador();
+    }
 }

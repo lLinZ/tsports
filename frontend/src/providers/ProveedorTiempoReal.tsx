@@ -7,8 +7,12 @@
  * Con sesión iniciada, pregunta al servidor si el tiempo real está
  * encendido y, si lo está, se suscribe al canal privado de la persona
  * (`usuario.{id}`, ver backend/routes/channels.php). Por ese canal llega
- * lo que es «para ti»: hoy, el aviso de `php artisan tiempo-real:probar`;
+ * lo que es «para ti»: hoy, los avisos de prueba (del comando
+ * `tiempo-real:probar` o de la pantalla «Tiempo real» del administrador);
  * con la Etapa 1, las notificaciones.
+ *
+ * Una pantalla que quiera enterarse de algo de ese canal usa
+ * `useEventoPersonal`, que se suscribe mientras la pantalla está montada.
  *
  * El tiempo real es una mejora, no un requisito: si el servidor lo
  * tiene apagado o el demonio se cae, el panel funciona igual y solo deja
@@ -21,11 +25,13 @@
  * ---------------------------------------------------------------------
  */
 import { useQuery } from "@tanstack/react-query";
+import type { Channel } from "laravel-echo";
 import {
   createContext,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -35,6 +41,7 @@ import {
 } from "@/api/echo";
 import { useSesion } from "@/providers/ProveedorSesion";
 import { avisarDeInformacion } from "@/utilidades/avisos";
+import type { AvisoDePrueba } from "@/tipos/modelos";
 
 /**
  * · inactivo    → sin sesión, o el servidor no tiene tiempo real.
@@ -46,6 +53,8 @@ export type EstadoDeLaConexion = "inactivo" | "conectando" | "enVivo" | "sinCone
 
 interface ValorDelContextoDeTiempoReal {
   estadoDeLaConexion: EstadoDeLaConexion;
+  /** El canal privado de la persona, o null mientras no está abierto. */
+  canalPersonal: Channel | null;
 }
 
 /** Clave de la configuración en la caché de consultas. */
@@ -74,6 +83,7 @@ export function ProveedorTiempoReal({ children }: { children: ReactNode }) {
 
   const [estadoDeLaConexion, establecerEstadoDeLaConexion] =
     useState<EstadoDeLaConexion>("inactivo");
+  const [canalPersonal, establecerCanalPersonal] = useState<Channel | null>(null);
 
   useEffect(() => {
     if (idDelUsuario === null || claveDeReverb === null) {
@@ -121,7 +131,7 @@ export function ProveedorTiempoReal({ children }: { children: ReactNode }) {
 
     conexion.bind("state_change", alCambiarLaConexion);
 
-    echo
+    const canal = echo
       .private(`usuario.${idDelUsuario}`)
       .subscribed(() => {
         estaSuscrito = true;
@@ -132,26 +142,33 @@ export function ProveedorTiempoReal({ children }: { children: ReactNode }) {
         yaHuboDesenlace = true;
         recalcularEstado();
       })
-      .listen(".prueba-de-conexion", () => {
+      .listen(".prueba-de-conexion", (aviso: AvisoDePrueba) => {
+        // Título y mensaje los pone quien lo manda desde la pantalla del
+        // administrador; los del comando de artisan llegan vacíos.
+        const texto =
+          aviso.mensaje ?? "Este aviso ha llegado por el WebSocket, sin recargar la página.";
+
         avisarDeInformacion(
-          "Tiempo real funcionando",
-          "Este aviso ha llegado por el WebSocket, sin recargar la página.",
+          aviso.titulo ?? "Tiempo real funcionando",
+          aviso.enviadoPor ? `${texto} — ${aviso.enviadoPor}` : texto,
         );
       });
 
+    establecerCanalPersonal(canal);
     recalcularEstado();
 
     return () => {
       conexion.unbind("state_change", alCambiarLaConexion);
       echo.leaveAllChannels();
       echo.disconnect();
+      establecerCanalPersonal(null);
       establecerEstadoDeLaConexion("inactivo");
     };
   }, [idDelUsuario, claveDeReverb]);
 
   const valorDelContexto = useMemo<ValorDelContextoDeTiempoReal>(
-    () => ({ estadoDeLaConexion }),
-    [estadoDeLaConexion],
+    () => ({ estadoDeLaConexion, canalPersonal }),
+    [estadoDeLaConexion, canalPersonal],
   );
 
   return (
@@ -170,4 +187,43 @@ export function useTiempoReal(): ValorDelContextoDeTiempoReal {
   }
 
   return contexto;
+}
+
+/**
+ * Escucha un evento del canal privado de la persona mientras el
+ * componente esté montado, y deja de escucharlo al desmontarse.
+ *
+ * El nombre va con punto delante (`.prueba-de-conexion`): los eventos
+ * llevan nombre propio en el servidor (broadcastAs), no el de su clase
+ * PHP, y el punto le dice a Echo que no le añada el espacio de nombres.
+ *
+ * `alRecibir` puede ser una función nueva en cada render: se guarda en
+ * una referencia para no volver a suscribirse cada vez.
+ */
+export function useEventoPersonal<Datos>(
+  nombreDelEvento: string,
+  alRecibir: (datos: Datos) => void,
+): void {
+  const { canalPersonal } = useTiempoReal();
+  const alRecibirActual = useRef(alRecibir);
+
+  useEffect(() => {
+    alRecibirActual.current = alRecibir;
+  });
+
+  useEffect(() => {
+    if (canalPersonal === null) {
+      return;
+    }
+
+    // La misma función al suscribirse y al darse de baja: pusher-js la
+    // busca por referencia para quitarla.
+    const manejador = (datos: Datos) => alRecibirActual.current(datos);
+
+    canalPersonal.listen(nombreDelEvento, manejador);
+
+    return () => {
+      canalPersonal.stopListening(nombreDelEvento, manejador);
+    };
+  }, [canalPersonal, nombreDelEvento]);
 }

@@ -71,7 +71,8 @@ class TiempoRealTest extends TestCase
         Event::assertDispatchedTimes(PruebaDeTiempoReal::class, 1);
         Event::assertDispatched(
             PruebaDeTiempoReal::class,
-            fn (PruebaDeTiempoReal $aviso): bool => $aviso->broadcastOn()->name === 'private-usuario.'.$destinatario->id,
+            fn (PruebaDeTiempoReal $aviso): bool => array_column($aviso->broadcastOn(), 'name')
+                === ['private-usuario.'.$destinatario->id],
         );
     }
 

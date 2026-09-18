@@ -33,6 +33,7 @@ import {
   Megaphone,
   Menu,
   Package,
+  Radio,
   ScrollText,
   Shapes,
   UserCircle,
@@ -128,6 +129,13 @@ const ENTRADAS_DEL_MENU: EntradaDeMenu[] = [
     etiqueta: "Auditoría",
     descripcion: "Quién hizo qué",
     icono: ScrollText,
+    laPuedeVer: (usuario) => usuario.permisos.administraElSistema,
+  },
+  {
+    ruta: "/tiempo-real",
+    etiqueta: "Tiempo real",
+    descripcion: "Avisos en vivo de prueba",
+    icono: Radio,
     laPuedeVer: (usuario) => usuario.permisos.administraElSistema,
   },
 ];

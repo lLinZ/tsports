@@ -30,11 +30,44 @@ import type {
   ChannelAuthorizationRequestParams,
 } from "pusher-js/types/src/core/auth/options";
 import { clienteHttp, mensajeDeError } from "@/api/clienteHttp";
-import type { ConfiguracionDeTiempoReal } from "@/tipos/modelos";
+import type {
+  ConfiguracionDeTiempoReal,
+  PanelDeTiempoReal,
+  ResultadoDelAvisoDePrueba,
+} from "@/tipos/modelos";
 
 /** Si el servidor tiene el tiempo real encendido y con qué clave se entra. */
 export async function obtenerConfiguracionDeTiempoReal(): Promise<ConfiguracionDeTiempoReal> {
   const { data } = await clienteHttp.get<ConfiguracionDeTiempoReal>("/tiempo-real");
+
+  return data;
+}
+
+/* ==================================================================== */
+/* Pantalla de pruebas del administrador                                */
+/* ==================================================================== */
+
+/** El equipo, con quién tiene ahora mismo el panel abierto. Solo admin. */
+export async function obtenerPanelDeTiempoReal(): Promise<PanelDeTiempoReal> {
+  const { data } = await clienteHttp.get<PanelDeTiempoReal>("/admin/tiempo-real");
+
+  return data;
+}
+
+/**
+ * Manda un aviso de prueba. `destinatario` es el id de una persona o
+ * "todos" (el equipo activo). Título y mensaje vacíos dejan el texto de
+ * siempre del aviso de prueba.
+ */
+export async function enviarAvisoDePrueba(datos: {
+  destinatario: string;
+  titulo: string;
+  mensaje: string;
+}): Promise<ResultadoDelAvisoDePrueba> {
+  const { data } = await clienteHttp.post<ResultadoDelAvisoDePrueba>(
+    "/admin/tiempo-real/prueba",
+    datos,
+  );
 
   return data;
 }

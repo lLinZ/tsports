@@ -41,6 +41,7 @@ import { PaginaPanel } from "@/paginas/PaginaPanel";
 import { PaginaPropiedades } from "@/paginas/PaginaPropiedades";
 import { PaginaSectores } from "@/paginas/PaginaSectores";
 import { PaginaPerfil } from "@/paginas/PaginaPerfil";
+import { PaginaTiempoReal } from "@/paginas/PaginaTiempoReal";
 import { PaginaUsuarios } from "@/paginas/PaginaUsuarios";
 import { PaginaWebPublica } from "@/paginas/publico/PaginaWebPublica";
 import type { Usuario } from "@/tipos/modelos";
@@ -184,6 +185,20 @@ function RutasDeLaAplicacion() {
           </RutaProtegida>
         }
         path="/auditoria"
+      />
+
+      {/* Pruebas del tiempo real: un aviso a «todo el equipo» le salta en
+          pantalla a cada persona, así que es cosa del administrador. El
+          servidor lo vuelve a comprobar (UserPolicy::probarTiempoReal). */}
+      <Route
+        element={
+          <RutaProtegida
+            requiere={(usuario) => usuario.permisos.administraElSistema}
+          >
+            <PaginaTiempoReal />
+          </RutaProtegida>
+        }
+        path="/tiempo-real"
       />
 
       <Route element={<PaginaNoEncontrada />} path="*" />
