@@ -40,6 +40,16 @@ export default defineConfig({
   build: {
     outDir: "dist",
     sourcemap: false,
+    // El CSS tiene que funcionar en Chrome 103, que es el tope en macOS
+    // 10.12 y lo usa al menos un Mac del equipo. Tailwind v4 escribe las
+    // media queries con la sintaxis de rango, `(width >= 64rem)`, que
+    // Chrome no entiende hasta la 104: sin esta línea, allí no se aplica
+    // ningún `sm:`/`lg:` y el panel entero sale con la maqueta de móvil
+    // (sin barra lateral ni columna de bitácora). Lightning CSS, el
+    // minificador de Vite, las reescribe como `min-width` para ese
+    // destino. Lo que no sabe reescribir va en index.css
+    // («Navegadores antiguos»).
+    cssTarget: ["chrome103", "safari15", "firefox115", "edge103"],
     // Separamos las librerías grandes en paquetes aparte para que el
     // navegador las cachee entre despliegues y la carga inicial sea menor.
     rollupOptions: {
