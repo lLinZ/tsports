@@ -1,0 +1,30 @@
+# =====================================================================
+#  TS SPORTS — Cuándo se hace la copia de seguridad diaria
+#  ---------------------------------------------------------------------
+#  A las 03:30 de Venezuela, cuando nadie está trabajando. La zona va
+#  escrita en la línea: el servidor está en UTC, y un «03:30» a secas
+#  serían las 23:30 de la noche anterior en Caracas.
+#
+#  Persistent=true: si el servidor estaba apagado o reiniciándose a esa
+#  hora, la copia se hace al volver a arrancar en vez de saltarse ese
+#  día.
+#
+#  INSTALACIÓN (la hace instalar-vps.sh; a mano sería así)
+#    sudo cp deploy/tsports-copia.service deploy/tsports-copia.timer /etc/systemd/system/
+#    sudo systemctl daemon-reload
+#    sudo systemctl enable --now tsports-copia.timer
+#
+#  CUÁNDO TOCA LA SIGUIENTE
+#    systemctl list-timers tsports-copia
+# =====================================================================
+
+[Unit]
+Description=TS Sports — copia de seguridad diaria
+
+[Timer]
+OnCalendar=*-*-* 03:30:00 America/Caracas
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

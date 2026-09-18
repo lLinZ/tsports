@@ -82,6 +82,20 @@ restaurar_el_sitio() {
 trap restaurar_el_sitio EXIT
 
 # ---------------------------------------------------------------------
+# 1b) Copia de la base
+# ---------------------------------------------------------------------
+# Si una migración sale mal, se vuelve atrás restaurando esta copia, que
+# es la base tal como estaba justo antes. La diaria no sirve para eso:
+# puede llevar casi un día de trabajo de retraso.
+#
+# Va ANTES de bajar el código a propósito. Si la copia falla, el
+# despliegue se para sin haber cambiado nada y el sitio vuelve a
+# levantarse tal como estaba. Sin copia no se migra.
+paso "Copiando la base antes de tocar nada"
+${COMO_ROOT} bash "${CARPETA_DEL_PROYECTO}/deploy/copia-de-seguridad.sh" --solo-base antes-de-desplegar || \
+  fallo "No se pudo copiar la base, así que no se despliega. No se ha cambiado nada."
+
+# ---------------------------------------------------------------------
 # 2) Código
 # ---------------------------------------------------------------------
 if [[ -d "${CARPETA_DEL_PROYECTO}/.git" ]]; then

@@ -276,10 +276,33 @@ cd /var/www/tsports
 ./deploy/desplegar.sh
 ```
 
-El guion pone el sitio en mantenimiento, baja el código, instala
-dependencias, migra la base de datos, reconstruye el frontend y vuelve a
-levantarlo. Si el build falla, **se detiene y el sitio anterior sigue en
-pie**.
+El guion pone el sitio en mantenimiento, **copia la base**, baja el
+código, instala dependencias, migra la base de datos, reconstruye el
+frontend y vuelve a levantarlo. Si el build falla, **se detiene y el
+sitio anterior sigue en pie**. Si la copia falla, no llega a cambiar
+nada.
+
+### Copias de seguridad
+
+Cada día a las 03:30 (hora de Caracas) se copian la base y las imágenes
+subidas en `/var/backups/tsports/automaticas/`. Cada copia se restaura
+una vez en una base aparte para comprobar que sirve. Se guardan 14 días;
+la del domingo, 90.
+
+```bash
+journalctl -u tsports-copia -n 80
+```
+
+```bash
+sudo ./deploy/comprobar-copia.sh
+```
+
+El primero enseña cómo fue la última; el segundo vuelve a restaurar la
+más reciente en una base aparte, sin tocar la de verdad. Cómo restaurar
+de verdad está en la cabecera de `deploy/comprobar-copia.sh`.
+
+> Las copias están en el mismo disco que el sitio: salvan de un error,
+> no de perder el servidor.
 
 > **Al actualizar a la segunda etapa** (propiedades y campañas), después
 > de migrar hay que sembrar una sola vez los dos catálogos:
