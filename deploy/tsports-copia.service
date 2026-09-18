@@ -1,0 +1,36 @@
+# =====================================================================
+#  TS SPORTS — Unidad de systemd para la copia de seguridad diaria
+#  ---------------------------------------------------------------------
+#  No se arranca sola: la dispara tsports-copia.timer. Hace dos cosas,
+#  en este orden, y si la primera falla no llega a la segunda:
+#
+#    1. copia-de-seguridad.sh → copia la base y las imágenes.
+#    2. comprobar-copia.sh    → restaura esa copia en una base aparte
+#                               y la compara con la de verdad.
+#
+#  Corre como root porque entra en MariaDB por su socket, sin ninguna
+#  contraseña escrita. `User=root` va explícito para que systemd le dé
+#  un HOME: sin él, el cliente de MariaDB no sabe dónde buscar su
+#  configuración.
+#
+#  Con prioridad baja de CPU y de disco: si coincide con alguien
+#  trabajando, que se note la copia y no el panel.
+#
+#  CÓMO VER QUÉ PASÓ
+#    systemctl status tsports-copia
+#    journalctl -u tsports-copia -n 80
+#
+#  SUSTITUYE ANTES: /var/www/tsports → la ruta donde clonaste el repositorio.
+# =====================================================================
+
+[Unit]
+Description=TS Sports — copia de seguridad de la base y las imágenes
+After=mariadb.service mysql.service
+
+[Service]
+Type=oneshot
+User=root
+Nice=10
+IOSchedulingClass=idle
+ExecStart=/bin/bash /var/www/tsports/deploy/copia-de-seguridad.sh
+ExecStart=/bin/bash /var/www/tsports/deploy/comprobar-copia.sh

@@ -489,6 +489,26 @@ ${COMO_ROOT} systemctl enable --now "${NOMBRE_DE_LA_INSTALACION}-reverb"
 echo "  Cola y Reverb arrancados y activados al inicio."
 
 # ---------------------------------------------------------------------
+# 6d) Copia de seguridad diaria
+# ---------------------------------------------------------------------
+# De madrugada, con rotación, y cada copia se restaura una vez en una
+# base aparte para saber que sirve. Todo el detalle está en la cabecera
+# de deploy/copia-de-seguridad.sh.
+paso "Programando la copia de seguridad diaria"
+
+for PIEZA in service timer; do
+  ${COMO_ROOT} sed \
+    -e "s|/var/www/tsports|${CARPETA_DEL_PROYECTO}|g" \
+    "${CARPETA_DEL_PROYECTO}/deploy/tsports-copia.${PIEZA}" \
+    | ${COMO_ROOT} tee "/etc/systemd/system/${NOMBRE_DE_LA_INSTALACION}-copia.${PIEZA}" >/dev/null
+done
+
+${COMO_ROOT} systemctl daemon-reload
+${COMO_ROOT} systemctl enable --now "${NOMBRE_DE_LA_INSTALACION}-copia.timer"
+
+echo "  Copias en /var/backups/${NOMBRE_DE_LA_INSTALACION}/automaticas, cada día a las 03:30 de Caracas."
+
+# ---------------------------------------------------------------------
 # 7) Resumen
 # ---------------------------------------------------------------------
 echo -e "\n${VERDE}═══════════════════════════════════════════════════════${SIN_COLOR}"
