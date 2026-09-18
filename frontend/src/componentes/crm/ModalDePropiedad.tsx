@@ -37,9 +37,10 @@ import {
   Textarea,
 } from "@heroui/react";
 import { Archive, Package, Save, Trash2, Users } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { listarUsuarios } from "@/api/usuarios";
+import { BarraDeScrollDibujada } from "@/componentes/comunes/BarraDeScrollDibujada";
 import { CampoDeImagen } from "@/componentes/comunes/CampoDeImagen";
 import { useCatalogos } from "@/hooks/useCatalogos";
 import {
@@ -81,6 +82,9 @@ export function ModalDePropiedad({
   alCerrar,
 }: PropiedadesDelModalDePropiedad) {
   const { catalogos } = useCatalogos();
+
+  /** El cuerpo que se desplaza: su barra se dibuja aparte. */
+  const cuerpoDelModal = useRef<HTMLDivElement>(null);
 
   const crearPropiedad = useCrearPropiedad();
   const actualizarPropiedad = useActualizarPropiedad();
@@ -243,7 +247,8 @@ export function ModalDePropiedad({
   return (
     <Modal
       // Barra de scroll siempre a la vista, como en todas las ventanas de
-      // alta y edición (ver `barra-de-scroll-fija` en index.css).
+      // alta y edición: la clase esconde la del sistema y la dibuja
+      // BarraDeScrollDibujada, debajo del cuerpo.
       classNames={{ body: "barra-de-scroll-fija" }}
       isOpen={estaAbierto}
       scrollBehavior="inside"
@@ -264,7 +269,7 @@ export function ModalDePropiedad({
           </span>
         </ModalHeader>
 
-        <ModalBody className="space-y-5 pb-2">
+        <ModalBody ref={cuerpoDelModal} className="space-y-5 pb-2">
           {/* --- Quién es --- */}
           <Input
             errorMessage={errorDelNombre}
@@ -445,6 +450,8 @@ export function ModalDePropiedad({
             </div>
           </div>
         </ModalBody>
+
+        <BarraDeScrollDibujada zona={cuerpoDelModal} />
 
         <ModalFooter className="flex-wrap gap-2">
           {estamosEditando && propiedadEnEdicion.puedoEliminarla && (

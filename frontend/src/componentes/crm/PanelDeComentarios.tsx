@@ -17,6 +17,7 @@ import { Button, Textarea, Tooltip } from "@heroui/react";
 import { MessageSquarePlus, Send, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { mensajeDeError } from "@/api/clienteHttp";
+import { BarraDeScrollDibujada } from "@/componentes/comunes/BarraDeScrollDibujada";
 import {
   BloqueDeCarga,
   EstadoVacio,
@@ -36,6 +37,7 @@ export function PanelDeComentarios({ idDeLaMarca }: { idDeLaMarca: string }) {
 
   const [textoDelComentario, establecerTextoDelComentario] = useState("");
   const referenciaAlFinalDelHilo = useRef<HTMLDivElement>(null);
+  const zonaDelHilo = useRef<HTMLDivElement>(null);
 
   const comentarios = consultaDeComentarios.data ?? [];
 
@@ -74,8 +76,10 @@ export function PanelDeComentarios({ idDeLaMarca }: { idDeLaMarca: string }) {
         Actividad y comentarios
       </h3>
 
-      {/* Hilo. Con la barra fija, como el resto de la ficha de la marca. */}
-      <div className="barra-de-scroll-fija min-h-0 flex-1 space-y-3 pr-1">
+      {/* Hilo. Con la barra fija, como el resto de la ficha de la marca.
+          El margen derecho es el sitio de esa barra, que se dibuja encima
+          del borde de la zona y taparía el final de cada comentario. */}
+      <div ref={zonaDelHilo} className="barra-de-scroll-fija min-h-0 flex-1 space-y-3 pr-4">
         {consultaDeComentarios.isLoading ? (
           <BloqueDeCarga alto="min-h-32" mensaje="Cargando la bitácora…" />
         ) : consultaDeComentarios.error ? (
@@ -129,6 +133,8 @@ export function PanelDeComentarios({ idDeLaMarca }: { idDeLaMarca: string }) {
 
         <div ref={referenciaAlFinalDelHilo} />
       </div>
+
+      <BarraDeScrollDibujada zona={zonaDelHilo} />
 
       {/* Caja de escritura */}
       <div className="mt-3 flex flex-col gap-2 border-t border-default-100 pt-3">
