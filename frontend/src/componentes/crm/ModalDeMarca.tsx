@@ -659,8 +659,10 @@ export function ModalDeMarca({
                   ancho del monitor y los campos quedarían larguísimos y
                   difíciles de recorrer con la vista. Se limita a un ancho
                   de lectura cómodo y se centra: el espacio sobrante es
-                  margen, no campos de dos palmos. */}
-              <div className={`min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-8 ${ocultoConLaBitacora}`}>
+                  margen, no campos de dos palmos.
+                  La barra de scroll va fija: el paso «Avance» no cabe en
+                  un portátil, y en el Mac no se veía por dónde bajar. */}
+              <div className={`barra-de-scroll-fija min-h-0 flex-1 px-4 py-6 sm:px-8 ${ocultoConLaBitacora}`}>
                 <div className="mx-auto w-full max-w-3xl">
                 {pasoActual === 1 && (
                   <PasoLaMarca

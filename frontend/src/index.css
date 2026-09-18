@@ -65,21 +65,54 @@
     background-color: #080d16;
   }
 
-  /* Barra de desplazamiento discreta y acorde al tema. */
+  /* Barra de desplazamiento: discreta, acorde al tema y SIEMPRE a la
+     vista cuando se trabaja con ratón o trackpad.
+
+     Con el trackpad, el Mac esconde la barra mientras no se está
+     desplazando. Dentro de una caja —el paso «Avance» de la ficha, la
+     bitácora, un modal— eso no deja ninguna pista de que hay más
+     contenido debajo, ni nada que agarrar para llegar al final si no se
+     usa el gesto de dos dedos. Una barra dibujada con ::-webkit-scrollbar
+     el Mac la pinta siempre, igual que Windows.
+
+     La trampa: desde Chrome 121, si un elemento lleva scrollbar-width o
+     scrollbar-color, el navegador ignora ::-webkit-scrollbar y vuelve a
+     la barra del sistema, la que el Mac esconde. Así se perdió la barra
+     sin tocar este fichero. Por eso esas dos propiedades se deshacen
+     donde se puede dibujar la barra propia y quedan para Firefox, que no
+     la conoce.
+
+     En pantalla táctil (pointer: coarse) no cambia nada: ahí se espera la
+     barra que aparece al desplazar y se va, y una fija le quitaría 12 px
+     de ancho al móvil. */
   * {
     scrollbar-width: thin;
-    scrollbar-color: hsl(var(--heroui-default-300)) transparent;
+    scrollbar-color: hsl(var(--heroui-default-400)) transparent;
   }
-  *::-webkit-scrollbar { width: 10px; height: 10px; }
-  *::-webkit-scrollbar-track { background: transparent; }
-  *::-webkit-scrollbar-thumb {
-    background-color: hsl(var(--heroui-default-300));
-    border: 3px solid transparent;
-    border-radius: 999px;
-    background-clip: content-box;
-  }
-  *::-webkit-scrollbar-thumb:hover {
-    background-color: hsl(var(--heroui-default-400));
+
+  @media (pointer: fine) {
+    @supports selector(::-webkit-scrollbar) {
+      * {
+        scrollbar-width: auto;
+        scrollbar-color: auto;
+      }
+    }
+
+    /* 12 px de carril para acertar con el puntero; el borde transparente
+       deja a la vista una pastilla de 6 px. */
+    *::-webkit-scrollbar { width: 12px; height: 12px; }
+    *::-webkit-scrollbar-track,
+    *::-webkit-scrollbar-corner { background: transparent; }
+    *::-webkit-scrollbar-thumb {
+      background-color: hsl(var(--heroui-default-400));
+      border: 3px solid transparent;
+      border-radius: 999px;
+      background-clip: content-box;
+    }
+    *::-webkit-scrollbar-thumb:hover,
+    *::-webkit-scrollbar-thumb:active {
+      background-color: hsl(var(--heroui-default-500));
+    }
   }
 }
 
@@ -117,6 +150,38 @@
   /* Cabeceras translúcidas que dejan ver el contenido al desplazarse. */
   backdrop-filter: saturate(180%) blur(14px);
   background-color: hsl(var(--heroui-background) / 0.72);
+}
+
+/* Barra de scroll fija de las ventanas de alta y edición (marca,
+   propiedad, campaña, cuenta). La barra vertical se ve SIEMPRE, quepa o
+   no el formulario. Lo pidió el equipo: en el Mac no veían por dónde
+   bajar hasta la última propiedad del checklist.
+
+   `scroll` deja el carril puesto aunque no haya nada que desplazar, y el
+   carril va pintado de gris: transparente, «siempre puesta» no se vería
+   hasta que el formulario dejara de caber. Que el Mac no la esconda lo
+   consigue la barra propia de @layer base (::-webkit-scrollbar).
+
+   El `!important` es por los modales de HeroUI: a su cuerpo le ponen
+   `overflow-y-auto`, y sin él ganaría la que Tailwind escriba después. */
+@utility barra-de-scroll-fija {
+  overflow-y: scroll !important;
+
+  @media (pointer: fine) {
+    &::-webkit-scrollbar-track {
+      background-color: hsl(var(--heroui-default-200));
+      background-clip: content-box;
+      border: 3px solid transparent;
+      border-radius: 999px;
+    }
+  }
+
+  /* Firefox no dibuja la barra propia: el carril se colorea con la
+     propiedad estándar. En WebKit no se puede poner, porque anularía
+     ::-webkit-scrollbar (ver @layer base). */
+  @supports not selector(::-webkit-scrollbar) {
+    scrollbar-color: hsl(var(--heroui-default-400)) hsl(var(--heroui-default-200));
+  }
 }
 
 /* ------------------------------------------------------------------ */
