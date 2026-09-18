@@ -11,6 +11,14 @@
  *
  * Detalle de comodidad: acepta también arrastrar y soltar el fichero
  * encima, que es como la mayoría de la gente espera subir una imagen.
+ *
+ * Lo que se pega en el campo de la URL no siempre es una URL. «Copiar
+ * dirección de la imagen» en Google Imágenes da la imagen entera escrita
+ * en base64 (data:image/…), y «Copiar imagen» deja en el portapapeles la
+ * imagen misma, sin texto. Las dos se suben como si se hubiera elegido
+ * el fichero. Antes, la primera se guardaba tal cual y el servidor la
+ * rechazaba por larga («validation.max.string» al crear una propiedad),
+ * y la segunda no hacía nada.
  * ---------------------------------------------------------------------
  */
 import { Button, Input, Spinner } from "@heroui/react";
@@ -18,6 +26,10 @@ import { ImageOff, Trash2, Upload } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { subirImagen, type PropositoDeImagen } from "@/api/sistema";
 import { avisarDeError } from "@/utilidades/avisos";
+import {
+  esImagenIncrustada,
+  ficheroDesdeImagenIncrustada,
+} from "@/utilidades/imagenes";
 
 interface PropiedadesDeCampoDeImagen {
   /** URL actual de la imagen (cadena vacía si no hay ninguna). */
@@ -85,6 +97,32 @@ export function CampoDeImagen({
     } finally {
       establecerEstaSubiendo(false);
     }
+  }
+
+  /**
+   * Lo que se escribe o se pega en el campo de la URL. Una imagen
+   * incrustada no se guarda tal cual: se sube, y en el campo queda la URL
+   * que devuelve el servidor.
+   */
+  function alEscribirLaDireccion(textoNuevo: string) {
+    if (!esImagenIncrustada(textoNuevo)) {
+      alCambiar(textoNuevo);
+
+      return;
+    }
+
+    const ficheroDeLaImagen = ficheroDesdeImagenIncrustada(textoNuevo);
+
+    if (!ficheroDeLaImagen) {
+      avisarDeError(
+        "La imagen pegada viene incompleta. Descárgala y súbela con «Subir imagen».",
+        "No se pudo leer la imagen",
+      );
+
+      return;
+    }
+
+    void subirElFichero(ficheroDeLaImagen);
   }
 
   const clasesDeLaVistaPrevia =
@@ -188,7 +226,22 @@ export function CampoDeImagen({
             size="sm"
             value={valor}
             variant="bordered"
-            onValueChange={alCambiar}
+            onPaste={(evento) => {
+              // Solo si el portapapeles no trae texto: al copiar texto de
+              // Word u otros programas también viaja una imagen de la
+              // selección, y ahí lo que se quiere pegar es el texto.
+              const imagenDelPortapapeles = Array.from(evento.clipboardData.files).find(
+                (fichero) => fichero.type.startsWith("image/"),
+              );
+
+              if (!imagenDelPortapapeles || evento.clipboardData.getData("text/plain") !== "") {
+                return;
+              }
+
+              evento.preventDefault();
+              void subirElFichero(imagenDelPortapapeles);
+            }}
+            onValueChange={alEscribirLaDireccion}
           />
 
           {ayuda && (

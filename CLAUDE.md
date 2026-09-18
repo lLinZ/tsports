@@ -415,6 +415,12 @@ un `mensaje` siempre legible. Las pantallas usan
 `avisarDeError(error)` de `utilidades/avisos.ts` y **nunca** componen
 mensajes de error a mano.
 
+Una regla de validación sin mensaje propio en su FormRequest toma el de
+`backend/lang/es/validation.php`, con el nombre legible del campo de su
+lista `attributes`. Sin ese fichero salía la clave en crudo
+(«validation.max.string»); `MensajesDeValidacionTest` avisa si una
+versión nueva de Laravel trae una regla sin traducir.
+
 > Un error frecuente que este diseño previene: en Supabase, cuando una
 > política filtraba una fila, el `update` afectaba a cero filas y
 > respondía "correcto". La interfaz cantaba "Guardado ✔" sin haber
