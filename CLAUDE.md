@@ -228,7 +228,10 @@ resuelven:
 - Las ventanas de alta y edición (marca con su bitácora, propiedad,
   campaña, cuenta) tienen la barra vertical **siempre** a la vista,
   quepa o no el formulario, también en Firefox, donde ningún CSS la
-  obliga. Ahí la dibuja `componentes/comunes/BarraDeScrollDibujada.tsx`,
+  obliga, y en pantallas táctiles. Ojo al comprobarlo: el modo
+  dispositivo de las DevTools («Responsive») simula un teléfono táctil,
+  así que lo que depende de `pointer`/`any-pointer` se ve ahí como en
+  un móvil, no como en el portátil. Ahí la dibuja `componentes/comunes/BarraDeScrollDibujada.tsx`,
   y la zona que se desplaza lleva `barra-de-scroll-fija`, que esconde la
   del sistema para que no salgan dos. Una ventana de formulario nueva
   lleva las dos piezas:
