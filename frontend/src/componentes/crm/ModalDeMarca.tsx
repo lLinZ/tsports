@@ -19,7 +19,11 @@
  * final, para que no queden fichas a medio rellenar por accidente.
  *
  * La bitácora aparece a la derecha solo en marcas ya guardadas: no tiene
- * sentido comentar algo que todavía no existe.
+ * sentido comentar algo que todavía no existe. En pantalla estrecha
+ * (móvil, tableta, ventana a media pantalla) no cabe al lado, y se
+ * alterna con la ficha desde un selector «Ficha / Bitácora». Antes
+ * simplemente se escondía, y quien trabajaba desde el móvil no tenía
+ * ninguna forma de comentar.
  * ---------------------------------------------------------------------
  */
 import {
@@ -44,7 +48,9 @@ import {
   CalendarDays,
   CalendarPlus,
   Check,
+  ClipboardList,
   Megaphone,
+  MessageSquare,
   Package,
   Save,
   Trash2,
@@ -84,6 +90,12 @@ const PASOS = [
   { numero: 1, etiqueta: "La marca" },
   { numero: 2, etiqueta: "Contacto" },
   { numero: 3, etiqueta: "Avance" },
+] as const;
+
+/** Lo que se alterna en pantalla estrecha, donde la bitácora no cabe al lado. */
+const VISTAS_EN_PANTALLA_ESTRECHA = [
+  { vista: "ficha", etiqueta: "Ficha", Icono: ClipboardList },
+  { vista: "bitacora", etiqueta: "Bitácora", Icono: MessageSquare },
 ] as const;
 
 /**
@@ -208,8 +220,16 @@ export function ModalDeMarca({
   const [pasoActual, establecerPasoActual] = useState(1);
   const [erroresPorCampo, establecerErroresPorCampo] = useState<Record<string, string>>({});
   const [estaConfirmandoBorrado, establecerConfirmandoBorrado] = useState(false);
+  // Solo cuenta en pantalla estrecha: en una ancha se ven las dos a la vez.
+  const [vistaEnPantallaEstrecha, establecerVistaEnPantallaEstrecha] =
+    useState<"ficha" | "bitacora">("ficha");
 
   const estamosEditando = marcaEnEdicion !== null;
+  const seEstaViendoLaBitacora = estamosEditando && vistaEnPantallaEstrecha === "bitacora";
+  // Lo que se esconde mientras la bitácora ocupa la pantalla estrecha. En
+  // pantalla ancha vuelve siempre, aunque se haya elegido la bitácora
+  // antes de ensanchar la ventana.
+  const ocultoConLaBitacora = seEstaViendoLaBitacora ? "hidden lg:block" : "";
   const laMarcaEsEditable = marcaEnEdicion?.puedeEditarla ?? true;
 
   /**
@@ -248,6 +268,7 @@ export function ModalDeMarca({
     establecerPasoActual(1);
     establecerErroresPorCampo({});
     establecerConfirmandoBorrado(false);
+    establecerVistaEnPantallaEstrecha("ficha");
   }, [estaAbierto, marcaEnEdicion, usuario.zona]);
 
   /* ---------------------------------------------------------------- */
@@ -525,6 +546,44 @@ export function ModalDeMarca({
                   )}
                 </div>
 
+                {estamosEditando && (
+                  <div
+                    aria-label="Qué ver de la marca"
+                    className="mt-4 flex gap-1 rounded-xl bg-default-100 p-1 lg:hidden"
+                    role="tablist"
+                  >
+                    {VISTAS_EN_PANTALLA_ESTRECHA.map(({ vista, etiqueta, Icono }) => {
+                      const estaElegida = vistaEnPantallaEstrecha === vista;
+                      const totalDeComentarios = marcaEnEdicion.totalComentarios ?? 0;
+
+                      return (
+                        <button
+                          key={vista}
+                          aria-selected={estaElegida}
+                          className={[
+                            "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition",
+                            estaElegida
+                              ? "bg-content1 text-foreground shadow-sm"
+                              : "text-default-500 hover:text-foreground",
+                          ].join(" ")}
+                          role="tab"
+                          type="button"
+                          onClick={() => establecerVistaEnPantallaEstrecha(vista)}
+                        >
+                          <Icono className="size-3.5" />
+                          {etiqueta}
+                          {vista === "bitacora" && totalDeComentarios > 0 && (
+                            <span className="rounded-full bg-primary px-1.5 text-[10px] leading-4 text-primary-foreground">
+                              {totalDeComentarios}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className={ocultoConLaBitacora}>
                 <nav className="mt-4 flex gap-1">
                   {PASOS.map((paso) => {
                     const estaActivo = paso.numero === pasoActual;
@@ -583,6 +642,7 @@ export function ModalDeMarca({
                   radius="full"
                   value={(pasoActual / PASOS.length) * 100}
                 />
+                </div>
               </header>
 
               {/* Cuerpo de cada paso.
@@ -591,7 +651,7 @@ export function ModalDeMarca({
                   difíciles de recorrer con la vista. Se limita a un ancho
                   de lectura cómodo y se centra: el espacio sobrante es
                   margen, no campos de dos palmos. */}
-              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6 sm:px-8">
+              <div className={`min-h-0 flex-1 overflow-y-auto px-6 py-6 sm:px-8 ${ocultoConLaBitacora}`}>
                 <div className="mx-auto w-full max-w-3xl">
                 {pasoActual === 1 && (
                   <PasoLaMarca
@@ -636,9 +696,16 @@ export function ModalDeMarca({
                 </div>
               </div>
 
+              {/* La bitácora en pantalla estrecha, en lugar de la ficha. */}
+              {estamosEditando && vistaEnPantallaEstrecha === "bitacora" && (
+                <div className="flex min-h-0 flex-1 flex-col px-6 py-5 lg:hidden">
+                  <PanelDeComentarios idDeLaMarca={marcaEnEdicion.id} />
+                </div>
+              )}
+
               {/* Botonera. Se alinea con el formulario para que los
                   botones no queden perdidos en una esquina de la pantalla. */}
-              <footer className="border-t border-default-100 px-6 py-4 sm:px-8">
+              <footer className={`border-t border-default-100 px-6 py-4 sm:px-8 ${ocultoConLaBitacora}`}>
                 <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center gap-2">
                 {estamosEditando && marcaEnEdicion.puedeEliminarla && (
                   estaConfirmandoBorrado ? (
