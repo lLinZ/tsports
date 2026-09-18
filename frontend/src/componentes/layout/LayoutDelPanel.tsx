@@ -45,6 +45,7 @@ import {
   BotonDeTema,
   MenuDeColorAcento,
 } from "@/componentes/comunes/ControlesDeApariencia";
+import { CampanitaDeNotificaciones } from "@/componentes/layout/CampanitaDeNotificaciones";
 import { IndicadorDeConexion } from "@/componentes/layout/IndicadorDeConexion";
 import { useCatalogos } from "@/hooks/useCatalogos";
 import { useSesion, useUsuarioAutenticado } from "@/providers/ProveedorSesion";
@@ -321,10 +322,13 @@ function BarraSuperior({
   const ubicacion = useLocation();
   const { catalogos } = useCatalogos();
 
+  // Las pantallas que no salen en el menú lateral —se llega a ellas desde
+  // la barra superior— tienen su título aparte.
   const tituloDeLaPagina =
     ENTRADAS_DEL_MENU.find((entrada) =>
       ubicacion.pathname.startsWith(entrada.ruta),
-    )?.etiqueta ?? "Mi perfil";
+    )?.etiqueta ??
+    (ubicacion.pathname.startsWith("/notificaciones") ? "Notificaciones" : "Mi perfil");
 
   async function cerrarLaSesion() {
     try {
@@ -355,6 +359,7 @@ function BarraSuperior({
 
       <div className="flex items-center gap-1">
         <IndicadorDeConexion />
+        <CampanitaDeNotificaciones />
         <MenuDeColorAcento coloresDisponibles={catalogos?.coloresDeAcento} />
         <BotonDeTema />
 

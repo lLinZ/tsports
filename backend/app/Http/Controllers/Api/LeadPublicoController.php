@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\CrearLeadPublicoRequest;
 use App\Models\Marca;
 use App\Models\RegistroActividad;
+use App\Support\Notificador;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -23,14 +24,15 @@ use Illuminate\Http\JsonResponse;
  *      usarse para colarle trabajo falso a nadie en concreto.
  *
  * El lead aparece en el tablero marcado como "Formulario web" y el
- * primero del equipo que lo trabaje se lo queda.
+ * primero del equipo que lo trabaje se lo queda. Al entrar, les salta un
+ * aviso a quienes reparten (ver App\Support\Notificador).
  */
 class LeadPublicoController extends Controller
 {
     /**
      * POST /api/contacto  (público)
      */
-    public function store(CrearLeadPublicoRequest $peticion): JsonResponse
+    public function store(CrearLeadPublicoRequest $peticion, Notificador $notificador): JsonResponse
     {
         // Si cayó en la trampa, respondemos como si todo hubiese ido bien
         // pero no guardamos nada: al robot no se le dan pistas.
@@ -65,6 +67,10 @@ class LeadPublicoController extends Controller
             $marca->id,
             'Entró un lead por el formulario web: '.$marca->nombre_marca,
         );
+
+        // Sin esto un lead que entra un viernes espera al lunes a que
+        // alguien abra el tablero y lo vea.
+        $notificador->avisarDeUnLeadNuevo($marca);
 
         return response()->json([
             'mensaje' => 'Mensaje recibido. Te responderemos muy pronto.',

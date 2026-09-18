@@ -34,6 +34,7 @@ use App\Http\Controllers\Api\EventoDeCampanaController;
 use App\Http\Controllers\Api\MarcaController;
 use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\MiPerfilController;
+use App\Http\Controllers\Api\NotificacionController;
 use App\Http\Controllers\Api\PanelController;
 use App\Http\Controllers\Api\PropiedadController;
 use App\Http\Controllers\Api\SectorController;
@@ -76,6 +77,14 @@ Route::middleware('auth:sanctum')->group(function (): void {
      | autorización de cada canal privado va aparte, en
      | /api/broadcasting/auth, registrada en bootstrap/app.php.          */
     Route::get('/tiempo-real', [TiempoRealController::class, 'configuracion']);
+
+    /* ---------- Notificaciones (la campanita) ----------
+     | Cada quien, las suyas. Las crea App\Support\Notificador; aquí
+     | solo se leen y se marcan.                                         */
+    Route::get('/notificaciones', [NotificacionController::class, 'index']);
+    Route::get('/notificaciones/sin-leer', [NotificacionController::class, 'contarSinLeer']);
+    Route::post('/notificaciones/leidas', [NotificacionController::class, 'marcarTodasComoLeidas']);
+    Route::patch('/notificaciones/{notificacion}/leida', [NotificacionController::class, 'marcarComoLeida']);
 
     Route::get('/mi-perfil', [MiPerfilController::class, 'show']);
     Route::put('/mi-perfil', [MiPerfilController::class, 'update']);

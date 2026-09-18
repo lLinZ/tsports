@@ -384,6 +384,21 @@ Salieron del cliente y están implementadas a propósito así:
     detecta y las arma a mano; no usar `new Date(cadena)` con fechas de
     solo día.
 
+17. **Los avisos se guardan antes de empujarse.** Toda notificación la
+    crea `App\Support\Notificador` y es una fila en `notificaciones`;
+    el WebSocket solo la adelanta a quien tenga el panel abierto. Si
+    Reverb está caído, la petición sale bien y el aviso espera en la
+    campanita. A quién le toca cada uno:
+
+    - **Lead de la web** → a quien ve todas las marcas (hoy admin y
+      comercial), por permiso del rol. Nunca al agente: no ve los leads
+      sin dueño, y el aviso le filtraría el nombre de la empresa.
+    - **Te asignaron una marca** → al agente nuevo, venga del camino que
+      venga (alta, ficha o selector del tablero). No se avisa si el
+      agente no cambió, si se quitó, ni a quien se la asigna a sí mismo.
+
+    Cada quien lee y marca solo SUS avisos; ni un admin los de otro.
+
 ---
 
 ## 7. Errores: una sola forma

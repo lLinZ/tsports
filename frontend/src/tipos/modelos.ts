@@ -850,3 +850,26 @@ export interface ResultadoDelAvisoDePrueba {
   enviados: number;
   mensaje: string;
 }
+
+/* ==================================================================== */
+/* Notificaciones (la campanita)                                        */
+/* ==================================================================== */
+
+/**
+ * Los avisos que hoy existen (Notificacion::TIPO_* en el backend). La
+ * interfaz solo lo usa para elegir el icono: un tipo que aún no conozca
+ * se pinta con la campana y sigue funcionando.
+ */
+export type TipoDeNotificacion = "lead_nuevo" | "marca_asignada" | (string & {});
+
+/** Un aviso, tal como lo devuelve RecursoNotificacion y lo empuja Reverb. */
+export interface Notificacion {
+  id: string;
+  tipo: TipoDeNotificacion;
+  titulo: string;
+  cuerpo: string | null;
+  /** A dónde lleva al pulsarlo, ya resuelto por el servidor. Se sigue tal cual. */
+  enlace: string | null;
+  leida: boolean;
+  creadaEn: string | null;
+}

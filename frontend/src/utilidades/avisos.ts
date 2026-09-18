@@ -3,7 +3,7 @@
  * ---------------------------------------------------------------------
  * Los mensajes flotantes de confirmación y de error.
  *
- * Envuelve el sistema de avisos de HeroUI en tres funciones con nombre
+ * Envuelve el sistema de avisos de HeroUI en funciones con nombre
  * propio, por dos razones:
  *
  *   1. El tono y la duración quedan iguales en toda la aplicación. Un
@@ -16,7 +16,8 @@
  *      inútiles del tipo "[object Object]".
  * ---------------------------------------------------------------------
  */
-import { addToast } from "@heroui/react";
+import { addToast, Button } from "@heroui/react";
+import { createElement } from "react";
 import { mensajeDeError } from "@/api/clienteHttp";
 
 /** Confirmación de que algo salió bien. Breve: no hay nada que leer. */
@@ -53,5 +54,35 @@ export function avisarDeInformacion(mensaje: string, descripcion?: string): void
     description: descripcion,
     color: "primary",
     timeout: 4000,
+  });
+}
+
+/**
+ * Un aviso de la campanita que acaba de llegar en vivo.
+ *
+ * Dura más que la información neutra porque casi siempre pide hacer algo
+ * —abrir la marca—, y por eso lleva un botón que va directo sin tener
+ * que buscar la campanita. Sin enlace, sale sin botón.
+ *
+ * Este fichero es .ts y no .tsx: por eso el botón se crea con
+ * createElement y no con JSX.
+ */
+export function avisarDeNotificacion(
+  titulo: string,
+  cuerpo: string | null,
+  alAbrir?: () => void,
+): void {
+  addToast({
+    title: titulo,
+    description: cuerpo ?? undefined,
+    color: "primary",
+    timeout: 8000,
+    endContent: alAbrir
+      ? createElement(
+          Button,
+          { color: "primary", radius: "full", size: "sm", variant: "flat", onPress: alAbrir },
+          "Abrir",
+        )
+      : undefined,
   });
 }

@@ -12,6 +12,7 @@ use App\Models\Marca;
 use App\Models\Propiedad;
 use App\Models\RegistroActividad;
 use App\Models\User;
+use App\Support\Notificador;
 use App\Support\RegistradorDeEventosDeCampana;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -228,7 +229,7 @@ class MarcaController extends Controller
      * POST /api/marcas
      * Alta de una marca nueva desde el CRM.
      */
-    public function store(GuardarMarcaRequest $peticion): JsonResponse
+    public function store(GuardarMarcaRequest $peticion, Notificador $notificador): JsonResponse
     {
         $this->authorize('create', Marca::class);
 
@@ -271,6 +272,9 @@ class MarcaController extends Controller
             'Registró la marca '.$marca->nombre_marca,
         );
 
+        // Si se da de alta ya asignada a otra persona, esa persona se entera.
+        $notificador->avisarSiCambioElAgente($marca, null, $usuarioQueRegistra);
+
         $marca->load(['campana', 'propiedadesOfrecidas.propiedad', 'eventosDeCampana.marca']);
 
         return (new RecursoMarca($marca))->response()->setStatusCode(201);
@@ -280,7 +284,7 @@ class MarcaController extends Controller
      * PUT /api/marcas/{marca}
      * Edición de la ficha.
      */
-    public function update(GuardarMarcaRequest $peticion, Marca $marca): RecursoMarca
+    public function update(GuardarMarcaRequest $peticion, Marca $marca, Notificador $notificador): RecursoMarca
     {
         $this->authorize('update', $marca);
 
@@ -323,6 +327,8 @@ class MarcaController extends Controller
             'Editó la marca '.$marca->nombre_marca,
             ['antes' => $valoresAnteriores, 'despues' => $marca->only(array_keys($valoresAnteriores))],
         );
+
+        $notificador->avisarSiCambioElAgente($marca, $valoresAnteriores['vendedor_asignado_id'], $usuarioQueEdita);
 
         return new RecursoMarca(
             $marca->fresh()->load(['campana', 'propiedadesOfrecidas.propiedad', 'eventosDeCampana.marca']),
@@ -476,7 +482,7 @@ class MarcaController extends Controller
      * quitársela a nadie, así que aquí se pregunta por `asignarVendedor`
      * y no por `update`.
      */
-    public function asignarVendedor(Request $peticion, Marca $marca): RecursoMarca
+    public function asignarVendedor(Request $peticion, Marca $marca, Notificador $notificador): RecursoMarca
     {
         $this->authorize('asignarVendedor', Marca::class);
 
@@ -490,6 +496,7 @@ class MarcaController extends Controller
         ]);
 
         $idDelVendedor = $datos['vendedorAsignadoId'] ?: null;
+        $idDelAgenteAnterior = $marca->vendedor_asignado_id;
         $nombreAnterior = $marca->vendedor_asignado_nombre;
 
         $marca->vendedor_asignado_id = $idDelVendedor;
@@ -512,6 +519,10 @@ class MarcaController extends Controller
                 $marca->vendedor_asignado_nombre ?? 'sin asignar',
             ),
         );
+
+        /** @var User $quienAsigna */
+        $quienAsigna = $peticion->user();
+        $notificador->avisarSiCambioElAgente($marca, $idDelAgenteAnterior, $quienAsigna);
 
         return new RecursoMarca(
             $marca->fresh()->load(['campana', 'propiedadesOfrecidas.propiedad', 'eventosDeCampana.marca']),

@@ -40,6 +40,13 @@ return [
                 'port' => env('REVERB_PORT', 443),
                 'scheme' => env('REVERB_SCHEME', 'https'),
                 'useTLS' => env('REVERB_SCHEME', 'https') === 'https',
+                // Segundos que se espera a Reverb antes de darlo por
+                // perdido. El cliente trae 30 de fábrica, y los avisos se
+                // empujan dentro de la petición (App\Support\Notificador):
+                // un Reverb colgado dejaría a quien asignó una marca medio
+                // minuto esperando. Reverb está en la misma máquina, así
+                // que cuando está bien contesta en milisegundos.
+                'timeout' => 3,
             ],
             'client_options' => [
                 // Guzzle client options: https://docs.guzzlephp.org/en/stable/request-options.html

@@ -14,6 +14,12 @@
       "port": 4173
     },
     {
+      "name": "reverb",
+      "runtimeExecutable": "php",
+      "runtimeArgs": ["backend/artisan", "reverb:start", "--host=127.0.0.1", "--port=8080"],
+      "port": 8080
+    },
+    {
       "name": "backend",
       "runtimeExecutable": "php",
       "runtimeArgs": ["backend/artisan", "serve", "--host=127.0.0.1", "--port=8000"],

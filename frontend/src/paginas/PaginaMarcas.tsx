@@ -274,6 +274,21 @@ export function PaginaMarcas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fichaPedidaPorLaUrl.data]);
 
+  // Si la ficha no se puede abrir se dice por qué, en vez de no hacer
+  // nada. Pasa con los avisos viejos: «te asignaron X» sigue en la
+  // campanita aunque después la marca se la hayan pasado a otra persona,
+  // o la hayan borrado.
+  useEffect(() => {
+    if (fichaPedidaPorLaUrl.error === null) return;
+
+    avisarDeError(fichaPedidaPorLaUrl.error, "No se pudo abrir la marca");
+
+    const parametrosSinAbrir = new URLSearchParams(parametrosDeLaUrl);
+    parametrosSinAbrir.delete("abrir");
+    establecerParametrosDeLaUrl(parametrosSinAbrir, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fichaPedidaPorLaUrl.error]);
+
   async function alternarLaFaseDeUnaMarca(
     marca: Marca,
     fase: "aproximacion" | "propuesta",

@@ -37,6 +37,7 @@ import { PaginaContenidoWeb } from "@/paginas/PaginaContenidoWeb";
 import { PaginaEntrar } from "@/paginas/PaginaEntrar";
 import { PaginaMarcas } from "@/paginas/PaginaMarcas";
 import { PaginaNoEncontrada } from "@/paginas/PaginaNoEncontrada";
+import { PaginaNotificaciones } from "@/paginas/PaginaNotificaciones";
 import { PaginaPanel } from "@/paginas/PaginaPanel";
 import { PaginaPropiedades } from "@/paginas/PaginaPropiedades";
 import { PaginaSectores } from "@/paginas/PaginaSectores";
@@ -155,6 +156,16 @@ function RutasDeLaAplicacion() {
           </RutaProtegida>
         }
         path="/perfil"
+      />
+
+      {/* Cada quien ve solo sus avisos: el corte lo hace el servidor. */}
+      <Route
+        element={
+          <RutaProtegida>
+            <PaginaNotificaciones />
+          </RutaProtegida>
+        }
+        path="/notificaciones"
       />
 
       {/* --- Requieren además un permiso concreto --- */}

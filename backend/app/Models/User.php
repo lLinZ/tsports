@@ -106,6 +106,16 @@ class User extends Authenticatable
         return $this->hasMany(Marca::class, 'vendedor_asignado_id');
     }
 
+    /**
+     * Sus avisos de la campanita. Se llama así y no `notifications` para
+     * no pisar la relación del trait `Notifiable` de Laravel, que apunta
+     * a otra tabla (ver App\Models\Notificacion).
+     */
+    public function notificaciones(): HasMany
+    {
+        return $this->hasMany(Notificacion::class, 'destinatario_id');
+    }
+
     /** Comentarios que ha escrito en las fichas de las marcas. */
     public function comentarios(): HasMany
     {
