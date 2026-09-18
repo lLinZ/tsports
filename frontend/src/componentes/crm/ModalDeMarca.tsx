@@ -512,16 +512,21 @@ export function ModalDeMarca({
         <ModalBody className="p-0">
           <div
             className={[
-              "grid h-full min-h-0 gap-0",
+              // grid-cols-1 SIEMPRE, también al editar: es minmax(0, 1fr),
+              // una columna que no pasa del ancho de la pantalla. Sin ella,
+              // por debajo de `lg` el navegador crea una columna automática
+              // que crece hasta lo más ancho que haya dentro, y en el móvil
+              // la ficha entera se salía por la derecha con scroll lateral.
+              "grid h-full min-h-0 grid-cols-1 gap-0",
               // La bitácora se lleva un ancho fijo y cómodo; el resto es
               // para el formulario, que es donde está el trabajo.
-              estamosEditando ? "lg:grid-cols-[minmax(0,1fr)_26rem]" : "grid-cols-1",
+              estamosEditando ? "lg:grid-cols-[minmax(0,1fr)_26rem]" : "",
             ].join(" ")}
           >
             {/* ---------- Columna izquierda: el asistente ---------- */}
             <div className="flex h-full min-h-0 flex-col">
               {/* Cabecera con los pasos */}
-              <header className="border-b border-default-100 px-6 pb-4 pt-6">
+              <header className="border-b border-default-100 px-4 pb-4 pt-6 sm:px-6">
                 <div className="mb-1 flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h2 className="truncate text-lg font-bold tracking-tight text-foreground">
@@ -561,7 +566,7 @@ export function ModalDeMarca({
                           key={vista}
                           aria-selected={estaElegida}
                           className={[
-                            "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition",
+                            "flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold transition sm:px-3",
                             estaElegida
                               ? "bg-content1 text-foreground shadow-sm"
                               : "text-default-500 hover:text-foreground",
@@ -584,6 +589,10 @@ export function ModalDeMarca({
                 )}
 
                 <div className={ocultoConLaBitacora}>
+                {/* Los pasos llevan min-w-0: sin él, un botón flexible no baja
+                    del ancho de su texto, y en 320 px los tres juntos
+                    ensanchaban la ficha entera. Así, si no caben, el
+                    texto se recorta con «…». */}
                 <nav className="mt-4 flex gap-1">
                   {PASOS.map((paso) => {
                     const estaActivo = paso.numero === pasoActual;
@@ -593,7 +602,7 @@ export function ModalDeMarca({
                       <button
                         key={paso.numero}
                         className={[
-                          "flex flex-1 items-center gap-2 rounded-xl px-3 py-2 text-left transition",
+                          "flex min-w-0 flex-1 items-center gap-1.5 rounded-xl px-2 py-2 text-left transition sm:gap-2 sm:px-3",
                           estaActivo
                             ? "bg-primary text-primary-foreground"
                             : "text-default-500 hover:bg-default-100",
@@ -651,7 +660,7 @@ export function ModalDeMarca({
                   difíciles de recorrer con la vista. Se limita a un ancho
                   de lectura cómodo y se centra: el espacio sobrante es
                   margen, no campos de dos palmos. */}
-              <div className={`min-h-0 flex-1 overflow-y-auto px-6 py-6 sm:px-8 ${ocultoConLaBitacora}`}>
+              <div className={`min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-8 ${ocultoConLaBitacora}`}>
                 <div className="mx-auto w-full max-w-3xl">
                 {pasoActual === 1 && (
                   <PasoLaMarca
@@ -698,14 +707,14 @@ export function ModalDeMarca({
 
               {/* La bitácora en pantalla estrecha, en lugar de la ficha. */}
               {estamosEditando && vistaEnPantallaEstrecha === "bitacora" && (
-                <div className="flex min-h-0 flex-1 flex-col px-6 py-5 lg:hidden">
+                <div className="flex min-h-0 flex-1 flex-col px-4 py-5 sm:px-6 lg:hidden">
                   <PanelDeComentarios idDeLaMarca={marcaEnEdicion.id} />
                 </div>
               )}
 
               {/* Botonera. Se alinea con el formulario para que los
                   botones no queden perdidos en una esquina de la pantalla. */}
-              <footer className={`border-t border-default-100 px-6 py-4 sm:px-8 ${ocultoConLaBitacora}`}>
+              <footer className={`border-t border-default-100 px-4 py-4 sm:px-8 ${ocultoConLaBitacora}`}>
                 <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center gap-2">
                 {estamosEditando && marcaEnEdicion.puedeEliminarla && (
                   estaConfirmandoBorrado ? (
