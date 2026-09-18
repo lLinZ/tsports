@@ -147,6 +147,43 @@ class PropiedadController extends Controller
     }
 
     /**
+     * PATCH /api/propiedades/{propiedad}/activa
+     *
+     * Desactivar es lo que toca con una propiedad que ya pasó —un evento
+     * de este año, como una carrera—: deja de ofrecerse en el checklist,
+     * pero las marcas que la llevaban la conservan con su pronóstico, y el
+     * año siguiente se reactiva tal cual. Borrarla, en cambio, se lleva
+     * esas líneas para siempre (ver destroy). Va aparte de update para
+     * poder hacerlo desde la tarjeta, sin mandar el formulario entero.
+     */
+    public function activarODesactivar(Request $peticion, Propiedad $propiedad): RecursoPropiedad
+    {
+        $this->authorize('update', $propiedad);
+
+        $datos = $peticion->validate(
+            ['activa' => ['required', 'boolean']],
+            ['activa.*' => 'Indica si la propiedad queda activa o desactivada.'],
+        );
+
+        $propiedad->activa = (bool) $datos['activa'];
+        $propiedad->save();
+
+        // Repetir la misma orden no deja una línea más en la auditoría.
+        if ($propiedad->wasChanged('activa')) {
+            RegistroActividad::anotar(
+                $peticion->user(),
+                RegistroActividad::ACCION_ACTUALIZO,
+                'propiedad',
+                $propiedad->id,
+                ($propiedad->activa ? 'Reactivó' : 'Desactivó').' la propiedad '.$propiedad->nombre,
+                ['antes' => ['activa' => ! $propiedad->activa], 'despues' => ['activa' => $propiedad->activa]],
+            );
+        }
+
+        return new RecursoPropiedad($propiedad->load('prospectores')->loadCount('marcasQueLaOfrecen'));
+    }
+
+    /**
      * DELETE /api/propiedades/{propiedad}
      *
      * Borra la propiedad y, en cascada, sus líneas del checklist en todas

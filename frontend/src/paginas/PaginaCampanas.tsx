@@ -12,6 +12,10 @@
  * El color no es decorativo: es lo que permite distinguir de un vistazo,
  * en la cuadrícula de marcas, a qué campaña pertenece cada una cuando hay
  * varias abiertas a la vez.
+ *
+ * Una campaña terminada se desactiva desde su tarjeta y pasa a la
+ * sección de abajo: deja de ofrecerse en la ficha, pero sus marcas la
+ * siguen llevando. Borrarla, en cambio, las deja sin campaña.
  * ---------------------------------------------------------------------
  */
 import {
@@ -28,24 +32,31 @@ import {
   Textarea,
   Tooltip,
 } from "@heroui/react";
-import { Megaphone, Pencil, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
+import { Archive, Megaphone, Pencil, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { mensajeDeError } from "@/api/clienteHttp";
+import { BotonDeActivacion } from "@/componentes/comunes/BotonDeActivacion";
 import {
   BloqueDeCarga,
   BloqueDeError,
   EstadoVacio,
 } from "@/componentes/comunes/EstadosDePantalla";
+import { SeccionDeDesactivadas } from "@/componentes/comunes/SeccionDeDesactivadas";
 import { useCatalogos } from "@/hooks/useCatalogos";
 import {
   useActualizarCampana,
+  useCambiarActivaDeCampana,
   useCatalogoDeCampanas,
   useCrearCampana,
   useEliminarCampana,
 } from "@/hooks/useCampanas";
 import { useUsuarioAutenticado } from "@/providers/ProveedorSesion";
-import { avisarDeError, avisarDeExito } from "@/utilidades/avisos";
+import {
+  avisarDeError,
+  avisarDeExito,
+  avisarDeInformacion,
+} from "@/utilidades/avisos";
 import { formatearFecha } from "@/utilidades/formato";
 import type { Campana, DatosDeCampanaParaGuardar } from "@/tipos/modelos";
 
@@ -69,6 +80,8 @@ export function PaginaCampanas() {
   }
 
   const { campanas } = catalogo;
+  const campanasActivas = campanas.filter((campana) => campana.activa);
+  const campanasDesactivadas = campanas.filter((campana) => !campana.activa);
 
   return (
     <div className="space-y-5">
@@ -142,15 +155,32 @@ export function PaginaCampanas() {
           />
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {campanas.map((campana) => (
-            <TarjetaDeCampana
-              key={campana.id}
-              alEditar={abrirModalDeEdicion}
-              campana={campana}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {campanasActivas.map((campana) => (
+              <TarjetaDeCampana
+                key={campana.id}
+                alEditar={abrirModalDeEdicion}
+                campana={campana}
+              />
+            ))}
+          </div>
+
+          {campanasDesactivadas.length > 0 && (
+            <SeccionDeDesactivadas
+              cantidad={campanasDesactivadas.length}
+              explicacion="No se ofrecen en la ficha de las marcas, pero las que ya las llevaban las conservan, y el resumen las sigue contando. Se reactivan cuando vuelvan."
+            >
+              {campanasDesactivadas.map((campana) => (
+                <TarjetaDeCampana
+                  key={campana.id}
+                  alEditar={abrirModalDeEdicion}
+                  campana={campana}
+                />
+              ))}
+            </SeccionDeDesactivadas>
+          )}
+        </>
       )}
 
       <ModalDeCampana
@@ -174,6 +204,24 @@ function TarjetaDeCampana({
   alEditar: (campana: Campana) => void;
 }) {
   const marcasEnLaCampana = campana.totalMarcas ?? 0;
+  const cambiarActiva = useCambiarActivaDeCampana();
+
+  async function activarODesactivar() {
+    try {
+      await cambiarActiva.mutateAsync({ idDeLaCampana: campana.id, activa: !campana.activa });
+
+      if (campana.activa) {
+        avisarDeInformacion(
+          `${campana.nombre} desactivada`,
+          "Ya no se ofrece en la ficha. Sus marcas la siguen llevando.",
+        );
+      } else {
+        avisarDeExito(`${campana.nombre} reactivada`);
+      }
+    } catch (error) {
+      avisarDeError(error, "No se pudo cambiar la campaña");
+    }
+  }
 
   return (
     <article
@@ -208,7 +256,7 @@ function TarjetaDeCampana({
               </Chip>
             ) : (
               <Chip radius="lg" size="sm" variant="flat">
-                {campana.activa ? "Fuera de fechas" : "Cerrada"}
+                {campana.activa ? "Fuera de fechas" : "Desactivada"}
               </Chip>
             )}
           </div>
@@ -240,15 +288,25 @@ function TarjetaDeCampana({
               }`}
         </span>
 
-        {marcasEnLaCampana > 0 && (
-          <Link
-            className="text-[11px] font-semibold text-primary hover:underline"
-            to={`/marcas?campana=${campana.id}`}
-            onClick={(evento) => evento.stopPropagation()}
-          >
-            Ver las marcas
-          </Link>
-        )}
+        <div className="flex items-center gap-3">
+          {marcasEnLaCampana > 0 && (
+            <Link
+              className="text-[11px] font-semibold text-primary hover:underline"
+              to={`/marcas?campana=${campana.id}`}
+              onClick={(evento) => evento.stopPropagation()}
+            >
+              Ver las marcas
+            </Link>
+          )}
+
+          {campana.puedoEditarla && (
+            <BotonDeActivacion
+              estaActiva={campana.activa}
+              estaCambiando={cambiarActiva.isPending}
+              alPulsar={() => void activarODesactivar()}
+            />
+          )}
+        </div>
       </div>
     </article>
   );
@@ -292,6 +350,7 @@ function ModalDeCampana({
   const crearCampana = useCrearCampana();
   const actualizarCampana = useActualizarCampana();
   const eliminarCampana = useEliminarCampana();
+  const cambiarActiva = useCambiarActivaDeCampana();
 
   const [formulario, establecerFormulario] = useState<FormularioDeCampana>(
     FORMULARIO_DE_CAMPANA_VACIO,
@@ -376,6 +435,26 @@ function ModalDeCampana({
       alCerrar();
     } catch (error) {
       avisarDeError(error, "No se pudo eliminar la campaña");
+    }
+  }
+
+  /**
+   * La salida que casi siempre se quería al pulsar «Eliminar»: la campaña
+   * sale del selector y sus marcas la conservan.
+   */
+  async function desactivarEnVezDeBorrar() {
+    if (!campanaEnEdicion) return;
+
+    try {
+      await cambiarActiva.mutateAsync({ idDeLaCampana: campanaEnEdicion.id, activa: false });
+
+      avisarDeInformacion(
+        `${campanaEnEdicion.nombre} desactivada`,
+        "Ya no se ofrece en la ficha. Sus marcas la siguen llevando.",
+      );
+      alCerrar();
+    } catch (error) {
+      avisarDeError(error, "No se pudo desactivar la campaña");
     }
   }
 
@@ -504,10 +583,10 @@ function ModalDeCampana({
               <div className="flex w-full items-center justify-between gap-3 rounded-2xl border border-default-200 px-3 py-2.5">
                 <div>
                   <span className="text-xs font-semibold text-foreground">
-                    Abierta
+                    Activa
                   </span>
                   <p className="text-[10px] text-default-500">
-                    Al cerrarla deja de ofrecerse en la ficha de las marcas.
+                    Al desactivarla deja de ofrecerse en la ficha, sin quitársela a sus marcas.
                   </p>
                 </div>
 
@@ -543,6 +622,20 @@ function ModalDeCampana({
                 >
                   Sí, eliminar
                 </Button>
+
+                {campanaEnEdicion.activa && (
+                  <Button
+                    color="primary"
+                    isLoading={cambiarActiva.isPending}
+                    radius="lg"
+                    size="sm"
+                    startContent={!cambiarActiva.isPending && <Archive className="size-4" />}
+                    variant="flat"
+                    onPress={() => void desactivarEnVezDeBorrar()}
+                  >
+                    Mejor desactivarla
+                  </Button>
+                )}
 
                 <Button
                   radius="lg"

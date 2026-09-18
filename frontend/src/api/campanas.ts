@@ -46,6 +46,22 @@ export async function actualizarCampana(
 }
 
 /**
+ * Desactiva o reactiva una campaña sin tocar nada más. Desactivada deja de
+ * ofrecerse en la ficha, pero sus marcas siguen llevándola.
+ */
+export async function cambiarActivaDeCampana(
+  idDeLaCampana: string,
+  activa: boolean,
+): Promise<Campana> {
+  const { data } = await clienteHttp.patch<{ data: Campana }>(
+    `/campanas/${idDeLaCampana}/activa`,
+    { activa },
+  );
+
+  return data.data;
+}
+
+/**
  * Borra la campaña. Las marcas que pertenecían a ella no se borran: se
  * quedan sin campaña.
  */

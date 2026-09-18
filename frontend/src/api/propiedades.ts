@@ -60,6 +60,23 @@ export async function actualizarPropiedad(
 }
 
 /**
+ * Desactiva o reactiva una propiedad sin tocar nada más. Desactivada deja
+ * de ofrecerse en el checklist, pero las marcas que la llevaban la
+ * conservan con su pronóstico.
+ */
+export async function cambiarActivaDePropiedad(
+  idDeLaPropiedad: string,
+  activa: boolean,
+): Promise<Propiedad> {
+  const { data } = await clienteHttp.patch<{ data: Propiedad }>(
+    `/propiedades/${idDeLaPropiedad}/activa`,
+    { activa },
+  );
+
+  return data.data;
+}
+
+/**
  * Borra la propiedad y, con ella, sus líneas del checklist en todas las
  * marcas. Para retirarla de la venta conservando el histórico, la
  * pantalla ofrece antes desactivarla.

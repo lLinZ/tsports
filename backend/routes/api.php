@@ -119,6 +119,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/propiedades/{propiedad}', [PropiedadController::class, 'show']);
     Route::post('/propiedades', [PropiedadController::class, 'store']);
     Route::put('/propiedades/{propiedad}', [PropiedadController::class, 'update']);
+    // Desactivar desde la tarjeta: lo que se hace con una propiedad que
+    // ya pasó y volverá, en vez de borrarla y perder sus marcas.
+    Route::patch('/propiedades/{propiedad}/activa', [PropiedadController::class, 'activarODesactivar']);
     Route::delete('/propiedades/{propiedad}', [PropiedadController::class, 'destroy']);
 
     /* ---------- Sectores (el rubro de cada marca) ----------
@@ -134,6 +137,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/campanas', [CampanaController::class, 'index']);
     Route::post('/campanas', [CampanaController::class, 'store']);
     Route::put('/campanas/{campana}', [CampanaController::class, 'update']);
+    // Igual que con las propiedades: una campaña terminada se desactiva.
+    Route::patch('/campanas/{campana}/activa', [CampanaController::class, 'activarODesactivar']);
     Route::delete('/campanas/{campana}', [CampanaController::class, 'destroy']);
 
     /* ---------- Bitácora de cada marca ---------- */

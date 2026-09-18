@@ -18,6 +18,11 @@
  * Arriba, tres contadores con el total del catálogo. Sirven para
  * responder de un vistazo a la única pregunta que importa aquí: cuánto
  * hay puesto a la venta y cuánto lleva pronosticado el equipo.
+ *
+ * Las desactivadas van en su propia sección, debajo. Desactivar es lo
+ * que toca con una propiedad que ya pasó y volverá (un evento del año):
+ * se hace desde la tarjeta y no se pierde nada de lo hablado con cada
+ * marca, al revés que borrarla.
  * ---------------------------------------------------------------------
  */
 import { Button, Chip, Tooltip } from "@heroui/react";
@@ -35,14 +40,24 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { mensajeDeError } from "@/api/clienteHttp";
 import { BarraDeProporcion } from "@/componentes/comunes/BarraDeProporcion";
+import { BotonDeActivacion } from "@/componentes/comunes/BotonDeActivacion";
 import {
   BloqueDeCarga,
   BloqueDeError,
   EstadoVacio,
 } from "@/componentes/comunes/EstadosDePantalla";
+import { SeccionDeDesactivadas } from "@/componentes/comunes/SeccionDeDesactivadas";
 import { ModalDePropiedad } from "@/componentes/crm/ModalDePropiedad";
-import { useCatalogoDePropiedades } from "@/hooks/usePropiedades";
+import {
+  useCambiarActivaDePropiedad,
+  useCatalogoDePropiedades,
+} from "@/hooks/usePropiedades";
 import { useUsuarioAutenticado } from "@/providers/ProveedorSesion";
+import {
+  avisarDeError,
+  avisarDeExito,
+  avisarDeInformacion,
+} from "@/utilidades/avisos";
 import {
   formatearDineroAbreviado,
   formatearPorcentaje,
@@ -73,6 +88,7 @@ export function PaginaPropiedades() {
   // Totales del catálogo. Solo cuentan las propiedades en venta: sumar
   // una retirada inflaría la meta con dinero que ya nadie persigue.
   const propiedadesEnVenta = propiedades.filter((propiedad) => propiedad.activa);
+  const propiedadesDesactivadas = propiedades.filter((propiedad) => !propiedad.activa);
 
   const montoTotalDelCatalogo = propiedadesEnVenta.reduce(
     (suma, propiedad) => suma + propiedad.montoTotalUsd,
@@ -186,15 +202,32 @@ export function PaginaPropiedades() {
           />
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {propiedades.map((propiedad) => (
-            <TarjetaDePropiedad
-              key={propiedad.id}
-              propiedad={propiedad}
-              alEditar={abrirModalDeEdicion}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {propiedadesEnVenta.map((propiedad) => (
+              <TarjetaDePropiedad
+                key={propiedad.id}
+                propiedad={propiedad}
+                alEditar={abrirModalDeEdicion}
+              />
+            ))}
+          </div>
+
+          {propiedadesDesactivadas.length > 0 && (
+            <SeccionDeDesactivadas
+              cantidad={propiedadesDesactivadas.length}
+              explicacion="No se ofrecen en el checklist de las fichas, pero las marcas que las llevaban las conservan con su pronóstico. Se reactivan cuando vuelvan."
+            >
+              {propiedadesDesactivadas.map((propiedad) => (
+                <TarjetaDePropiedad
+                  key={propiedad.id}
+                  propiedad={propiedad}
+                  alEditar={abrirModalDeEdicion}
+                />
+              ))}
+            </SeccionDeDesactivadas>
+          )}
+        </>
       )}
 
       <ModalDePropiedad
@@ -273,6 +306,27 @@ function TarjetaDePropiedad({
 }) {
   const pronosticado = propiedad.ovpAcumuladoUsd ?? 0;
   const marcasQueLaOfrecen = propiedad.totalMarcas ?? 0;
+  const cambiarActiva = useCambiarActivaDePropiedad();
+
+  async function activarODesactivar() {
+    try {
+      await cambiarActiva.mutateAsync({
+        idDeLaPropiedad: propiedad.id,
+        activa: !propiedad.activa,
+      });
+
+      if (propiedad.activa) {
+        avisarDeInformacion(
+          `${propiedad.nombre} desactivada`,
+          "Ya no se ofrece en las fichas. Las marcas que la llevaban la conservan.",
+        );
+      } else {
+        avisarDeExito(`${propiedad.nombre} reactivada`);
+      }
+    } catch (error) {
+      avisarDeError(error, "No se pudo cambiar la propiedad");
+    }
+  }
 
   return (
     <article
@@ -312,7 +366,7 @@ function TarjetaDePropiedad({
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             {!propiedad.activa && (
               <Chip color="warning" radius="lg" size="sm" variant="flat">
-                Retirada
+                Desactivada
               </Chip>
             )}
 
@@ -379,15 +433,25 @@ function TarjetaDePropiedad({
               }`}
         </span>
 
-        {marcasQueLaOfrecen > 0 && (
-          <Link
-            className="text-[11px] font-semibold text-primary hover:underline"
-            to={`/marcas?propiedad=${propiedad.id}`}
-            onClick={(evento) => evento.stopPropagation()}
-          >
-            Ver las marcas
-          </Link>
-        )}
+        <div className="flex items-center gap-3">
+          {marcasQueLaOfrecen > 0 && (
+            <Link
+              className="text-[11px] font-semibold text-primary hover:underline"
+              to={`/marcas?propiedad=${propiedad.id}`}
+              onClick={(evento) => evento.stopPropagation()}
+            >
+              Ver las marcas
+            </Link>
+          )}
+
+          {propiedad.puedoEditarla && (
+            <BotonDeActivacion
+              estaActiva={propiedad.activa}
+              estaCambiando={cambiarActiva.isPending}
+              alPulsar={() => void activarODesactivar()}
+            />
+          )}
+        </div>
       </div>
     </article>
   );

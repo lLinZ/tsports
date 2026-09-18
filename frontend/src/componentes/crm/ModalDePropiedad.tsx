@@ -16,8 +16,9 @@
  *      checklist de todos, así que el servidor lo rechaza.
  *
  * Borrar una propiedad se lleva por delante su línea en el checklist de
- * cada marca, así que la botonera avisa de cuántas se van a perder y
- * ofrece antes desactivarla.
+ * cada marca, así que la botonera avisa de cuántas se van a perder y, en
+ * la misma confirmación, ofrece «Mejor desactivarla»: es lo que se quería
+ * casi siempre, y el equipo no encontraba el interruptor.
  * ---------------------------------------------------------------------
  */
 import {
@@ -35,7 +36,7 @@ import {
   Switch,
   Textarea,
 } from "@heroui/react";
-import { Package, Save, Trash2, Users } from "lucide-react";
+import { Archive, Package, Save, Trash2, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { listarUsuarios } from "@/api/usuarios";
@@ -43,10 +44,15 @@ import { CampoDeImagen } from "@/componentes/comunes/CampoDeImagen";
 import { useCatalogos } from "@/hooks/useCatalogos";
 import {
   useActualizarPropiedad,
+  useCambiarActivaDePropiedad,
   useCrearPropiedad,
   useEliminarPropiedad,
 } from "@/hooks/usePropiedades";
-import { avisarDeError, avisarDeExito } from "@/utilidades/avisos";
+import {
+  avisarDeError,
+  avisarDeExito,
+  avisarDeInformacion,
+} from "@/utilidades/avisos";
 import { formatearDinero } from "@/utilidades/formato";
 import type { DatosDePropiedadParaGuardar, Propiedad } from "@/tipos/modelos";
 
@@ -79,6 +85,7 @@ export function ModalDePropiedad({
   const crearPropiedad = useCrearPropiedad();
   const actualizarPropiedad = useActualizarPropiedad();
   const eliminarPropiedad = useEliminarPropiedad();
+  const cambiarActiva = useCambiarActivaDePropiedad();
 
   const porcentajePorDefecto = catalogos?.porcentajeForecastPorDefecto ?? 20;
 
@@ -205,6 +212,29 @@ export function ModalDePropiedad({
       alCerrar();
     } catch (error) {
       avisarDeError(error, "No se pudo eliminar la propiedad");
+    }
+  }
+
+  /**
+   * La salida que casi siempre se quería al pulsar «Eliminar»: la
+   * propiedad sale del checklist y las marcas conservan lo anotado.
+   */
+  async function desactivarEnVezDeBorrar() {
+    if (!propiedadEnEdicion) return;
+
+    try {
+      await cambiarActiva.mutateAsync({
+        idDeLaPropiedad: propiedadEnEdicion.id,
+        activa: false,
+      });
+
+      avisarDeInformacion(
+        `${propiedadEnEdicion.nombre} desactivada`,
+        "Ya no se ofrece en las fichas. Las marcas que la llevaban la conservan.",
+      );
+      alCerrar();
+    } catch (error) {
+      avisarDeError(error, "No se pudo desactivar la propiedad");
     }
   }
 
@@ -434,6 +464,20 @@ export function ModalDePropiedad({
                 >
                   Sí, eliminar
                 </Button>
+
+                {propiedadEnEdicion.activa && (
+                  <Button
+                    color="primary"
+                    isLoading={cambiarActiva.isPending}
+                    radius="lg"
+                    size="sm"
+                    startContent={!cambiarActiva.isPending && <Archive className="size-4" />}
+                    variant="flat"
+                    onPress={() => void desactivarEnVezDeBorrar()}
+                  >
+                    Mejor desactivarla
+                  </Button>
+                )}
 
                 <Button
                   radius="lg"
