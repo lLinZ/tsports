@@ -385,7 +385,16 @@ function ModalDeUsuario({
     estamosEditando && usuarioEnEdicion.id === usuarioActual.id;
 
   return (
-    <Modal isOpen={estaAbierto} size="lg" onOpenChange={(abierto) => !abierto && alCerrar()}>
+    <Modal
+      // Con el scroll dentro del cuerpo y la barra siempre a la vista, como
+      // en todas las ventanas de alta y edición (ver `barra-de-scroll-fija`
+      // en index.css). La cabecera y los botones quedan siempre a mano.
+      classNames={{ body: "barra-de-scroll-fija" }}
+      isOpen={estaAbierto}
+      scrollBehavior="inside"
+      size="lg"
+      onOpenChange={(abierto) => !abierto && alCerrar()}
+    >
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
           <span className="text-lg font-bold tracking-tight">

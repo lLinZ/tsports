@@ -242,6 +242,9 @@ export function ModalDePropiedad({
 
   return (
     <Modal
+      // Barra de scroll siempre a la vista, como en todas las ventanas de
+      // alta y edición (ver `barra-de-scroll-fija` en index.css).
+      classNames={{ body: "barra-de-scroll-fija" }}
       isOpen={estaAbierto}
       scrollBehavior="inside"
       size="2xl"

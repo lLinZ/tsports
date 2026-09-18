@@ -213,6 +213,21 @@ el anclaje del carrusel del equipo son CSS puro (`index.css`).
 > **suspende en pestañas ocultas**. Si se comprueban con herramientas
 > automáticas sin panel visible, no se dispararán: no es un fallo.
 
+### 4.7 La barra de desplazamiento se ve, también en el Mac
+
+Con el trackpad, el Mac esconde la barra de scroll mientras no se
+desplaza, y dentro de un modal eso deja sin pista de que hay más
+formulario debajo. Dos piezas en `index.css` lo resuelven:
+
+- Con ratón o trackpad se dibuja una barra propia (`::-webkit-scrollbar`),
+  la única que el Mac no esconde. Por eso **no** se ponen
+  `scrollbar-width` ni `scrollbar-color` a todo: desde Chrome 121, con
+  cualquiera de las dos el navegador ignora la barra propia.
+- Las ventanas de alta y edición (marca, propiedad, campaña, cuenta)
+  llevan `barra-de-scroll-fija` en su cuerpo: la barra vertical se ve
+  siempre, quepa o no el formulario. Una ventana de formulario nueva la
+  lleva también (en un `Modal`, `classNames={{ body: "barra-de-scroll-fija" }}`).
+
 ---
 
 ## 5. Estructura del repositorio
@@ -415,6 +430,12 @@ un `mensaje` siempre legible. Las pantallas usan
 `avisarDeError(error)` de `utilidades/avisos.ts` y **nunca** componen
 mensajes de error a mano.
 
+Una regla de validación sin mensaje propio en su FormRequest toma el de
+`backend/lang/es/validation.php`, con el nombre legible del campo de su
+lista `attributes`. Sin ese fichero salía la clave en crudo
+(«validation.max.string»); `MensajesDeValidacionTest` avisa si una
+versión nueva de Laravel trae una regla sin traducir.
+
 > Un error frecuente que este diseño previene: en Supabase, cuando una
 > política filtraba una fila, el `update` afectaba a cero filas y
 > respondía "correcto". La interfaz cantaba "Guardado ✔" sin haber
@@ -477,3 +498,5 @@ VPS usa **MySQL**: la plantilla es `backend/.env.example`.
 - Poner textos de la web pública en el código: van en el CMS.
 - Dejar un fichero sin cabecera explicativa.
 - Actualizar HeroUI a la v3 sin migrar todo el código a la vez.
+- Poner `scrollbar-width` o `scrollbar-color` a todos los elementos: en
+  el Mac la barra vuelve a esconderse (ver 4.7).

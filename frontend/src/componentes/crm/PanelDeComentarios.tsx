@@ -74,8 +74,8 @@ export function PanelDeComentarios({ idDeLaMarca }: { idDeLaMarca: string }) {
         Actividad y comentarios
       </h3>
 
-      {/* Hilo */}
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+      {/* Hilo. Con la barra fija, como el resto de la ficha de la marca. */}
+      <div className="barra-de-scroll-fija min-h-0 flex-1 space-y-3 pr-1">
         {consultaDeComentarios.isLoading ? (
           <BloqueDeCarga alto="min-h-32" mensaje="Cargando la bitácora…" />
         ) : consultaDeComentarios.error ? (
