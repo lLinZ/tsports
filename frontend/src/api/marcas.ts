@@ -13,6 +13,9 @@ import type {
   AccionDeCampanaEnElHistorial,
   AgenteConMarcas,
   ComentarioDeMarca,
+  DatosDeComentario,
+  HistoricoDeBitacora,
+  PersonaMencionable,
   DatosDeAccionParaCorregir,
   DatosDeMarcaParaGuardar,
   FiltrosDeMarcas,
@@ -204,11 +207,24 @@ export async function listarComentarios(
 
 export async function crearComentario(
   idDeLaMarca: string,
-  cuerpo: string,
+  datos: DatosDeComentario,
 ): Promise<ComentarioDeMarca> {
   const { data } = await clienteHttp.post<{ data: ComentarioDeMarca }>(
     `/marcas/${idDeLaMarca}/comentarios`,
-    { cuerpo },
+    datos,
+  );
+
+  return data.data;
+}
+
+export async function editarComentario(
+  idDeLaMarca: string,
+  idDelComentario: string,
+  datos: DatosDeComentario,
+): Promise<ComentarioDeMarca> {
+  const { data } = await clienteHttp.patch<{ data: ComentarioDeMarca }>(
+    `/marcas/${idDeLaMarca}/comentarios/${idDelComentario}`,
+    datos,
   );
 
   return data.data;
@@ -219,6 +235,64 @@ export async function eliminarComentario(
   idDelComentario: string,
 ): Promise<void> {
   await clienteHttp.delete(`/marcas/${idDeLaMarca}/comentarios/${idDelComentario}`);
+}
+
+/**
+ * Pone o quita una reacción. Es un interruptor: el mismo emoji dos veces
+ * lo quita, y quien decide eso es el servidor.
+ *
+ * Devuelve la entrada entera y actualizada, así que la interfaz no tiene
+ * que recontar nada por su cuenta.
+ */
+export async function reaccionarAComentario(
+  idDeLaMarca: string,
+  idDelComentario: string,
+  emoji: string,
+): Promise<ComentarioDeMarca> {
+  const { data } = await clienteHttp.put<{ data: ComentarioDeMarca }>(
+    `/marcas/${idDeLaMarca}/comentarios/${idDelComentario}/reacciones`,
+    { emoji },
+  );
+
+  return data.data;
+}
+
+/** A quién se puede etiquetar en la bitácora de esta marca. */
+export async function listarMencionables(
+  idDeLaMarca: string,
+): Promise<PersonaMencionable[]> {
+  const { data } = await clienteHttp.get<{ data: PersonaMencionable[] }>(
+    `/marcas/${idDeLaMarca}/mencionables`,
+  );
+
+  return data.data;
+}
+
+/**
+ * El histórico de una marca, para descargarlo.
+ *
+ * Pasa por el servidor aunque la pantalla ya tenga el hilo cargado, y no
+ * es un viaje de más: sacar una bitácora es sacar del sistema toda la
+ * relación comercial con esa marca, y el servidor lo anota en la
+ * auditoría antes de devolver nada.
+ */
+export async function obtenerHistoricoDeMarca(
+  idDeLaMarca: string,
+): Promise<HistoricoDeBitacora> {
+  const { data } = await clienteHttp.get<HistoricoDeBitacora>(
+    `/marcas/${idDeLaMarca}/bitacora/exportacion`,
+  );
+
+  return data;
+}
+
+/** El histórico de TODAS las marcas. Solo administrador. */
+export async function obtenerHistoricoCompleto(): Promise<HistoricoDeBitacora> {
+  const { data } = await clienteHttp.get<HistoricoDeBitacora>(
+    "/admin/bitacora/exportacion",
+  );
+
+  return data;
 }
 
 /* ==================================================================== */

@@ -144,7 +144,17 @@ class BitacoraDeMarcasTest extends TestCase
             ->deleteJson("/api/marcas/{$marca->id}/comentarios/{$idDelComentario}")
             ->assertOk();
 
-        $this->assertDatabaseCount('comentarios_marca', 0);
+        // La fila SIGUE ahí. El borrado es suave desde la Etapa 5: el
+        // hueco se queda en el hilo diciendo quién lo quitó, porque un
+        // registro del que se pueden retirar entradas sin rastro no vale
+        // como registro, y este se exporta.
+        $this->assertDatabaseCount('comentarios_marca', 1);
+
+        $this->assertDatabaseHas('comentarios_marca', [
+            'id' => $idDelComentario,
+            'cuerpo' => '',
+            'eliminado_por_nombre' => 'Autor Del Comentario',
+        ]);
     }
 
     public function test_un_administrador_puede_borrar_cualquier_comentario(): void
@@ -165,7 +175,11 @@ class BitacoraDeMarcasTest extends TestCase
             ->deleteJson("/api/marcas/{$marca->id}/comentarios/{$idDelComentario}")
             ->assertOk();
 
-        $this->assertDatabaseCount('comentarios_marca', 0);
+        // Y queda escrito que fue ella, no el autor.
+        $this->assertDatabaseHas('comentarios_marca', [
+            'id' => $idDelComentario,
+            'eliminado_por_nombre' => 'La Administradora',
+        ]);
     }
 
     public function test_borrar_la_marca_se_lleva_su_bitacora(): void

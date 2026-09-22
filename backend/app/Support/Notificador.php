@@ -108,6 +108,59 @@ class Notificador
     }
 
     /**
+     * Te etiquetaron en la bitácora de una marca.
+     *
+     * A quién se puede etiquetar ya lo decidió `QuienPuedeVerLaMarca`
+     * antes de llegar aquí, y por eso este método no vuelve a filtrar
+     * por permisos: recibe personas que SÍ pueden ver la marca. Si
+     * alguna vez se le llamara con otra, el aviso le filtraría el nombre
+     * de una marca ajena (regla 6), así que es la única puerta y la
+     * guarda el controlador.
+     *
+     * No se avisa a quien se etiqueta a sí mismo: ya sabe que lo hizo.
+     *
+     * @param  Collection<int,User>  $mencionados
+     */
+    public function avisarDeUnaMencion(
+        Collection $mencionados,
+        Marca $marca,
+        User $quienEscribe,
+        string $textoDelComentario,
+    ): void {
+        $aQuienAvisar = $mencionados
+            ->filter(fn (User $persona): bool => $persona->id !== $quienEscribe->id)
+            ->filter(fn (User $persona): bool => $persona->activo);
+
+        if ($aQuienAvisar->isEmpty()) {
+            return;
+        }
+
+        $this->crearYEmpujar(
+            $aQuienAvisar,
+            Notificacion::TIPO_MENCION,
+            'Te etiquetaron en '.$marca->nombre_marca,
+            sprintf('%s: «%s»', $quienEscribe->nombreParaMostrar(), $this->comoAdelanto($textoDelComentario)),
+            $marca,
+        );
+    }
+
+    /**
+     * Las primeras palabras del comentario, para que el aviso diga de
+     * qué va sin tener que abrir la ficha.
+     *
+     * Se corta por longitud y no por palabras: un comentario puede ser
+     * una sola línea larguísima pegada de un correo.
+     */
+    private function comoAdelanto(string $texto): string
+    {
+        $limpio = trim(preg_replace('/\s+/u', ' ', $texto) ?? $texto);
+
+        return mb_strlen($limpio) > 120
+            ? mb_substr($limpio, 0, 119).'…'
+            : $limpio;
+    }
+
+    /**
      * @param  Collection<int,User>  $destinatarios
      */
     private function crearYEmpujar(

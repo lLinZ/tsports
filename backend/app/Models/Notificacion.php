@@ -33,6 +33,9 @@ class Notificacion extends Model
     /** Alguien te asignó una marca. */
     public const TIPO_MARCA_ASIGNADA = 'marca_asignada';
 
+    /** Te etiquetaron en la bitácora de una marca. */
+    public const TIPO_MENCION = 'mencion_en_bitacora';
+
     protected $fillable = [
         'destinatario_id',
         'tipo',

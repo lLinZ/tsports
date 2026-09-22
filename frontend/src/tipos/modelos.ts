@@ -395,14 +395,105 @@ export interface FiltrosDeMarcas {
 /* Bitácora                                                             */
 /* ==================================================================== */
 
+/**
+ * Un emoji con cuánta gente lo puso, ya agrupado por el servidor.
+ *
+ * Viene contado de allí y no se recuenta aquí: contar en el navegador
+ * algo que el servidor ya sabe es de las cosas que este proyecto no
+ * hace.
+ */
+export interface ReaccionDeComentario {
+  emoji: string;
+  total: number;
+  /** ¿La puse yo? Es lo que decide si el botón sale resaltado. */
+  laMia: boolean;
+  /** Para poder decir quiénes al pasar por encima. */
+  quienes: string[];
+}
+
+/** Alguien etiquetado en una entrada. */
+export interface PersonaEtiquetada {
+  id: string;
+  nombre: string;
+}
+
+/**
+ * Alguien a quien se PUEDE etiquetar en esta marca.
+ *
+ * La lista sale de quién puede ver esa marca, no del equipo entero: un
+ * agente solo ve lo suyo, y la notificación de una mención lleva dentro
+ * el nombre de la marca.
+ */
+export interface PersonaMencionable {
+  id: string;
+  nombre: string;
+  rolEtiqueta: string;
+}
+
 export interface ComentarioDeMarca {
   id: string;
   marcaId: string;
+  /** Null si es una entrada raíz; si no, de cuál cuelga. */
+  comentarioPadreId: string | null;
+
   autorId: string | null;
   autorNombre: string;
   cuerpo: string;
+
+  /**
+   * Una entrada eliminada NO desaparece: se queda sin texto y diciendo
+   * quién la quitó. Es lo que hace que el histórico exportado valga
+   * como registro.
+   */
+  eliminado: boolean;
+  eliminadoPorNombre: string | null;
+  eliminadoEn: string | null;
+
+  /** Null mientras no se haya tocado. */
+  editadoEn: string | null;
+
+  reacciones: ReaccionDeComentario[];
+  mencionados: PersonaEtiquetada[];
+
+  /** Solo las entradas raíz las traen; las respuestas no anidan. */
+  respuestas: ComentarioDeMarca[];
+
+  puedeEditarlo: boolean;
   puedeBorrarlo: boolean;
   creadoEn: string | null;
+}
+
+/** Cuerpo que se envía al escribir o corregir una entrada. */
+export interface DatosDeComentario {
+  cuerpo: string;
+  /** Ids de las personas etiquetadas. El servidor vuelve a filtrarlos. */
+  menciones: string[];
+  /** Solo al responder: de qué entrada cuelga. */
+  comentarioPadreId?: string | null;
+}
+
+/** Una entrada tal como sale en el histórico que se descarga. */
+export interface EntradaDelHistorico {
+  id: string;
+  marcaNombre: string;
+  esRespuesta: boolean;
+  autorNombre: string;
+  fecha: string | null;
+  cuerpo: string;
+  editado: boolean;
+  eliminado: boolean;
+  eliminadoPorNombre: string | null;
+  mencionados: string[];
+  totalReacciones: number;
+}
+
+/** El histórico completo de una marca, o de toda la agencia. */
+export interface HistoricoDeBitacora {
+  alcance: "marca" | "completa";
+  marcaNombre: string | null;
+  generadoEn: string;
+  generadoPor: string;
+  entradas: EntradaDelHistorico[];
 }
 
 /* ==================================================================== */

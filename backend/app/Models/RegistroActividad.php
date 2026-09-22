@@ -34,6 +34,16 @@ class RegistroActividad extends Model
     public const ACCION_INICIO_SESION = 'inicio_sesion';
     public const ACCION_PUBLICO_WEB = 'publico_web';
 
+    /**
+     * Se sacó la bitácora del sistema en un fichero.
+     *
+     * No es un adorno del registro: exportar el histórico de una
+     * marca es sacar toda la relación comercial con ella, y el
+     * completo es sacar la del equipo entero. Que quede escrito
+     * quién lo hizo y cuándo.
+     */
+    public const ACCION_EXPORTO = 'exporto';
+
     protected $fillable = [
         'usuario_id',
         'usuario_nombre',

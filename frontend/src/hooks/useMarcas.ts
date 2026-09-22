@@ -23,6 +23,9 @@ import {
   anotarAccionDeCampana,
   asignarVendedorAMarca,
   crearComentario,
+  editarComentario,
+  listarMencionables,
+  reaccionarAComentario,
   crearMarca,
   eliminarComentario,
   eliminarMarca,
@@ -33,12 +36,15 @@ import {
 import { obtenerResumenDelPanel } from "@/api/sistema";
 import type {
   ComentarioDeMarca,
+  DatosDeComentario,
+  PersonaMencionable,
   DatosDeMarcaParaGuardar,
   FiltrosDeMarcas,
   Marca,
   ResumenDelPanel,
 } from "@/tipos/modelos";
 import { errorSoloSiNoHayNadaQueEnsenar } from "@/utilidades/consultas";
+import { avisarDeError } from "@/utilidades/avisos";
 
 /* ==================================================================== */
 /* Claves de caché                                                     */
@@ -55,6 +61,7 @@ export const clavesDeMarcas = {
   listado: (filtros: Partial<FiltrosDeMarcas>) => ["marcas", "listado", filtros] as const,
   ficha: (idDeLaMarca: string) => ["marcas", "ficha", idDeLaMarca] as const,
   comentarios: (idDeLaMarca: string) => ["marcas", "comentarios", idDeLaMarca] as const,
+  mencionables: (idDeLaMarca: string) => ["marcas", "mencionables", idDeLaMarca] as const,
   resumenDelPanel: ["panel", "resumen"] as const,
   agentes: ["marcas", "agentes"] as const,
 };
@@ -336,11 +343,29 @@ export function useAsignarVendedor() {
 /* Bitácora                                                            */
 /* ==================================================================== */
 
+/**
+ * A quién se puede etiquetar en la bitácora de esta marca.
+ *
+ * Se pide por marca y no una vez para todo: la lista depende de quién
+ * puede ver ESA marca, y con un agente no es la misma en una ficha que
+ * en otra.
+ */
+export function useMencionablesDeMarca(idDeLaMarca: string | null) {
+  return useQuery<PersonaMencionable[]>({
+    queryKey: clavesDeMarcas.mencionables(idDeLaMarca ?? ""),
+    queryFn: () => listarMencionables(idDeLaMarca as string),
+    enabled: idDeLaMarca !== null,
+    // Cambia cuando se reasigna la marca o entra alguien al equipo: no
+    // hace falta refrescarla cada medio minuto.
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useCrearComentario(idDeLaMarca: string) {
   const clienteDeConsultas = useQueryClient();
 
   return useMutation({
-    mutationFn: (cuerpo: string) => crearComentario(idDeLaMarca, cuerpo),
+    mutationFn: (datos: DatosDeComentario) => crearComentario(idDeLaMarca, datos),
     onSuccess: () => {
       void clienteDeConsultas.invalidateQueries({
         queryKey: clavesDeMarcas.comentarios(idDeLaMarca),
@@ -350,6 +375,58 @@ export function useCrearComentario(idDeLaMarca: string) {
         queryKey: clavesDeMarcas.todas,
       });
     },
+  });
+}
+
+export function useEditarComentario(idDeLaMarca: string) {
+  const clienteDeConsultas = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, datos }: { id: string; datos: DatosDeComentario }) =>
+      editarComentario(idDeLaMarca, id, datos),
+    onSuccess: () => {
+      void clienteDeConsultas.invalidateQueries({
+        queryKey: clavesDeMarcas.comentarios(idDeLaMarca),
+      });
+    },
+  });
+}
+
+/**
+ * Poner o quitar una reacción.
+ *
+ * No se invalida nada ni se pinta de forma optimista: el servidor
+ * devuelve la entrada ya recontada y se escribe tal cual en la caché.
+ * Reaccionar es lo que más se pulsa de toda la bitácora y un viaje de
+ * ida y vuelta por cada pulsación se notaría.
+ */
+export function useReaccionarAComentario(idDeLaMarca: string) {
+  const clienteDeConsultas = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, emoji }: { id: string; emoji: string }) =>
+      reaccionarAComentario(idDeLaMarca, id, emoji),
+    onSuccess: (comentarioActualizado) => {
+      clienteDeConsultas.setQueryData<ComentarioDeMarca[]>(
+        clavesDeMarcas.comentarios(idDeLaMarca),
+        (hiloActual) =>
+          hiloActual?.map((entrada) =>
+            entrada.id === comentarioActualizado.id
+              ? comentarioActualizado
+              : {
+                  ...entrada,
+                  // La reacción puede ser de una respuesta, que vive
+                  // dentro de su entrada raíz.
+                  respuestas: entrada.respuestas.map((respuesta) =>
+                    respuesta.id === comentarioActualizado.id
+                      ? comentarioActualizado
+                      : respuesta,
+                  ),
+                },
+          ),
+      );
+    },
+    onError: (error) => avisarDeError(error, "No se pudo reaccionar"),
   });
 }
 

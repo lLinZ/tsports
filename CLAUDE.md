@@ -494,6 +494,33 @@ Salieron del cliente y están implementadas a propósito así:
     Cambiar los ficheros por debajo de una pestaña abierta le rompe la
     navegación a quien esté a mitad de un formulario.
 
+19. **La bitácora es un registro, y por eso no se puede reescribir a
+    la ligera.** Tres reglas que se sostienen entre sí:
+
+    - **Borrar deja el hueco.** Una entrada eliminada sigue saliendo,
+      sin texto y diciendo quién la quitó y cuándo. En cuanto el
+      histórico se exporta, un registro del que se pueden retirar
+      entradas sin rastro deja de valer como registro.
+    - **Nadie edita lo de otro**, ni un administrador. Eliminar sí
+      puede, y eso queda escrito. Lo editado se marca como editado:
+      sin esa marca, corregir una frase a los tres meses deja el hilo
+      diciendo algo que nadie dijo ese día.
+    - **Un solo nivel de respuestas.** Se responde a una entrada, nunca
+      a una respuesta.
+
+    **A quién se puede etiquetar sale de los permisos sobre la marca**
+    (`App\Support\QuienPuedeVerLaMarca`, que pregunta a
+    `MarcaPolicy::view`), nunca de la lista del equipo. Un agente solo ve
+    lo suyo (regla 6) y el aviso de una mención lleva dentro el nombre
+    de la marca: etiquetarlo en una ajena se lo filtraría. Se comprueba
+    dos veces —al servir el selector y al guardar—, porque el selector se
+    salta escribiendo la petición a mano.
+
+    **Exportar queda anotado en `RegistroActividad`.** Sacar la bitácora
+    de una marca es sacar del sistema toda la relación comercial con
+    ella; el histórico completo es el de la agencia entera, y ese solo
+    lo saca el administrador.
+
 ---
 
 ## 7. Errores: una sola forma

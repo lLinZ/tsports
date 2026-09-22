@@ -38,6 +38,7 @@ use App\Http\Controllers\Api\NotificacionController;
 use App\Http\Controllers\Api\PanelController;
 use App\Http\Controllers\Api\PropiedadController;
 use App\Http\Controllers\Api\SectorController;
+use App\Http\Controllers\Api\ExportacionDeBitacoraController;
 use App\Http\Controllers\Api\SuscripcionPushController;
 use App\Http\Controllers\Api\TiempoRealController;
 use App\Http\Controllers\Api\UsuarioController;
@@ -169,7 +170,18 @@ Route::middleware('auth:sanctum')->group(function (): void {
     /* ---------- Bitácora de cada marca ---------- */
     Route::get('/marcas/{marca}/comentarios', [ComentarioMarcaController::class, 'index']);
     Route::post('/marcas/{marca}/comentarios', [ComentarioMarcaController::class, 'store']);
+    Route::patch('/marcas/{marca}/comentarios/{comentario}', [ComentarioMarcaController::class, 'update']);
     Route::delete('/marcas/{marca}/comentarios/{comentario}', [ComentarioMarcaController::class, 'destroy']);
+    Route::put('/marcas/{marca}/comentarios/{comentario}/reacciones', [ComentarioMarcaController::class, 'reaccionar']);
+
+    // A qui''' + chr(0xE9) + '''n se puede etiquetar en ESTA marca. Sale de los
+    // permisos sobre ella, no de la lista del equipo (regla 6).
+    Route::get('/marcas/{marca}/mencionables', [ComentarioMarcaController::class, 'mencionables']);
+
+    // Sacar el hist''' + chr(0xF3) + '''rico. Las dos quedan anotadas en la auditor''' + chr(0xED) + '''a:
+    // exportar una bit''' + chr(0xE1) + '''cora es sacar del sistema toda la relaci''' + chr(0xF3) + '''n
+    // comercial con esa marca.
+    Route::get('/marcas/{marca}/bitacora/exportacion', [ExportacionDeBitacoraController::class, 'deUnaMarca']);
 
     /* ---------- Imágenes ---------- */
     Route::post('/media', [MediaController::class, 'subir']);
@@ -196,6 +208,11 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/contenido-web/historial', [ContenidoSitioController::class, 'historial']);
         Route::post('/contenido-web/restaurar/{version}', [ContenidoSitioController::class, 'restaurar']);
         Route::post('/contenido-web/restablecer', [ContenidoSitioController::class, 'restablecerDeFabrica']);
+
+        /* ---------- Histórico completo de la bitácora ----------
+         | La conversación entera de la agencia en un fichero. Mismo
+         | permiso que la auditoría, y queda anotada en ella.          */
+        Route::get('/bitacora/exportacion', [ExportacionDeBitacoraController::class, 'completa']);
 
         /* ---------- Auditoría ---------- */
         Route::get('/auditoria', [AuditoriaController::class, 'index']);
