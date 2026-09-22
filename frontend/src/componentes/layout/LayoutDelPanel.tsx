@@ -45,6 +45,8 @@ import {
   BotonDeTema,
   MenuDeColorAcento,
 } from "@/componentes/comunes/ControlesDeApariencia";
+import { AvisoDeVersionNueva } from "@/componentes/layout/AvisoDeVersionNueva";
+import { BotonDeInstalacion } from "@/componentes/layout/BotonDeInstalacion";
 import { CampanitaDeNotificaciones } from "@/componentes/layout/CampanitaDeNotificaciones";
 import { IndicadorDeConexion } from "@/componentes/layout/IndicadorDeConexion";
 import { useCatalogos } from "@/hooks/useCatalogos";
@@ -201,6 +203,8 @@ export function LayoutDelPanel({ children }: { children: ReactNode }) {
           {children}
         </main>
       </div>
+
+      <AvisoDeVersionNueva />
     </div>
   );
 }
@@ -289,6 +293,8 @@ function PieDeLaBarraLateral({ usuario }: { usuario: Usuario }) {
 
         <ExternalLink className="size-4" />
       </a>
+
+      <BotonDeInstalacion />
 
       {usuario.zona && (
         <div className="mt-2 px-3">

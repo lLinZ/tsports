@@ -24,6 +24,7 @@ import {
 } from "@/api/campanas";
 import { clavesDeMarcas } from "@/hooks/useMarcas";
 import type { Campana, DatosDeCampanaParaGuardar } from "@/tipos/modelos";
+import { errorSoloSiNoHayNadaQueEnsenar } from "@/utilidades/consultas";
 
 export const clavesDeCampanas = {
   todas: ["campanas"] as const,
@@ -42,7 +43,7 @@ export function useCatalogoDeCampanas() {
     campanas: consulta.data ?? [],
     estaCargando: consulta.isLoading,
     estaRefrescando: consulta.isFetching,
-    error: consulta.error,
+    error: errorSoloSiNoHayNadaQueEnsenar(consulta),
     recargar: consulta.refetch,
   };
 }

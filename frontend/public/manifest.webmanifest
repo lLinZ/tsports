@@ -1,0 +1,99 @@
+{
+  "$comentario": [
+    "El manifiesto de la aplicación instalable. Se sirve tal cual desde",
+    "public/, sin pasar por el bundler: es un fichero de datos, no código.",
+    "",
+    "Decisiones que no son obvias:",
+    "",
+    "  · start_url es /panel y no /. La raíz es la web de la agencia, que",
+    "    es para visitantes; quien se instala esto es el equipo, y espera",
+    "    abrir el CRM. Si no hay sesión, /panel lleva al acceso solo.",
+    "",
+    "  · scope es / porque las pantallas del panel cuelgan de la raíz",
+    "    (/marcas, /campanas, /perfil...). Con scope /panel, salir del",
+    "    resumen abriría el navegador de fuera de la aplicación.",
+    "",
+    "  · theme_color y background_color son el fondo claro y NO el azul",
+    "    de la marca. El tema es de cada persona (claro, oscuro o el del",
+    "    sistema) y la barra de la aplicación tiene que ser del color del",
+    "    panel; un azul fijo dejaría una costura a la vista. Estos dos",
+    "    valores solo pintan la pantalla de arranque: en cuanto la página",
+    "    carga manda la etiqueta theme-color de index.html, que sí lleva",
+    "    los dos valores.",
+    "",
+    "  · Hay iconos de dos clases. Los `any` son la pastilla redondeada",
+    "    tal cual, con las esquinas transparentes. Los `maskable` van a",
+    "    sangre y con la letra más pequeña, porque Android recorta el",
+    "    icono a la forma que tenga el teléfono y solo garantiza el 80%",
+    "    central: con el de `any` se comería las esquinas del cuadrado."
+  ],
+
+  "name": "TS Sports — CRM de patrocinios",
+  "short_name": "TS Sports",
+  "description": "El tablero de marcas, propiedades y campañas de TS Sports.",
+
+  "id": "/panel",
+  "start_url": "/panel",
+  "scope": "/",
+
+  "display": "standalone",
+
+  "lang": "es",
+  "dir": "ltr",
+
+  "theme_color": "#f6f8fb",
+  "background_color": "#f6f8fb",
+
+  "categories": ["business", "productivity"],
+
+  "icons": [
+    {
+      "src": "/iconos/icono-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/iconos/icono-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/iconos/icono-enmascarable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/iconos/icono-enmascarable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+
+  "shortcuts": [
+    {
+      "name": "Marcas",
+      "short_name": "Marcas",
+      "description": "El tablero de marcas",
+      "url": "/marcas",
+      "icons": [{ "src": "/iconos/icono-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Campañas",
+      "short_name": "Campañas",
+      "description": "El calendario del año",
+      "url": "/campanas",
+      "icons": [{ "src": "/iconos/icono-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Notificaciones",
+      "short_name": "Avisos",
+      "description": "Lo que ha pasado mientras no estabas",
+      "url": "/notificaciones",
+      "icons": [{ "src": "/iconos/icono-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}

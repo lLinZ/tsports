@@ -5,6 +5,7 @@
  *
  * ORDEN DE LOS PROVEEDORES (importa):
  *   Enrutador → HeroUI → Tema → Consultas → Sesión → Tiempo real
+ *                                                   → Aplicación instalada
  *
  *   · El TEMA va por fuera de la SESIÓN porque la pantalla de login ya
  *     tiene que respetar el modo oscuro guardado, antes de saber quién
@@ -15,6 +16,10 @@
  *     es la persona no hay canal privado al que suscribirse. Va aquí
  *     arriba y no en el layout del panel para que la conexión no se
  *     corte y se vuelva a abrir en cada cambio de pantalla.
+ *   · La APLICACIÓN INSTALADA va por dentro de la SESIÓN porque el
+ *     service worker solo se registra con sesión iniciada: la raíz
+ *     del dominio es la web de la agencia y a un visitante no hay
+ *     que ofrecerle instalar un CRM.
  *
  * RUTAS:
  *   /            → la web pública (sin sesión)
@@ -27,7 +32,9 @@ import { BrowserRouter, Navigate, Route, Routes, useHref, useNavigate } from "re
 import type { ReactNode } from "react";
 import { PantallaDeArranque } from "@/componentes/comunes/EstadosDePantalla";
 import { LayoutDelPanel } from "@/componentes/layout/LayoutDelPanel";
+import { ProveedorAplicacion } from "@/providers/ProveedorAplicacion";
 import { ProveedorConsultas } from "@/providers/ProveedorConsultas";
+import { ProveedorDatosGuardados } from "@/providers/ProveedorDatosGuardados";
 import { ProveedorSesion, useSesion } from "@/providers/ProveedorSesion";
 import { ProveedorTema } from "@/providers/ProveedorTema";
 import { ProveedorTiempoReal } from "@/providers/ProveedorTiempoReal";
@@ -73,11 +80,40 @@ function ProveedoresDeLaAplicacion({ children }: { children: ReactNode }) {
       <ProveedorTema>
         <ProveedorConsultas>
           <ProveedorSesion>
-            <ProveedorTiempoReal>{children}</ProveedorTiempoReal>
+            <DatosSegunLaPersona>
+              <ProveedorTiempoReal>
+                <ProveedorAplicacion>{children}</ProveedorAplicacion>
+              </ProveedorTiempoReal>
+            </DatosSegunLaPersona>
           </ProveedorSesion>
         </ProveedorConsultas>
       </ProveedorTema>
     </HeroUIProvider>
+  );
+}
+
+/**
+ * Enchufa la copia de datos para consultar sin conexión, la de ESTA
+ * persona y solo mientras sea ella quien está dentro.
+ *
+ * El `key` con su id no es adorno: al cambiar de persona fuerza a que el
+ * proveedor se monte de nuevo, y es en ese montaje —antes de que sus
+ * hijos pidan nada— donde se restaura la copia. Sin él, quien entrase
+ * después vería un instante el tablero del anterior.
+ */
+function DatosSegunLaPersona({ children }: { children: ReactNode }) {
+  const { usuario } = useSesion();
+
+  // Sin sesión no hay copia que restaurar ni nada que guardar: la web
+  // pública y la pantalla de acceso no tienen datos de nadie.
+  if (usuario === null) {
+    return children;
+  }
+
+  return (
+    <ProveedorDatosGuardados key={usuario.id} idDeLaPersona={usuario.id}>
+      {children}
+    </ProveedorDatosGuardados>
   );
 }
 

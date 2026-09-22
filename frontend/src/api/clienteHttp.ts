@@ -79,6 +79,31 @@ clienteHttp.interceptors.request.use((configuracion) => {
     configuracion.headers.Authorization = `Bearer ${tokenDeSesion}`;
   }
 
+  // Sin conexión, una escritura no sale de aquí.
+  //
+  // El panel se puede CONSULTAR sin red (ver ProveedorDatosGuardados),
+  // pero no escribir. Dejar salir el intento daría veinte segundos de
+  // rueda girando y después un «no se pudo contactar con el servidor»,
+  // y lo peor: nadie sabría si llegó a guardarse o no. Se corta aquí,
+  // en el único sitio por el que pasan todas las peticiones, con un
+  // mensaje que dice exactamente qué ha pasado.
+  //
+  // Solo se corta cuando el navegador afirma que NO hay red. Lo
+  // contrario —que diga que sí— no garantiza nada (wifi de hotel,
+  // cautivo), y por eso no se usa para nada más.
+  const esUnaEscritura = (configuracion.method ?? "get").toLowerCase() !== "get";
+
+  if (esUnaEscritura && typeof navigator !== "undefined" && navigator.onLine === false) {
+    const sinConexion: ErrorDeApi = {
+      mensaje:
+        "Estás sin conexión. Esto no se ha guardado: vuelve a intentarlo cuando regrese la red.",
+      codigoHttp: null,
+      erroresPorCampo: {},
+    };
+
+    return Promise.reject(sinConexion);
+  }
+
   return configuracion;
 });
 
@@ -123,6 +148,14 @@ interface CuerpoDeErrorDelBackend {
 clienteHttp.interceptors.response.use(
   (respuesta) => respuesta,
   (error: AxiosError<CuerpoDeErrorDelBackend>) => {
+    // Lo que ya viene traducido pasa de largo. Es el caso de la
+    // escritura cortada por falta de red: axios encadena los fallos del
+    // interceptor de salida aquí, y volver a traducir su mensaje lo
+    // cambiaría por el genérico.
+    if (esErrorDeApi(error)) {
+      return Promise.reject(error);
+    }
+
     const codigoHttp = error.response?.status ?? null;
     const cuerpo = error.response?.data;
 
@@ -163,8 +196,14 @@ function elegirMensajeDeError(
     return "El servidor tardó demasiado en responder. Comprueba tu conexión e inténtalo otra vez.";
   }
 
-  // Sin respuesta: el servidor no está en marcha o no hay red.
+  // Sin respuesta: el servidor no está en marcha o no hay red. Si el
+  // navegador confirma que no hay red, se dice eso y no se manda a
+  // nadie a revisar una conexión que ya sabe que no tiene.
   if (codigoHttp === null) {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      return "Estás sin conexión. Se muestra lo último que se guardó en este dispositivo.";
+    }
+
     return "No se pudo contactar con el servidor. Comprueba tu conexión a internet.";
   }
 
@@ -192,6 +231,18 @@ export function mensajeDeError(error: unknown): string {
 
   if (error instanceof Error) {
     return error.message;
+  }
+
+  // Sin error y sin datos. Pasa al abrir sin conexión una pantalla de la
+  // que no hay copia guardada: TanStack Query deja la petición EN ESPERA
+  // en vez de fallarla, así que no hay ningún error que contar, y sin
+  // esto saldría un «ocurrió un error inesperado» que no ayuda a nadie.
+  if (error === null || error === undefined) {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      return "Estás sin conexión y de esta pantalla no hay nada guardado en este dispositivo. Vuelve a abrirla cuando regrese la red.";
+    }
+
+    return "No hay nada que mostrar todavía.";
   }
 
   return "Ocurrió un error inesperado.";

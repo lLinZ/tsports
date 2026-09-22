@@ -38,6 +38,7 @@ import {
 } from "@/providers/ProveedorTiempoReal";
 import { avisarDeError, avisarDeExito } from "@/utilidades/avisos";
 import type { AvisoDePrueba } from "@/tipos/modelos";
+import { errorSoloSiNoHayNadaQueEnsenar } from "@/utilidades/consultas";
 
 /** Cada cuánto se vuelve a preguntar quién está conectado. */
 const CADA_CUANTO_SE_REFRESCAN_LOS_CONECTADOS_MS = 10_000;
@@ -312,7 +313,7 @@ export function PaginaTiempoReal() {
         >
           {panel.isLoading ? (
             <BloqueDeCarga alto="min-h-32" mensaje="Preguntando al servidor…" />
-          ) : panel.error ? (
+          ) : errorSoloSiNoHayNadaQueEnsenar(panel) ? (
             <BloqueDeError
               alReintentar={() => void panel.refetch()}
               mensaje={mensajeDeError(panel.error)}

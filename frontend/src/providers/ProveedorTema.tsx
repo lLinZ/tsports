@@ -37,6 +37,7 @@ import {
   COLOR_ACENTO_POR_DEFECTO,
   aplicarColorDeAcento,
 } from "@/theme/colorAcento";
+import { aplicarColorDeLaBarra } from "@/theme/colorDeLaBarra";
 import type { PreferenciaDeTema } from "@/tipos/modelos";
 
 /** Claves de localStorage. Deben coincidir con el script de index.html. */
@@ -124,6 +125,11 @@ export function ProveedorTema({ children }: { children: ReactNode }) {
   // Tailwind y el tema oscuro de HeroUI.
   useEffect(() => {
     document.documentElement.classList.toggle("dark", estaEnModoOscuro);
+
+    // Instalada como aplicación, la franja del sistema que queda encima
+    // del panel se pinta con `theme-color`: tiene que ir con el tema o
+    // se ve una costura justo en el borde superior.
+    aplicarColorDeLaBarra(estaEnModoOscuro);
   }, [estaEnModoOscuro]);
 
   // El color de acento se reaplica también al cambiar de tema, porque la

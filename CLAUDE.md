@@ -47,6 +47,14 @@ referencia para el negocio, **no** para el estilo de código.
 > paquete declarado en `vite.config.ts` (`vendor-excel`). Sin esa línea
 > acabaría dentro de `vendor`, que se descarga siempre al entrar.
 
+> **La aplicación instalable no trae ninguna dependencia.** El
+> manifiesto, el service worker (`frontend/sw/servicio.js`) y la pieza
+> de Vite que lo rellena (`frontend/plugins/`) están escritos a mano. El
+> complemento habitual de PWA está pensado para versiones anteriores de
+> Vite y este proyecto va con Vite 8 sobre rolldown: sale más a cuenta
+> mantener estas líneas que perseguir la incompatibilidad en cada
+> actualización. Ver la regla 18.
+
 > **HeroUI v2, no v3.** Existe una v3, pero es una reescritura con otra
 > API. Todo el código está escrito contra la v2.8, que es estable y la
 > que soporta Tailwind v4. No actualizar a v3 sin migrar todo a la vez.
@@ -282,6 +290,9 @@ tsports/
 │   └── routes/api.php     ← el mapa completo de la API
 ├── frontend/              ← SPA React
 │   ├── hero.ts            ← tema base de HeroUI
+│   ├── plugins/           ← piezas propias de Vite (emite dist/sw.js)
+│   ├── public/            ← manifiesto e iconos de la aplicación
+│   ├── sw/                ← el service worker, escrito a mano
 │   └── src/
 │       ├── api/           ← única capa que habla con el servidor
 │       ├── componentes/
@@ -441,6 +452,35 @@ Salieron del cliente y están implementadas a propósito así:
 
     Cada quien lee y marca solo SUS avisos; ni un admin los de otro.
 
+18. **El panel se instala y se consulta sin conexión, pero nunca se
+    escribe sin conexión.** Son tres piezas y cada una tiene su regla:
+
+    - **El service worker guarda el armazón, JAMÁS `/api`.** Una caché
+      de red no sabe de quién son los datos, y la lista de marcas no es
+      igual para todos (regla 6): guardada por dirección, dos personas
+      en el mismo ordenador se verían los datos. Tampoco sabe cuándo
+      caducan ni puede decir de cuándo son.
+    - **La copia de datos la lleva la aplicación**, en
+      `ProveedorDatosGuardados`: con el id de la persona en la clave, se
+      borra al cerrar sesión, caduca a los 7 días y sabe de cuándo son
+      los datos —de la última vez que hablaron con el servidor, no de
+      cuándo se escribió el fichero—. Eso es lo que enseña el indicador
+      de la barra superior.
+    - **Un error no tapa lo que ya hay en pantalla.** Se decide en un
+      solo sitio, `utilidades/consultas.ts`: si la consulta tiene datos,
+      un refresco fallido no la sustituye por «no se pudieron cargar».
+      Sin esta regla la consulta sin conexión no sirve de nada, porque
+      la pantalla se vacía a los pocos segundos de abrirla.
+
+    Y una cuarta que las sostiene: **solo un 401 cierra la sesión**. Que
+    el servidor no conteste —sin cobertura, nginx devolviendo 502
+    mientras Laravel reinicia— no es un token inválido, y tratarlo como
+    tal dejaba al equipo sin poder mirar nada fuera de la oficina.
+
+    La versión nueva **no entra sola**: se instala, espera y se avisa.
+    Cambiar los ficheros por debajo de una pestaña abierta le rompe la
+    navegación a quien esté a mitad de un formulario.
+
 ---
 
 ## 7. Errores: una sola forma
@@ -527,3 +567,8 @@ VPS usa **MySQL**: la plantilla es `backend/.env.example`.
 - Actualizar HeroUI a la v3 sin migrar todo el código a la vez.
 - Poner `scrollbar-width` o `scrollbar-color` a todos los elementos: en
   el Mac la barra vuelve a esconderse (ver 4.7).
+- Guardar una respuesta de `/api` en el service worker (regla 18).
+- Preguntar `¿hay error?` antes que `¿hay datos?` al pintar una
+  pantalla: se usa `errorSoloSiNoHayNadaQueEnsenar` (regla 18).
+- Registrar el service worker en desarrollo: una caché por delante de
+  Vite esconde los cambios recién guardados.

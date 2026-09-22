@@ -63,6 +63,7 @@ import type {
   ProyectoDeLaWeb,
   ServicioDeLaWeb,
 } from "@/tipos/modelos";
+import { errorSoloSiNoHayNadaQueEnsenar } from "@/utilidades/consultas";
 
 /**
  * Etiquetas legibles de las claves de texto.
@@ -182,7 +183,7 @@ export function PaginaContenidoWeb() {
   /* ---------------------------------------------------------------- */
 
   if (consultaDelContenido.isLoading || borrador === null) {
-    if (consultaDelContenido.error) {
+    if (errorSoloSiNoHayNadaQueEnsenar(consultaDelContenido)) {
       return (
         <BloqueDeError
           mensaje={mensajeDeError(consultaDelContenido.error)}

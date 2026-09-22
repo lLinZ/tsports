@@ -33,6 +33,7 @@ import {
 } from "@/api/propiedades";
 import { clavesDeMarcas } from "@/hooks/useMarcas";
 import type { DatosDePropiedadParaGuardar, Propiedad } from "@/tipos/modelos";
+import { errorSoloSiNoHayNadaQueEnsenar } from "@/utilidades/consultas";
 
 export const clavesDePropiedades = {
   todas: ["propiedades"] as const,
@@ -51,7 +52,7 @@ export function useCatalogoDePropiedades() {
     propiedades: consulta.data ?? [],
     estaCargando: consulta.isLoading,
     estaRefrescando: consulta.isFetching,
-    error: consulta.error,
+    error: errorSoloSiNoHayNadaQueEnsenar(consulta),
     recargar: consulta.refetch,
   };
 }

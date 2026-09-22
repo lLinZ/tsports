@@ -191,7 +191,8 @@ export function CalendarioDeCampanas() {
     );
   }
 
-  if (consulta.error || !consulta.data) {
+  // Ver PaginaPanel: el refresco fallido no tapa lo ya cargado.
+  if (!consulta.data) {
     return (
       <TarjetaBento columnas={12} titulo="Calendario de campañas">
         <BloqueDeError

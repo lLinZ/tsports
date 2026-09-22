@@ -56,6 +56,7 @@ import { useUsuarioAutenticado } from "@/providers/ProveedorSesion";
 import { avisarDeError, avisarDeExito } from "@/utilidades/avisos";
 import { formatearFecha, inicialesDe } from "@/utilidades/formato";
 import type { RolUsuario, Usuario } from "@/tipos/modelos";
+import { errorSoloSiNoHayNadaQueEnsenar } from "@/utilidades/consultas";
 
 /** Color del distintivo según el rol, para localizarlos de un vistazo. */
 const COLOR_DEL_ROL: Record<RolUsuario, "danger" | "primary" | "default"> = {
@@ -120,7 +121,7 @@ export function PaginaUsuarios() {
       <div className="bento-card overflow-hidden">
         {consultaDeUsuarios.isLoading ? (
           <BloqueDeCarga mensaje="Cargando el equipo…" />
-        ) : consultaDeUsuarios.error ? (
+        ) : errorSoloSiNoHayNadaQueEnsenar(consultaDeUsuarios) ? (
           <BloqueDeError
             mensaje={mensajeDeError(consultaDeUsuarios.error)}
             alReintentar={() => void consultaDeUsuarios.refetch()}

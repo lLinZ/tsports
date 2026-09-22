@@ -18,6 +18,7 @@ import {
 } from "@/api/sectores";
 import { CLAVE_DE_CATALOGOS } from "@/hooks/useCatalogos";
 import type { Sector } from "@/tipos/modelos";
+import { errorSoloSiNoHayNadaQueEnsenar } from "@/utilidades/consultas";
 
 export const CLAVE_DE_SECTORES = ["sectores"] as const;
 
@@ -35,7 +36,7 @@ export function useSectores(): {
   return {
     sectores: consulta.data ?? [],
     estaCargando: consulta.isLoading,
-    error: consulta.error,
+    error: errorSoloSiNoHayNadaQueEnsenar(consulta),
     recargar: () => void consulta.refetch(),
   };
 }

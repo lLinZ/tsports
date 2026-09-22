@@ -33,6 +33,7 @@ import { clavesDeMarcas } from "@/hooks/useMarcas";
 import { useEventoPersonal, useTiempoReal } from "@/providers/ProveedorTiempoReal";
 import { avisarDeError, avisarDeNotificacion } from "@/utilidades/avisos";
 import type { Notificacion } from "@/tipos/modelos";
+import { errorSoloSiNoHayNadaQueEnsenar } from "@/utilidades/consultas";
 
 /* ==================================================================== */
 /* Claves de caché                                                     */
@@ -93,7 +94,7 @@ export function useListadoDeNotificaciones(soloSinLeer: boolean) {
   return {
     notificaciones: consulta.data?.pages.flatMap((pagina) => pagina.notificaciones) ?? [],
     estaCargando: consulta.isLoading,
-    error: consulta.error,
+    error: errorSoloSiNoHayNadaQueEnsenar(consulta),
     hayMas: consulta.hasNextPage,
     estaCargandoMas: consulta.isFetchingNextPage,
     pedirMas: () => void consulta.fetchNextPage(),

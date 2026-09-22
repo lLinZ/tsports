@@ -38,6 +38,7 @@ import type {
   Marca,
   ResumenDelPanel,
 } from "@/tipos/modelos";
+import { errorSoloSiNoHayNadaQueEnsenar } from "@/utilidades/consultas";
 
 /* ==================================================================== */
 /* Claves de caché                                                     */
@@ -97,7 +98,7 @@ export function useListadoDeMarcas(filtros: Partial<FiltrosDeMarcas>) {
     hayMasMarcas: consulta.hasNextPage,
     estaTrayendoMas: consulta.isFetchingNextPage,
     pedirMasMarcas: consulta.fetchNextPage,
-    error: consulta.error,
+    error: errorSoloSiNoHayNadaQueEnsenar(consulta),
     recargar: consulta.refetch,
   };
 }

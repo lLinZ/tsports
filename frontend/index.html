@@ -7,6 +7,37 @@
     <meta name="description" content="TS Sports — Marketing y consultoría estratégica deportiva." />
     <title>TS Sports</title>
 
+    <!--
+      La aplicación instalable.
+
+      El color de la barra va DOS VECES, uno por esquema, y no una sola:
+      el tema es de cada persona y la opción por defecto («sistema»)
+      sigue al del ordenador. Con un único valor, quien trabaja en oscuro
+      tendría una franja blanca encima del panel negro.
+
+      Los dos valores son el fondo real del panel (`background` de
+      frontend/hero.ts), no el turquesa de la marca: la barra tiene que
+      continuar la página, no contrastar con ella.
+
+      A quien elige «claro» u «oscuro» a mano —y por tanto no coincide
+      con su sistema— le corrige estas mismas etiquetas ProveedorTema,
+      que es el único sitio donde se decide el tema.
+    -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6f8fb" data-barra="claro" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#080d16" data-barra="oscuro" />
+
+    <!--
+      iOS ignora el manifiesto para el icono de la pantalla de inicio y
+      para saber si la aplicación va sin barra del navegador: lo suyo son
+      estas tres etiquetas. Importa porque en iPhone el aviso al móvil no
+      existe si la aplicación no está instalada.
+    -->
+    <link rel="apple-touch-icon" href="/iconos/icono-apple-180.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="TS Sports" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+
     <!-- Inter: la tipografía de toda la interfaz. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

@@ -38,6 +38,7 @@ import {
   formatearNumero,
   inicialesDe,
 } from "@/utilidades/formato";
+import { errorSoloSiNoHayNadaQueEnsenar } from "@/utilidades/consultas";
 
 /** Color del distintivo según lo que se hizo. */
 const COLOR_DE_LA_ACCION: Record<string, "success" | "primary" | "danger" | "default"> = {
@@ -265,7 +266,7 @@ export function PaginaAuditoria() {
       <div className="bento-card p-4 sm:p-5">
         {consultaDeAuditoria.isLoading ? (
           <BloqueDeCarga mensaje="Cargando el historial…" />
-        ) : consultaDeAuditoria.error ? (
+        ) : errorSoloSiNoHayNadaQueEnsenar(consultaDeAuditoria) ? (
           <BloqueDeError
             mensaje={mensajeDeError(consultaDeAuditoria.error)}
             alReintentar={() => void consultaDeAuditoria.refetch()}

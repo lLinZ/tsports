@@ -145,7 +145,9 @@ export function PaginaPanel() {
     return <BloqueDeCarga alto="min-h-96" mensaje="Cargando las cifras…" />;
   }
 
-  if (consulta.error || !consulta.data) {
+  // El error solo si no hay NADA que enseñar: con la copia guardada
+  // restaurada, un refresco fallido no puede borrar la pantalla.
+  if (!consulta.data) {
     return (
       <BloqueDeError
         mensaje={mensajeDeError(consulta.error)}

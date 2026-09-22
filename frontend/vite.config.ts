@@ -10,12 +10,15 @@
  *    de modo que el navegador ve un único origen y no hay problemas de CORS.
  *  · Hace lo mismo con el WebSocket de Reverb (/app/), para que en local
  *    el tiempo real se conecte igual que en el VPS, donde lo reenvía nginx.
+ *  · Emite el service worker de la aplicación instalable, rellenado
+ *    con la lista de ficheros del build (ver plugins/).
  * ---------------------------------------------------------------------
  */
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath, URL } from "node:url";
+import { servicioSinConexion } from "./plugins/servicioSinConexion.ts";
 
 // URL donde escucha el backend Laravel durante el desarrollo local.
 const URL_BACKEND_LOCAL = "http://127.0.0.1:8000";
@@ -24,7 +27,7 @@ const URL_BACKEND_LOCAL = "http://127.0.0.1:8000";
 const URL_REVERB_LOCAL = "ws://127.0.0.1:8080";
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), servicioSinConexion()],
 
   resolve: {
     alias: {
