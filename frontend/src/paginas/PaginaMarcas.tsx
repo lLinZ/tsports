@@ -123,6 +123,7 @@ export function PaginaMarcas() {
       sector: parametrosDeLaUrl.get("sector") ?? "",
       vendedor: parametrosDeLaUrl.get("vendedor") ?? "",
       campana: parametrosDeLaUrl.get("campana") ?? "",
+      campanaAlcanzada: parametrosDeLaUrl.get("campanaAlcanzada") ?? "",
       propiedad: parametrosDeLaUrl.get("propiedad") ?? "",
       invierte:
         (parametrosDeLaUrl.get("invierte") as InversionEnPatrocinios) ?? "",
@@ -191,6 +192,7 @@ export function PaginaMarcas() {
     Boolean(filtrosAplicados.sector) ||
     Boolean(filtrosAplicados.vendedor) ||
     Boolean(filtrosAplicados.campana) ||
+    Boolean(filtrosAplicados.campanaAlcanzada) ||
     Boolean(filtrosAplicados.propiedad) ||
     Boolean(filtrosAplicados.invierte);
 
@@ -594,6 +596,24 @@ export function PaginaMarcas() {
                   : (campanasActivas.find(
                       (campana) => campana.id === filtrosAplicados.campana,
                     )?.nombre ?? "otra")}
+              </Chip>
+            )}
+            {/* No tiene selector propio: se llega desde el panel. Por eso
+                el chip lleva la X, que es la única forma de quitarlo, y
+                dice «alcanzadas» para que no se confunda con el filtro de
+                campaña de arriba, que sí tiene desplegable. */}
+            {filtrosAplicados.campanaAlcanzada && (
+              <Chip
+                color="primary"
+                onClose={() => cambiarFiltro("campanaAlcanzada", "")}
+                radius="lg"
+                size="sm"
+                variant="flat"
+              >
+                Alcanzadas por:{" "}
+                {campanasActivas.find(
+                  (campana) => campana.id === filtrosAplicados.campanaAlcanzada,
+                )?.nombre ?? "una campaña"}
               </Chip>
             )}
             {filtrosAplicados.propiedad && (

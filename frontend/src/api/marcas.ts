@@ -59,6 +59,9 @@ export async function listarMarcas(
   if (filtros.sector) parametrosDeConsulta.sector = filtros.sector;
   if (filtros.vendedor) parametrosDeConsulta.vendedor = filtros.vendedor;
   if (filtros.campana) parametrosDeConsulta.campana = filtros.campana;
+  if (filtros.campanaAlcanzada) {
+    parametrosDeConsulta.campanaAlcanzada = filtros.campanaAlcanzada;
+  }
   if (filtros.propiedad) parametrosDeConsulta.propiedad = filtros.propiedad;
   if (filtros.invierte) parametrosDeConsulta.invierte = filtros.invierte;
   if (filtros.orden) parametrosDeConsulta.orden = filtros.orden;

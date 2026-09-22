@@ -387,6 +387,40 @@ class Marca extends Model
     }
 
     /**
+     * Las marcas a las que esta campaña ALCANZÓ alguna vez.
+     *
+     * Es la otra lectura del reparto por campaña, y sale del HISTORIAL,
+     * no de `marcas.campana_id`. Esa columna es una sola casilla: guarda
+     * la última campaña asignada, así que una marca a la que después se
+     * le puso otra —o a la que se le quitó— desaparece de la campaña en
+     * la que sí se trabajó. En la base de pruebas eso dejaba a cinco de
+     * siete campañas contando por debajo, y a dos de ellas en cero
+     * teniendo acciones hechas.
+     *
+     * Las dos lecturas conviven porque contestan preguntas distintas:
+     * `deCampana` dice A QUIÉN LE TOCA esa campaña ahora, que es con lo
+     * que el comercial reparte trabajo; esta dice A CUÁNTAS MARCAS SE
+     * HA LLEGADO con ella, que es lo que mide el esfuerzo.
+     *
+     * Busca por ID y no por nombre para que una campaña renombrada siga
+     * trayendo sus acciones viejas, que conservan el nombre antiguo
+     * dentro del evento (regla 13).
+     */
+    public function scopeAlcanzadasPorLaCampana(
+        Builder $consulta,
+        ?string $idDeLaCampana,
+    ): Builder {
+        if ($idDeLaCampana === null || $idDeLaCampana === '') {
+            return $consulta;
+        }
+
+        return $consulta->whereHas(
+            'eventosDeCampana',
+            fn (Builder $subconsulta) => $subconsulta->where('campana_id', $idDeLaCampana),
+        );
+    }
+
+    /**
      * Las acciones de campaña programadas dentro de un rango de fechas.
      *
      * Es la consulta que alimenta el calendario del panel. Se exige que

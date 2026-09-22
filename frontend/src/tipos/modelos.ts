@@ -378,6 +378,12 @@ export interface FiltrosDeMarcas {
   vendedor: string;
   /** Id de campaña, o "sin_campana" para las que no tienen ninguna. */
   campana: string;
+  /**
+   * Id de la campaña que ALCANZÓ a la marca alguna vez, según el
+   * historial. Llega al pulsar «alcanzadas» en el panel, y trae también
+   * las marcas que hoy ya están en otra campaña.
+   */
+  campanaAlcanzada: string;
   /** Id de la propiedad que se les está ofreciendo. */
   propiedad: string;
   /** Si invierte hoy en marketing deportivo. */
@@ -496,7 +502,18 @@ export interface ResumenDeCampana {
   color: string;
   activa: boolean;
   estaVigente: boolean;
+  /** Marcas que tienen esa campaña PUESTA ahora mismo. */
   total: number;
+  /**
+   * Marcas distintas a las que la campaña llegó alguna vez, según el
+   * historial de acciones.
+   *
+   * No es lo mismo que `total` y casi nunca coincide: una marca guarda
+   * su campaña en una sola casilla, así que al asignarle otra desaparece
+   * de la anterior aunque el trabajo se hiciera. Va nulo en «Sin
+   * campaña», que no es una campaña y no alcanza a nadie.
+   */
+  alcanzadas: number | null;
   valor: number;
 }
 
@@ -534,7 +551,10 @@ export interface MiCampanaDelPanel {
   campanaId: string | null;
   nombre: string;
   color: string;
+  /** Sus marcas con esa campaña puesta ahora mismo. */
   total: number;
+  /** Sus marcas a las que esa campaña llegó alguna vez; ver ResumenDeCampana. */
+  alcanzadas: number | null;
 }
 
 /**
