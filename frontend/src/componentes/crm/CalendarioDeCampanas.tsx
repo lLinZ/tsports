@@ -16,10 +16,22 @@
  * AL PULSAR
  *   · un DÍA   → se abre el detalle con todos sus eventos.
  *   · un EVENTO → se navega al tablero con esa marca abierta.
+ *   · una CAMPAÑA de la leyenda → se resalta en la rejilla.
  *
  * Lo segundo se hace navegando a /marcas?abrir=<id> y no montando otra
  * ficha aquí: así la ficha vive en un único sitio, y de paso la
  * dirección queda compartible.
+ *
+ * LA LEYENDA
+ * Bajo la rejilla, un cuadrito por campaña con su nombre y sus acciones.
+ * Sin ella, la vista mensual es una nube de puntos de colores que solo
+ * se puede descifrar abriendo los días uno a uno.
+ *
+ * Al pulsar una campaña, las demás se apagan en la rejilla. RESALTA, no
+ * filtra: el reporte de abajo y el Excel siguen hablando del periodo
+ * entero, así que lo que se ve y lo que se descarga nunca se separan.
+ * Los colores salen del resumen del servidor, que los devuelve pegados
+ * a cada total.
  *
  * EL PERIODO
  * Lo calcula el servidor. Si cada navegador decidiera dónde empieza la
@@ -42,8 +54,8 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Download,
   ExternalLink,
+  FileSpreadsheet,
   Printer,
 } from "lucide-react";
 import { useState } from "react";
@@ -56,17 +68,45 @@ import {
   BloqueDeError,
 } from "@/componentes/comunes/EstadosDePantalla";
 import { TarjetaBento } from "@/componentes/comunes/TarjetaBento";
+import { descargarElReporteEnExcel } from "@/utilidades/excelDeCampanas";
+import { avisarDeError } from "@/utilidades/avisos";
 import { formatearFecha, inicialesDe } from "@/utilidades/formato";
 import type {
   DiaDelCalendario,
   EventoDeCalendario,
   PeriodoDelCalendario,
   ResumenDeLaSemana,
+  TotalDelReporte,
+  TotalPorCampanaDelReporte,
   VistaDelCalendario,
 } from "@/tipos/modelos";
 
 /** Nombres cortos de los días, de lunes a domingo. */
 const DIAS_DE_LA_SEMANA = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+
+/**
+ * El ancla de esta caja, para que el panel pueda saltar aquí.
+ *
+ * La declara este fichero, que es quien pinta la caja, y no el panel:
+ * así no hay dos sitios donde cambiar el nombre. La usan las cifras de
+ * «acciones por delante», que no salen de ningún listado sino de esta
+ * misma agenda.
+ */
+export const ANCLA_DE_LA_CAJA_DEL_CALENDARIO = "calendario-de-campanas";
+
+/**
+ * Si este evento tiene que verse apagado porque hay otra campaña
+ * resaltada desde la leyenda.
+ *
+ * Sin nada resaltado no se apaga nada: la rejilla se ve entera, que es
+ * su estado normal.
+ */
+function estaApagadoPorLaLeyenda(
+  evento: EventoDeCalendario,
+  campanaResaltada: string | null,
+): boolean {
+  return campanaResaltada !== null && evento.campanaNombre !== campanaResaltada;
+}
 
 export function CalendarioDeCampanas() {
   const navegar = useNavigate();
@@ -82,6 +122,19 @@ export function CalendarioDeCampanas() {
 
   /** El día cuyo detalle está abierto, si hay alguno. */
   const [diaAbierto, establecerDiaAbierto] = useState<DiaDelCalendario | null>(null);
+
+  /**
+   * La campaña resaltada desde la leyenda, si hay alguna.
+   *
+   * Se guarda por NOMBRE y no por id porque es lo que llevan los eventos
+   * del historial: el nombre se copia dentro de cada acción justamente
+   * para que siga siendo legible cuando la campaña ya no exista
+   * (regla 13). Dos campañas distintas con el mismo nombre se resaltarían
+   * juntas, y está bien: en la rejilla también comparten color.
+   */
+  const [campanaResaltada, establecerCampanaResaltada] = useState<string | null>(
+    null,
+  );
 
   const consulta = useQuery<PeriodoDelCalendario>({
     queryKey: ["panel", "calendario", vista, diaDelPeriodo],
@@ -118,6 +171,11 @@ export function CalendarioDeCampanas() {
     ].join("-");
 
     establecerDiaDelPeriodo(comoTexto);
+
+    // El resaltado se suelta al cambiar de periodo: una campaña que no
+    // tiene acciones en el mes siguiente dejaría la rejilla entera
+    // apagada, y desde fuera eso se lee como "no hay nada".
+    establecerCampanaResaltada(null);
   }
 
   /** Abre el tablero con la ficha de esa marca desplegada. */
@@ -150,6 +208,7 @@ export function CalendarioDeCampanas() {
     <>
       <TarjetaBento
         columnas={12}
+        id={ANCLA_DE_LA_CAJA_DEL_CALENDARIO}
         // De quién es la agenda lo dice el servidor, que es quien la
         // filtra; aquí no se compara ningún rol.
         descripcion={
@@ -192,18 +251,29 @@ export function CalendarioDeCampanas() {
         <div className="space-y-5">
           {vista === "semana" ? (
             <RejillaSemanal
+              campanaResaltada={campanaResaltada}
               dias={dias}
               onAbrirEvento={abrirLaMarca}
               onPulsarDia={establecerDiaAbierto}
             />
           ) : (
-            <RejillaMensual dias={dias} onPulsarDia={establecerDiaAbierto} />
+            <RejillaMensual
+              campanaResaltada={campanaResaltada}
+              dias={dias}
+              onPulsarDia={establecerDiaAbierto}
+            />
           )}
 
+          <LeyendaDeCampanas
+            campanaResaltada={campanaResaltada}
+            campanas={resumen.porCampana}
+            onResaltar={establecerCampanaResaltada}
+          />
+
           <ReporteDelPeriodo
-            dias={dias}
             etiqueta={periodo.etiqueta}
             periodo={periodo}
+            reporte={consulta.data}
             resumen={resumen}
           />
         </div>
@@ -290,10 +360,12 @@ function ControlesDelPeriodo({
 
 function RejillaSemanal({
   dias,
+  campanaResaltada,
   onPulsarDia,
   onAbrirEvento,
 }: {
   dias: DiaDelCalendario[];
+  campanaResaltada: string | null;
   onPulsarDia: (dia: DiaDelCalendario) => void;
   onAbrirEvento: (evento: EventoDeCalendario) => void;
 }) {
@@ -304,6 +376,7 @@ function RejillaSemanal({
       {dias.map((dia, posicion) => (
         <ColumnaSemanal
           key={dia.fecha}
+          campanaResaltada={campanaResaltada}
           dia={dia}
           nombreCorto={DIAS_DE_LA_SEMANA[posicion % 7]}
           onAbrirEvento={onAbrirEvento}
@@ -317,11 +390,13 @@ function RejillaSemanal({
 function ColumnaSemanal({
   dia,
   nombreCorto,
+  campanaResaltada,
   onPulsarDia,
   onAbrirEvento,
 }: {
   dia: DiaDelCalendario;
   nombreCorto: string;
+  campanaResaltada: string | null;
   onPulsarDia: (dia: DiaDelCalendario) => void;
   onAbrirEvento: (evento: EventoDeCalendario) => void;
 }) {
@@ -397,6 +472,9 @@ function ColumnaSemanal({
                   // campañas sin que el día se vuelva un arcoíris.
                   backgroundColor: `${evento.campanaColor}1a`,
                   borderLeft: `3px solid ${evento.campanaColor}`,
+                  opacity: estaApagadoPorLaLeyenda(evento, campanaResaltada)
+                    ? 0.25
+                    : 1,
                 }}
                 type="button"
                 onClick={() => onAbrirEvento(evento)}
@@ -431,9 +509,11 @@ function ColumnaSemanal({
 
 function RejillaMensual({
   dias,
+  campanaResaltada,
   onPulsarDia,
 }: {
   dias: DiaDelCalendario[];
+  campanaResaltada: string | null;
   onPulsarDia: (dia: DiaDelCalendario) => void;
 }) {
   return (
@@ -455,7 +535,12 @@ function RejillaMensual({
           el detalle se abre al pulsar el día. */}
       <div className="grid grid-cols-7 gap-1">
         {dias.map((dia) => (
-          <CeldaMensual key={dia.fecha} dia={dia} onPulsar={onPulsarDia} />
+          <CeldaMensual
+            key={dia.fecha}
+            campanaResaltada={campanaResaltada}
+            dia={dia}
+            onPulsar={onPulsarDia}
+          />
         ))}
       </div>
     </div>
@@ -464,17 +549,34 @@ function RejillaMensual({
 
 function CeldaMensual({
   dia,
+  campanaResaltada,
   onPulsar,
 }: {
   dia: DiaDelCalendario;
+  campanaResaltada: string | null;
   onPulsar: (dia: DiaDelCalendario) => void;
 }) {
   const tieneEventos = dia.eventos.length > 0;
 
+  /**
+   * Con una campaña resaltada, sus acciones se ponen delante.
+   *
+   * Es necesario: solo caben tres puntos, y si la campaña resaltada cae
+   * la cuarta del día, el día entero se vería apagado aunque sí tenga
+   * una acción suya. El orden solo cambia mientras dura el resaltado.
+   */
+  const eventosOrdenados =
+    campanaResaltada === null
+      ? dia.eventos
+      : [
+          ...dia.eventos.filter((evento) => evento.campanaNombre === campanaResaltada),
+          ...dia.eventos.filter((evento) => evento.campanaNombre !== campanaResaltada),
+        ];
+
   // Como mucho tres puntos; a partir de ahí, un "+N" que no rompe la
   // altura de la celda.
-  const puntosVisibles = dia.eventos.slice(0, 3);
-  const cuantosSobran = dia.eventos.length - puntosVisibles.length;
+  const puntosVisibles = eventosOrdenados.slice(0, 3);
+  const cuantosSobran = eventosOrdenados.length - puntosVisibles.length;
 
   return (
     <button
@@ -504,8 +606,13 @@ function CeldaMensual({
           {puntosVisibles.map((evento) => (
             <span
               key={evento.eventoId}
-              className="size-2 rounded-full"
-              style={{ backgroundColor: evento.campanaColor }}
+              className="size-2 rounded-full transition-opacity"
+              style={{
+                backgroundColor: evento.campanaColor,
+                opacity: estaApagadoPorLaLeyenda(evento, campanaResaltada)
+                  ? 0.2
+                  : 1,
+              }}
               title={`${evento.marcaNombre} — ${evento.campanaNombre}`}
             />
           ))}
@@ -518,6 +625,112 @@ function CeldaMensual({
         </div>
       )}
     </button>
+  );
+}
+
+/* ==================================================================== */
+/* La leyenda                                                          */
+/* ==================================================================== */
+
+/**
+ * Qué significa cada color de la rejilla.
+ *
+ * En la vista mensual el calendario es una nube de puntos de colores, y
+ * sin esta lista la única forma de saber de qué campaña es cada punto es
+ * abrir los días uno a uno.
+ *
+ * Al pulsar una campaña se RESALTA: las demás se apagan en la rejilla,
+ * pero ni el reporte de abajo ni el Excel cambian. Resaltar y no filtrar
+ * es lo que evita que lo que se ve y lo que se descarga digan cosas
+ * distintas.
+ *
+ * Los colores llegan del servidor pegados a cada total; no se rebuscan
+ * aquí entre los eventos del periodo.
+ */
+function LeyendaDeCampanas({
+  campanas,
+  campanaResaltada,
+  onResaltar,
+}: {
+  campanas: TotalPorCampanaDelReporte[];
+  campanaResaltada: string | null;
+  onResaltar: (campana: string | null) => void;
+}) {
+  // Un periodo sin acciones no tiene colores que explicar.
+  if (campanas.length === 0) return null;
+
+  return (
+    <div className="rounded-2xl border border-default-200 px-4 py-3">
+      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-[11px] font-bold uppercase tracking-wide text-default-500">
+          Qué significa cada color
+        </h3>
+
+        {campanaResaltada === null ? (
+          <span className="text-[11px] text-default-400">
+            Pulsa una campaña para resaltarla
+          </span>
+        ) : (
+          <Button
+            className="h-6 min-w-0 px-2 text-[11px]"
+            radius="lg"
+            size="sm"
+            variant="light"
+            onPress={() => onResaltar(null)}
+          >
+            Ver todas
+          </Button>
+        )}
+      </div>
+
+      <ul className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+        {campanas.map((campana) => {
+          const estaResaltada = campanaResaltada === campana.etiqueta;
+
+          return (
+            <li key={campana.etiqueta}>
+              <button
+                aria-pressed={estaResaltada}
+                className={[
+                  "flex items-center gap-1.5 rounded-lg border px-2 py-1 text-left transition",
+                  estaResaltada
+                    ? "border-primary bg-primary-50/60 dark:bg-primary-100/10"
+                    : "border-transparent hover:bg-default-100",
+                  // Las no elegidas se apagan igual que sus eventos en la
+                  // rejilla, para que se lea que son lo mismo.
+                  campanaResaltada !== null && !estaResaltada ? "opacity-40" : "",
+                ].join(" ")}
+                type="button"
+                onClick={() =>
+                  onResaltar(estaResaltada ? null : campana.etiqueta)
+                }
+              >
+                <span
+                  className="size-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: campana.color }}
+                />
+
+                <span className="text-[11px] font-medium text-foreground">
+                  {campana.etiqueta}
+                </span>
+
+                <span className="text-[11px] font-semibold tabular-nums text-default-500">
+                  {campana.total}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+
+        {/* Lo otro que la rejilla dice con color y no con palabras. */}
+        <li className="mx-1 h-4 w-px bg-default-200" role="separator" />
+
+        <li className="flex items-center gap-1.5 px-1 text-[11px] text-default-400">
+          <span className="size-2.5 shrink-0 rounded-[4px] border-2 border-primary" />
+          Hoy
+        </li>
+      </ul>
+    </div>
   );
 }
 
@@ -619,64 +832,44 @@ function ReporteDelPeriodo({
   resumen,
   etiqueta,
   periodo,
-  dias,
+  reporte,
 }: {
   resumen: ResumenDeLaSemana;
   etiqueta: string;
   periodo: PeriodoDelCalendario["periodo"];
-  dias: DiaDelCalendario[];
+  /** La respuesta entera: es lo que se vuelca al libro de Excel. */
+  reporte: PeriodoDelCalendario;
 }) {
   /**
-   * Arma el CSV y lo descarga.
-   *
-   * Se construye aquí con los datos que ya están en pantalla: pedirle al
-   * servidor que genere el fichero obligaría a repetir la consulta y a
-   * mantener el mismo cálculo en dos sitios.
+   * Mientras se escribe el .xlsx. Un mes cargado tarda lo suyo, y un
+   * botón que no responde se pulsa dos veces.
    */
-  function descargarElCsv() {
-    const escaparCampo = (valor: string | null): string => {
-      const texto = valor ?? "";
+  const [estaGenerando, establecerGenerando] = useState(false);
 
-      // Comillas dobles alrededor y las de dentro duplicadas: es lo que
-      // espera Excel cuando el texto lleva comas, y los nombres de
-      // campaña las llevan.
-      return `"${texto.replace(/"/g, '""')}"`;
-    };
+  /**
+   * Arma el libro de Excel y lo descarga.
+   *
+   * La maquetación vive en `utilidades/excelDeCampanas`, no aquí: este
+   * componente pinta un calendario y no tiene por qué saber de anchos de
+   * columna ni de formatos de celda.
+   *
+   * Se genera con los datos que ya están en pantalla y no se le pide al
+   * servidor: así el fichero dice exactamente lo mismo que el calendario
+   * que se estaba mirando, sin una consulta más ni una segunda versión
+   * del mismo cálculo.
+   */
+  async function descargarElExcel() {
+    establecerGenerando(true);
 
-    const filas = [
-      ["Fecha", "Marca", "Campaña", "Zona", "Sector", "Agente"]
-        .map(escaparCampo)
-        .join(","),
-      ...dias.flatMap((dia) =>
-        dia.eventos.map((evento) =>
-          [
-            dia.fecha,
-            evento.marcaNombre,
-            evento.campanaNombre,
-            evento.zona,
-            evento.sector,
-            evento.vendedorNombre,
-          ]
-            .map(escaparCampo)
-            .join(","),
-        ),
-      ),
-    ];
-
-    // El BOM al principio es lo que hace que Excel en Windows abra el
-    // fichero como UTF-8; sin él, las tildes y la eñe salen rotas.
-    const contenido = `﻿${filas.join("\r\n")}`;
-
-    const enlace = document.createElement("a");
-    const url = URL.createObjectURL(
-      new Blob([contenido], { type: "text/csv;charset=utf-8;" }),
-    );
-
-    enlace.href = url;
-    enlace.download = `TS-Sports-campanas-${periodo.desde}-a-${periodo.hasta}.csv`;
-    enlace.click();
-
-    URL.revokeObjectURL(url);
+    try {
+      await descargarElReporteEnExcel(reporte);
+    } catch (error) {
+      // Sin esto, un fallo al escribir el fichero no deja ni rastro: el
+      // botón vuelve a su sitio y parece que no se llegó a pulsar.
+      avisarDeError(error, "No se pudo generar el reporte");
+    } finally {
+      establecerGenerando(false);
+    }
   }
 
   const noHayNadaEnElPeriodo = resumen.totalDeAcciones === 0;
@@ -694,13 +887,16 @@ function ReporteDelPeriodo({
         <div className="flex flex-wrap items-center gap-2">
           <Button
             isDisabled={noHayNadaEnElPeriodo}
+            isLoading={estaGenerando}
             radius="lg"
             size="sm"
-            startContent={<Download className="size-3.5" />}
+            startContent={
+              estaGenerando ? undefined : <FileSpreadsheet className="size-3.5" />
+            }
             variant="flat"
-            onPress={descargarElCsv}
+            onPress={() => void descargarElExcel()}
           >
-            Descargar CSV
+            {estaGenerando ? "Generando…" : "Descargar Excel"}
           </Button>
 
           <Button
@@ -756,12 +952,21 @@ function ReporteDelPeriodo({
   );
 }
 
+/**
+ * Uno de los desgloses del reporte.
+ *
+ * Las filas que traen color —las de campaña— lo pintan. La leyenda de
+ * arriba es la CLAVE de los colores y esto es el DESGLOSE del periodo;
+ * repiten cifra a propósito, porque el reporte es lo que se imprime y
+ * tiene que entenderse solo, sin la rejilla al lado.
+ */
 function ListaDeTotales({
   titulo,
   totales,
 }: {
   titulo: string;
-  totales: ResumenDeLaSemana["porCampana"];
+  /** El color solo lo traen los totales por campaña. */
+  totales: (TotalDelReporte & { color?: string })[];
 }) {
   return (
     <div>
@@ -775,9 +980,19 @@ function ListaDeTotales({
             key={fila.etiqueta}
             className="flex items-baseline justify-between gap-2 text-xs"
           >
-            <span className="min-w-0 truncate text-default-600">
-              {fila.etiqueta}
+            <span className="flex min-w-0 items-baseline gap-1.5">
+              {fila.color !== undefined && (
+                <span
+                  className="size-2 shrink-0 translate-y-px rounded-full"
+                  style={{ backgroundColor: fila.color }}
+                />
+              )}
+
+              <span className="min-w-0 truncate text-default-600">
+                {fila.etiqueta}
+              </span>
             </span>
+
             <span className="shrink-0 font-semibold tabular-nums text-foreground">
               {fila.total}
             </span>

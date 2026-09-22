@@ -656,11 +656,22 @@ export interface TotalDelReporte {
   total: number;
 }
 
+/**
+ * Un total por campaña, con el color con el que se pintan sus puntos.
+ *
+ * El color llega del servidor pegado al total y no se busca aquí entre
+ * los eventos del periodo: es lo que permite que la leyenda del
+ * calendario y el reporte hablen exactamente de lo mismo.
+ */
+export interface TotalPorCampanaDelReporte extends TotalDelReporte {
+  color: string;
+}
+
 /** Las cifras que resumen la semana filtrada. */
 export interface ResumenDeLaSemana {
   totalDeAcciones: number;
   marcasDistintas: number;
-  porCampana: TotalDelReporte[];
+  porCampana: TotalPorCampanaDelReporte[];
   porZona: TotalDelReporte[];
   porVendedor: TotalDelReporte[];
 }
