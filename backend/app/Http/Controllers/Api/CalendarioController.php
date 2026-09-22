@@ -41,6 +41,15 @@ class CalendarioController extends Controller
     private const VISTA_MES = 'mes';
 
     /**
+     * El gris con el que sale una acción a la que le falta el color.
+     *
+     * No debería ocurrir —la columna no admite nulo—, pero la leyenda
+     * pinta un cuadrito por cada fila y uno sin color se vería como un
+     * hueco en blanco en medio de la lista.
+     */
+    private const COLOR_SIN_CAMPANA = '#94a3b8';
+
+    /**
      * GET /api/panel/calendario?vista=mes&desde=2026-09-10
      *
      * Devuelve el periodo que contiene ese día. Sin parámetros, la
@@ -299,10 +308,7 @@ class CalendarioController extends Controller
             // dos acciones a la misma marca, y contarla dos veces daría a
             // entender que se está llegando a más marcas de las reales.
             'marcasDistintas' => $eventos->pluck('marca_id')->unique()->count(),
-            'porCampana' => $contarPor(
-                fn (EventoDeCampana $evento): ?string => $evento->campana_nombre,
-                'Sin campaña',
-            ),
+            'porCampana' => $this->totalesPorCampanaConSuColor($eventos),
             'porZona' => $contarPor(
                 fn (EventoDeCampana $evento): ?string => $evento->marca?->zona,
                 'Sin zona',
@@ -312,6 +318,36 @@ class CalendarioController extends Controller
                 'Sin asignar',
             ),
         ];
+    }
+
+    /**
+     * Los totales por campaña, cada uno con SU COLOR.
+     *
+     * El color viaja pegado al total porque de él vive la leyenda que
+     * hay bajo el calendario: es lo que traduce los puntos de colores de
+     * la rejilla a nombres de campaña. Buscarlo en la interfaz, rebuscando
+     * el primer evento de cada nombre, sería repetir aquí un reparto que
+     * ya está hecho.
+     *
+     * Se lee del EVENTO y no de la campaña, por la misma razón que el
+     * nombre: el historial tiene que seguir diciendo de qué color se
+     * pintó aquello aunque después la campaña se renombre o se borre.
+     *
+     * @return list<array<string,mixed>>
+     */
+    private function totalesPorCampanaConSuColor($eventos): array
+    {
+        return $eventos
+            ->groupBy(fn (EventoDeCampana $evento): string => $evento->campana_nombre ?: 'Sin campaña')
+            ->map(fn ($deEsaCampana, string $etiqueta): array => [
+                'etiqueta' => $etiqueta,
+                'total' => $deEsaCampana->count(),
+                'color' => $deEsaCampana->first()->campana_color ?: self::COLOR_SIN_CAMPANA,
+            ])
+            // De mayor a menor, igual que los otros dos desgloses.
+            ->sortByDesc('total')
+            ->values()
+            ->all();
     }
 
     /* ------------------------------------------------------------------

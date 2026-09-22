@@ -74,8 +74,15 @@ export function formatearPorcentaje(valor: number | null | undefined): string {
 /* Fechas                                                              */
 /* ==================================================================== */
 
-/** Convierte una fecha ISO del servidor a Date, o null si no es válida. */
-function comoFecha(fechaIso: string | null | undefined): Date | null {
+/**
+ * Convierte una fecha ISO del servidor a Date, o null si no es válida.
+ *
+ * Se exporta porque la regla del día local (ver abajo) tiene que valer
+ * también fuera de esta lista de formateadores: el reporte en Excel
+ * escribe fechas de verdad en las celdas, no textos, y si las armara por
+ * su cuenta volvería a perder un día en Venezuela.
+ */
+export function comoFechaLocal(fechaIso: string | null | undefined): Date | null {
   if (!fechaIso) return null;
 
   // Una fecha SIN hora ("2026-09-20") la interpreta el navegador como
@@ -105,7 +112,7 @@ function comoFecha(fechaIso: string | null | undefined): Date | null {
 
 /** Fecha corta: "24 ago 2026". */
 export function formatearFecha(fechaIso: string | null | undefined): string {
-  const fecha = comoFecha(fechaIso);
+  const fecha = comoFechaLocal(fechaIso);
 
   if (fecha === null) return "—";
 
@@ -118,7 +125,7 @@ export function formatearFecha(fechaIso: string | null | undefined): string {
 
 /** Fecha y hora: "24 ago, 14:05". */
 export function formatearFechaYHora(fechaIso: string | null | undefined): string {
-  const fecha = comoFecha(fechaIso);
+  const fecha = comoFechaLocal(fechaIso);
 
   if (fecha === null) return "—";
 
@@ -138,7 +145,7 @@ export function formatearFechaYHora(fechaIso: string | null | undefined): string
  * vistazo y una fecha exacta no.
  */
 export function formatearTiempoRelativo(fechaIso: string | null | undefined): string {
-  const fecha = comoFecha(fechaIso);
+  const fecha = comoFechaLocal(fechaIso);
 
   if (fecha === null) return "—";
 

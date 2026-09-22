@@ -62,6 +62,13 @@ export default defineConfig({
           if (/[\/]node_modules[\/](@heroui|framer-motion|@react-aria|@react-stately)/.test(rutaDelModulo)) {
             return "vendor-heroui";
           }
+          // El escritor de .xlsx solo hace falta al descargar el reporte
+          // del calendario, y se pide con import() justo ahí. Necesita
+          // su propio paquete: si cayera en "vendor" lo descargaría todo
+          // el mundo al entrar, que es justo lo que se quería evitar.
+          if (/[\/]node_modules[\/]write-excel-file/.test(rutaDelModulo)) {
+            return "vendor-excel";
+          }
           return "vendor";
         },
       },

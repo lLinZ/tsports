@@ -44,6 +44,16 @@ interface PropiedadesDeTarjetaBento {
   /** Quita el relleno interior, para tarjetas que llevan una tabla. */
   sinRelleno?: boolean;
 
+  /**
+   * Un ancla para poder saltar a esta caja desde otro sitio de la misma
+   * pantalla (`<a href="#loQueSea">`).
+   *
+   * Lo usan las cifras del panel que no salen de un listado sino de una
+   * caja que está más abajo: en vez de dejarlas sin enlace, llevan a
+   * donde de verdad está su detalle.
+   */
+  id?: string;
+
   className?: string;
 }
 
@@ -80,12 +90,16 @@ export function TarjetaBento({
   esPulsable = false,
   onClick,
   sinRelleno = false,
+  id,
   className = "",
 }: PropiedadesDeTarjetaBento) {
   const tieneCabecera = Boolean(titulo || accionDeCabecera);
 
   const clasesDeLaTarjeta = [
     "bento-card flex flex-col",
+    // Con ancla, se deja sitio para la barra superior fija: si no, al
+    // saltar aquí el título queda escondido justo debajo de ella.
+    id === undefined ? "" : "scroll-mt-20",
     CLASES_DE_COLUMNAS[columnas],
     CLASES_DE_FILAS[filas],
     esPulsable ? "bento-card-interactive" : "",
@@ -112,6 +126,7 @@ export function TarjetaBento({
   return (
     <section
       className={clasesDeLaTarjeta}
+      id={id}
       onClick={esPulsable ? onClick : undefined}
       {...propiedadesDeAccesibilidad}
     >

@@ -30,13 +30,35 @@
  * Todas las cifras vienen ya calculadas del servidor: el navegador no
  * descarga las marcas para poder enseñar un total.
  *
- * Y casi todas se pueden pulsar para ver de dónde salen: los contadores
- * llevan al tablero con el filtro puesto (`/marcas?fase=propuesta`) y
- * las dos cifras IOP, al catálogo. Filtran por FASE y no por etapa a
- * propósito —lo explica el comentario que hay sobre los contadores—; con
- * `etapa` la lista saldría más corta que la cifra pulsada. Las que no
- * tienen un listado detrás se quedan sin enlace, que es más honesto que
- * llevar a una pantalla que no contesta la pregunta.
+ * TODO LO QUE SE VE AQUÍ SE PUEDE PULSAR
+ * Una cifra suelta no se puede comprobar, y lo primero que se pregunta
+ * al verla es «¿cuáles son?». Así que cada dato lleva al sitio donde
+ * está su detalle:
+ *
+ *   · los contadores y las barras → al tablero con el filtro puesto
+ *     (`/marcas?zona=Caracas&fase=propuesta`);
+ *   · las propiedades y el forecast → a las marcas que los sostienen;
+ *   · la actividad reciente → a la ficha de la marca de la que habla;
+ *   · y las dos cifras que no salen de ningún listado —el pronóstico
+ *     propio y las acciones por delante— a la caja de ESTA misma
+ *     pantalla donde están desglosadas, con un ancla.
+ *
+ * Dos detalles que no son cosméticos:
+ *
+ *   · Se filtra por FASE (`?fase=`) y no por etapa (`?etapa=`): la etapa
+ *     mete cada marca en un único cajón —una con propuesta ya no cuenta
+ *     como en aproximación— mientras que estos contadores cuentan
+ *     casillas marcadas, así que con `etapa` la lista saldría más corta
+ *     que el número pulsado.
+ *   · Donde la cifra es un IMPORTE, el enlace añade
+ *     `fase=propuesta&orden=valor_desc`: el valor solo lo suman las
+ *     marcas con propuesta (regla 4), y sin ese filtro la lista traería
+ *     marcas que no aportan nada al total.
+ *
+ * Lo único que se queda sin enlace es lo que no tiene ninguna pantalla
+ * detrás que conteste la pregunta —un inicio de sesión del historial,
+ * por ejemplo—, porque llevar a otra cosa es peor que no llevar a
+ * ninguna.
  * ---------------------------------------------------------------------
  */
 import { Button, Chip, Progress } from "@heroui/react";
@@ -64,7 +86,10 @@ import {
   BloqueDeError,
   EstadoVacio,
 } from "@/componentes/comunes/EstadosDePantalla";
-import { CalendarioDeCampanas } from "@/componentes/crm/CalendarioDeCampanas";
+import {
+  ANCLA_DE_LA_CAJA_DEL_CALENDARIO,
+  CalendarioDeCampanas,
+} from "@/componentes/crm/CalendarioDeCampanas";
 import { RejillaBento, TarjetaBento } from "@/componentes/comunes/TarjetaBento";
 import { useResumenDelPanel } from "@/hooks/useMarcas";
 import { useUsuarioAutenticado } from "@/providers/ProveedorSesion";
@@ -76,6 +101,7 @@ import {
 } from "@/utilidades/formato";
 import type {
   MisNumerosDelPanel,
+  RegistroDeActividad,
   ResumenDeInversionPorZona,
   ResumenDelAgente,
   ResumenDeZona,
@@ -88,6 +114,26 @@ const COLOR_DE_FASE = {
   prospeccion: "#f59e0b",
   propuesta: "#16c79a",
 } as const;
+
+/**
+ * El ancla de la caja «Mis propiedades».
+ *
+ * La del calendario no se declara aquí: la exporta el propio
+ * `CalendarioDeCampanas`, que es quien pinta esa caja, para que el
+ * nombre no acabe escrito en dos sitios.
+ */
+const ANCLA_DE_MIS_PROPIEDADES = "mis-propiedades";
+
+/**
+ * El valor con el que se pide una zona al tablero.
+ *
+ * Las marcas sin zona se filtran con el valor especial que entiende el
+ * servidor, no con el texto que se enseña en el gráfico: pedir la zona
+ * literal "Sin zona" no devolvería ninguna.
+ */
+function filtroDeZona(zona: string): string {
+  return zona === "Sin zona" ? "sin_zona" : zona;
+}
 
 export function PaginaPanel() {
   const usuario = useUsuarioAutenticado();
@@ -290,28 +336,34 @@ export function PaginaPanel() {
             <ul className="space-y-4">
               {propiedades.map((propiedad) => (
                 <li key={propiedad.propiedadId}>
-                  <div className="mb-1.5 flex items-baseline justify-between gap-2">
-                    <Link
-                      className="min-w-0 truncate text-xs font-semibold text-foreground hover:text-primary hover:underline"
-                      to={`/marcas?propiedad=${propiedad.propiedadId}`}
-                    >
-                      {propiedad.nombre}
-                    </Link>
+                  {/* La fila entera lleva a las marcas que ofrecen esta
+                      propiedad: de sus checklists sale el pronóstico que
+                      pinta la barra. La meta, en cambio, es un dato de la
+                      propiedad y vive en el catálogo. */}
+                  <Link
+                    className="block rounded-lg px-1 py-0.5 -mx-1 transition hover:bg-default-100"
+                    to={`/marcas?propiedad=${propiedad.propiedadId}`}
+                  >
+                    <div className="mb-1.5 flex items-baseline justify-between gap-2">
+                      <span className="min-w-0 truncate text-xs font-semibold text-foreground">
+                        {propiedad.nombre}
+                      </span>
 
-                    <span className="shrink-0 text-[11px] text-default-500">
-                      {propiedad.totalMarcas}{" "}
-                      {propiedad.totalMarcas === 1 ? "marca" : "marcas"} · meta{" "}
-                      <strong className="text-foreground">
-                        {formatearDineroAbreviado(propiedad.forecastDeVentaUsd)}
-                      </strong>
-                    </span>
-                  </div>
+                      <span className="shrink-0 text-[11px] text-default-500">
+                        {propiedad.totalMarcas}{" "}
+                        {propiedad.totalMarcas === 1 ? "marca" : "marcas"} · meta{" "}
+                        <strong className="text-foreground">
+                          {formatearDineroAbreviado(propiedad.forecastDeVentaUsd)}
+                        </strong>
+                      </span>
+                    </div>
 
-                  <BarraDeProporcion
-                    montoDeLaMeta={propiedad.forecastDeVentaUsd}
-                    montoPronosticado={propiedad.ovpAcumuladoUsd}
-                    montoTotal={propiedad.montoTotalUsd}
-                  />
+                    <BarraDeProporcion
+                      montoDeLaMeta={propiedad.forecastDeVentaUsd}
+                      montoPronosticado={propiedad.ovpAcumuladoUsd}
+                      montoTotal={propiedad.montoTotalUsd}
+                    />
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -332,25 +384,32 @@ export function PaginaPanel() {
           ) : (
             <ul className="space-y-2.5">
               {forecastPorProspector.map((fila) => (
-                <li
-                  key={fila.vendedorId ?? "sin_asignar"}
-                  className="flex items-center justify-between gap-3 rounded-xl bg-default-50 px-3 py-2.5"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-xs font-medium text-foreground">
-                      {fila.vendedorNombre}
-                    </p>
-                    <p className="text-[10px] text-default-400">
-                      {fila.totalMarcas}{" "}
-                      {fila.totalMarcas === 1 ? "marca" : "marcas"} ·{" "}
-                      {fila.totalPropiedades}{" "}
-                      {fila.totalPropiedades === 1 ? "propiedad" : "propiedades"}
-                    </p>
-                  </div>
+                <li key={fila.vendedorId ?? "sin_asignar"}>
+                  {/* El pronóstico de una persona sale de los checklists
+                      de SUS marcas (regla 11), así que el enlace lleva a
+                      esa cartera: es donde se puede comprobar la cifra,
+                      porque cada tarjeta del tablero lleva su OVP. */}
+                  <FilaPulsable
+                    enlace={`/marcas?vendedor=${fila.vendedorId ?? "sin_asignar"}`}
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-medium text-foreground">
+                        {fila.vendedorNombre}
+                      </p>
+                      <p className="text-[10px] text-default-400">
+                        {fila.totalMarcas}{" "}
+                        {fila.totalMarcas === 1 ? "marca" : "marcas"} ·{" "}
+                        {fila.totalPropiedades}{" "}
+                        {fila.totalPropiedades === 1
+                          ? "propiedad"
+                          : "propiedades"}
+                      </p>
+                    </div>
 
-                  <span className="shrink-0 text-xs font-bold text-primary">
-                    {formatearDineroAbreviado(fila.ovpUsd)}
-                  </span>
+                    <span className="shrink-0 text-xs font-bold text-primary">
+                      {formatearDineroAbreviado(fila.ovpUsd)}
+                    </span>
+                  </FilaPulsable>
                 </li>
               ))}
             </ul>
@@ -381,40 +440,42 @@ export function PaginaPanel() {
           ) : (
             <ul className="space-y-2.5">
               {porCampana.map((campana) => (
-                <li
-                  key={campana.campanaId ?? "sin_campana"}
-                  className="flex items-center justify-between gap-3 rounded-xl bg-default-50 px-3 py-2.5"
-                >
-                  <Link
-                    className="flex min-w-0 items-center gap-2"
-                    to={`/marcas?campana=${campana.campanaId ?? "sin_campana"}`}
+                <li key={campana.campanaId ?? "sin_campana"}>
+                  {/* Antes solo era pulsable el nombre; ahora la fila
+                      entera, porque lo que se quiere pulsar es la cifra
+                      que hay al otro extremo. */}
+                  <FilaPulsable
+                    enlace={`/marcas?campana=${campana.campanaId ?? "sin_campana"}`}
                   >
-                    <span
-                      className="size-2.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: campana.color }}
-                    />
-                    <span className="truncate text-xs font-medium text-foreground">
-                      {campana.nombre}
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span
+                        className="size-2.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: campana.color }}
+                      />
+                      <span className="truncate text-xs font-medium text-foreground">
+                        {campana.nombre}
+                      </span>
+
+                      {!campana.estaVigente && campana.campanaId !== null && (
+                        <span className="shrink-0 text-[10px] text-default-400">
+                          (cerrada)
+                        </span>
+                      )}
                     </span>
 
-                    {!campana.estaVigente && campana.campanaId !== null && (
-                      <span className="shrink-0 text-[10px] text-default-400">
-                        (cerrada)
-                      </span>
-                    )}
-                  </Link>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Chip radius="lg" size="sm" variant="flat">
+                        {campana.total}{" "}
+                        {campana.total === 1 ? "marca" : "marcas"}
+                      </Chip>
 
-                  <div className="flex shrink-0 items-center gap-2">
-                    <Chip radius="lg" size="sm" variant="flat">
-                      {campana.total} {campana.total === 1 ? "marca" : "marcas"}
-                    </Chip>
-
-                    {campana.valor > 0 && (
-                      <span className="text-[11px] font-semibold text-success">
-                        {formatearDineroAbreviado(campana.valor)}
-                      </span>
-                    )}
-                  </div>
+                      {campana.valor > 0 && (
+                        <span className="text-[11px] font-semibold text-success">
+                          {formatearDineroAbreviado(campana.valor)}
+                        </span>
+                      )}
+                    </div>
+                  </FilaPulsable>
                 </li>
               ))}
             </ul>
@@ -431,6 +492,16 @@ export function PaginaPanel() {
         </TarjetaBento>
 
         <TarjetaBento
+          accionDeCabecera={
+            // El listado completo es la pantalla de auditoría, y esa es
+            // solo de quien administra: a un comercial el enlace lo
+            // devolvería la propia ruta.
+            usuario.permisos.administraElSistema ? (
+              <Button as={Link} radius="lg" size="sm" to="/auditoria" variant="flat">
+                Ver todo
+              </Button>
+            ) : undefined
+          }
           columnas={4}
           descripcion="Lo último que ha hecho el equipo."
           icono={<Activity className="size-4" />}
@@ -442,20 +513,10 @@ export function PaginaPanel() {
               titulo="Todavía no hay movimiento"
             />
           ) : (
-            <ol className="space-y-3">
+            <ol className="space-y-1">
               {actividadReciente.slice(0, 8).map((registro) => (
-                <li key={registro.id} className="flex gap-3">
-                  <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" />
-
-                  <div className="min-w-0">
-                    <p className="text-xs leading-relaxed text-foreground">
-                      {registro.descripcion}
-                    </p>
-                    <p className="mt-0.5 text-[11px] text-default-400">
-                      {registro.usuarioNombre} ·{" "}
-                      {formatearTiempoRelativo(registro.creadoEn)}
-                    </p>
-                  </div>
+                <li key={registro.id}>
+                  <RegistroDeLaActividad registro={registro} usuario={usuario} />
                 </li>
               ))}
             </ol>
@@ -480,22 +541,30 @@ export function PaginaPanel() {
 
                 return (
                   <li key={fila.sector}>
-                    <div className="mb-1 flex items-baseline justify-between gap-2">
-                      <span className="truncate text-xs font-medium text-foreground">
-                        {fila.sector}
-                      </span>
-                      <span className="shrink-0 text-[11px] text-default-500">
-                        {fila.total} · {formatearDineroAbreviado(fila.valor)}
-                      </span>
-                    </div>
+                    {/* El servidor deja fuera de este reparto las marcas
+                        sin sector, así que la etiqueta siempre es un
+                        sector de verdad y el filtro la entiende tal cual. */}
+                    <Link
+                      className="block rounded-lg px-1 py-0.5 -mx-1 transition hover:bg-default-100"
+                      to={`/marcas?sector=${encodeURIComponent(fila.sector)}`}
+                    >
+                      <div className="mb-1 flex items-baseline justify-between gap-2">
+                        <span className="truncate text-xs font-medium text-foreground">
+                          {fila.sector}
+                        </span>
+                        <span className="shrink-0 text-[11px] text-default-500">
+                          {fila.total} · {formatearDineroAbreviado(fila.valor)}
+                        </span>
+                      </div>
 
-                    <Progress
-                      aria-label={`Marcas en el sector ${fila.sector}`}
-                      classNames={{ track: "h-1.5" }}
-                      color="primary"
-                      radius="full"
-                      value={(fila.total / totalMayor) * 100}
-                    />
+                      <Progress
+                        aria-label={`Marcas en el sector ${fila.sector}`}
+                        classNames={{ track: "h-1.5" }}
+                        color="primary"
+                        radius="full"
+                        value={(fila.total / totalMayor) * 100}
+                      />
+                    </Link>
                   </li>
                 );
               })}
@@ -517,31 +586,30 @@ export function PaginaPanel() {
           ) : (
             <ul className="space-y-2.5">
               {porVendedor.slice(0, 7).map((fila) => (
-                <li
-                  key={fila.vendedorId}
-                  className="flex items-center justify-between gap-3 rounded-xl bg-default-50 px-3 py-2.5"
-                >
-                  <span className="min-w-0 truncate text-xs font-medium text-foreground">
-                    {fila.vendedorNombre}
-                  </span>
+                <li key={fila.vendedorId}>
+                  <FilaPulsable enlace={`/marcas?vendedor=${fila.vendedorId}`}>
+                    <span className="min-w-0 truncate text-xs font-medium text-foreground">
+                      {fila.vendedorNombre}
+                    </span>
 
-                  <div className="flex shrink-0 items-center gap-2">
-                    <Chip radius="lg" size="sm" variant="flat">
-                      {fila.total} {fila.total === 1 ? "marca" : "marcas"}
-                    </Chip>
-
-                    {fila.valor > 0 && (
-                      <Chip
-                        color="success"
-                        radius="lg"
-                        size="sm"
-                        startContent={<TrendingUp className="ml-1 size-3" />}
-                        variant="flat"
-                      >
-                        {formatearDineroAbreviado(fila.valor)}
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Chip radius="lg" size="sm" variant="flat">
+                        {fila.total} {fila.total === 1 ? "marca" : "marcas"}
                       </Chip>
-                    )}
-                  </div>
+
+                      {fila.valor > 0 && (
+                        <Chip
+                          color="success"
+                          radius="lg"
+                          size="sm"
+                          startContent={<TrendingUp className="ml-1 size-3" />}
+                          variant="flat"
+                        >
+                          {formatearDineroAbreviado(fila.valor)}
+                        </Chip>
+                      )}
+                    </div>
+                  </FilaPulsable>
                 </li>
               ))}
             </ul>
@@ -644,11 +712,13 @@ function PanelDelAgente({
           icono={<Wallet className="size-4" />}
           valor={formatearDineroAbreviado(misNumeros.valorPropuestoAnual)}
         />
-        {/* El pronóstico se queda sin enlace: no sale de un listado de
-            marcas sino de los checklists, y está desglosado ahí abajo,
-            en «Mis propiedades». */}
+        {/* El pronóstico no sale de un listado de marcas sino de los
+            checklists, así que lleva a donde de verdad está desglosado:
+            la caja «Mis propiedades», unas líneas más abajo en esta
+            misma pantalla. */}
         <TarjetaDeMetrica
           destacada
+          ancla={ANCLA_DE_MIS_PROPIEDADES}
           etiqueta="Mi pronóstico (OVP)"
           icono={<TrendingUp className="size-4" />}
           valor={formatearDineroAbreviado(misNumeros.miPronostico)}
@@ -658,7 +728,10 @@ function PanelDelAgente({
       {/* El aviso de trabajo pendiente, con el mismo peso visual que en
           el panel de la dirección tienen los leads sin dueño. */}
       {misNumeros.accionesPorDelante > 0 && (
-        <div className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3">
+        <a
+          className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 transition hover:border-primary/60"
+          href={`#${ANCLA_DE_LA_CAJA_DEL_CALENDARIO}`}
+        >
           <CalendarClock className="size-4 shrink-0 text-primary" />
           <span className="text-sm text-foreground">
             Tienes <strong>{misNumeros.accionesPorDelante}</strong>{" "}
@@ -667,7 +740,11 @@ function PanelDelAgente({
               : "acciones de campaña"}{" "}
             de hoy en adelante.
           </span>
-        </div>
+
+          <Chip className="ml-auto" color="primary" radius="lg" size="sm" variant="flat">
+            Ver la agenda
+          </Chip>
+        </a>
       )}
 
       <RejillaBento>
@@ -680,6 +757,7 @@ function PanelDelAgente({
           columnas={6}
           descripcion="Lo que pronosticas vender de cada producto IOP, sumando tus marcas."
           icono={<Package className="size-4" />}
+          id={ANCLA_DE_MIS_PROPIEDADES}
           titulo="Mis propiedades"
         >
           {misPropiedades.length === 0 ? (
@@ -690,26 +768,26 @@ function PanelDelAgente({
           ) : (
             <ul className="space-y-2.5">
               {misPropiedades.map((propiedad) => (
-                <li
-                  key={propiedad.propiedadId}
-                  className="flex items-center justify-between gap-3 rounded-xl bg-default-50 px-3 py-2.5"
-                >
-                  <div className="min-w-0">
-                    <Link
-                      className="block truncate text-xs font-medium text-foreground hover:text-primary hover:underline"
-                      to={`/marcas?propiedad=${propiedad.propiedadId}&vendedor=${usuario.id}`}
-                    >
-                      {propiedad.nombre}
-                    </Link>
-                    <p className="text-[10px] text-default-400">
-                      {propiedad.totalMarcas}{" "}
-                      {propiedad.totalMarcas === 1 ? "marca mía" : "marcas mías"}
-                    </p>
-                  </div>
+                <li key={propiedad.propiedadId}>
+                  <FilaPulsable
+                    enlace={`/marcas?propiedad=${propiedad.propiedadId}&vendedor=${usuario.id}`}
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-medium text-foreground">
+                        {propiedad.nombre}
+                      </p>
+                      <p className="text-[10px] text-default-400">
+                        {propiedad.totalMarcas}{" "}
+                        {propiedad.totalMarcas === 1
+                          ? "marca mía"
+                          : "marcas mías"}
+                      </p>
+                    </div>
 
-                  <span className="shrink-0 text-xs font-bold text-primary">
-                    {formatearDineroAbreviado(propiedad.ovpUsd)}
-                  </span>
+                    <span className="shrink-0 text-xs font-bold text-primary">
+                      {formatearDineroAbreviado(propiedad.ovpUsd)}
+                    </span>
+                  </FilaPulsable>
                 </li>
               ))}
             </ul>
@@ -730,23 +808,29 @@ function PanelDelAgente({
           ) : (
             <ul className="space-y-2.5">
               {misCampanas.map((campana) => (
-                <li
-                  key={campana.campanaId ?? "sin_campana"}
-                  className="flex items-center justify-between gap-3 rounded-xl bg-default-50 px-3 py-2.5"
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span
-                      className="size-2.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: campana.color }}
-                    />
-                    <span className="truncate text-xs font-medium text-foreground">
-                      {campana.nombre}
+                <li key={campana.campanaId ?? "sin_campana"}>
+                  {/* Con el filtro de agente puesto: esta caja habla de
+                      SUS marcas, y sin él la lista traería las de todo
+                      el equipo y no cuadraría con la cifra. */}
+                  <FilaPulsable
+                    enlace={`/marcas?vendedor=${usuario.id}&campana=${
+                      campana.campanaId ?? "sin_campana"
+                    }`}
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span
+                        className="size-2.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: campana.color }}
+                      />
+                      <span className="truncate text-xs font-medium text-foreground">
+                        {campana.nombre}
+                      </span>
                     </span>
-                  </span>
 
-                  <Chip radius="lg" size="sm" variant="flat">
-                    {campana.total}
-                  </Chip>
+                    <Chip radius="lg" size="sm" variant="flat">
+                      {campana.total}
+                    </Chip>
+                  </FilaPulsable>
                 </li>
               ))}
             </ul>
@@ -762,6 +846,107 @@ function PanelDelAgente({
 /* ==================================================================== */
 
 /**
+ * Una fila de lista que lleva al listado del que sale su cifra.
+ *
+ * Existe porque el mismo patrón se repite en cinco cajas del panel
+ * —forecast por prospector, campañas, carga por agente, mis campañas,
+ * mis propiedades— y antes cada una escribía sus clases a mano: con dos
+ * de ellas pulsables solo por el nombre, que es el trozo más pequeño de
+ * la fila y el que nadie apunta.
+ */
+function FilaPulsable({
+  enlace,
+  children,
+}: {
+  enlace: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      className="flex items-center justify-between gap-3 rounded-xl bg-default-50 px-3 py-2.5 transition hover:bg-default-100 hover:ring-1 hover:ring-primary/30"
+      to={enlace}
+    >
+      {children}
+    </Link>
+  );
+}
+
+/**
+ * Una línea de la actividad reciente.
+ *
+ * Lleva a la cosa de la que habla, cuando hay dónde llevar:
+ *
+ *   · una MARCA se abre en su ficha (`?abrir=`), salvo que la línea
+ *     cuente precisamente que se borró: ahí ya no hay ficha que abrir y
+ *     el enlace solo daría un aviso de error.
+ *   · una PROPIEDAD o una CAMPAÑA llevan a su catálogo, que es donde
+ *     están; el de campañas solo para quien puede entrar, porque si no
+ *     la propia ruta lo devolvería.
+ *   · lo demás —inicios de sesión, cambios en la web— se queda como
+ *     texto: no hay ninguna pantalla que enseñe ese detalle.
+ */
+function RegistroDeLaActividad({
+  registro,
+  usuario,
+}: {
+  registro: RegistroDeActividad;
+  usuario: Usuario;
+}) {
+  const contenido = (
+    <>
+      <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" />
+
+      <div className="min-w-0">
+        <p className="text-xs leading-relaxed text-foreground">
+          {registro.descripcion}
+        </p>
+        <p className="mt-0.5 text-[11px] text-default-400">
+          {registro.usuarioNombre} ·{" "}
+          {formatearTiempoRelativo(registro.creadoEn)}
+        </p>
+      </div>
+    </>
+  );
+
+  const enlace = destinoDeLaActividad(registro, usuario);
+
+  if (enlace === null) {
+    return <div className="flex gap-3 px-1 py-1">{contenido}</div>;
+  }
+
+  return (
+    <Link
+      className="flex gap-3 rounded-lg px-1 py-1 transition hover:bg-default-100"
+      to={enlace}
+    >
+      {contenido}
+    </Link>
+  );
+}
+
+/** A dónde lleva una línea del historial, o `null` si a ningún sitio. */
+function destinoDeLaActividad(
+  registro: RegistroDeActividad,
+  usuario: Usuario,
+): string | null {
+  if (registro.entidadId === null) return null;
+
+  // Lo que ya no existe no se puede abrir.
+  if (registro.accion === "elimino") return null;
+
+  switch (registro.entidadTipo) {
+    case "marca":
+      return `/marcas?abrir=${registro.entidadId}`;
+    case "propiedad":
+      return "/propiedades";
+    case "campana":
+      return usuario.permisos.gestionaElCatalogoComercial ? "/campanas" : null;
+    default:
+      return null;
+  }
+}
+
+/**
  * Uno de los contadores de la fila superior.
  *
  * `destacada` la pinta con el color de acento del perfil: se reserva
@@ -774,6 +959,7 @@ function TarjetaDeMetrica({
   color,
   destacada = false,
   enlace,
+  ancla,
 }: {
   etiqueta: string;
   valor: string;
@@ -783,16 +969,28 @@ function TarjetaDeMetrica({
   /**
    * El listado del que sale la cifra.
    *
-   * Se deja sin poner a propósito en las cifras que no tienen una lista
-   * detrás que enseñar: una tarjeta que no se puede pulsar es mejor que
-   * una que promete el detalle y lleva a otra cosa.
+   * Toda cifra tiene que poder comprobarse: lo primero que se pregunta
+   * al verla es «¿cuáles son?». Solo se deja sin enlace cuando no hay
+   * ninguna pantalla que conteste esa pregunta, porque llevar a otra
+   * cosa es peor que no llevar a ninguna.
    */
   enlace?: string;
+  /**
+   * Una caja de ESTA MISMA pantalla, cuando el detalle no está en otra
+   * ruta sino más abajo (el pronóstico, que se desglosa en «Mis
+   * propiedades»).
+   *
+   * Va como `<a href="#…">` y no como `<Link>` porque React Router no
+   * desplaza al ancla: cambiaría la dirección sin mover la pantalla.
+   */
+  ancla?: string;
 }) {
+  const esPulsable = enlace !== undefined || ancla !== undefined;
+
   const clases = [
     "bento-card flex flex-col gap-2 p-4",
     destacada ? "bg-primary text-primary-foreground border-primary" : "",
-    enlace ? "bento-card-interactive" : "",
+    esPulsable ? "bento-card-interactive" : "",
   ].join(" ");
 
   const contenido = (
@@ -811,7 +1009,7 @@ function TarjetaDeMetrica({
         {/* La flecha es la única pista de que la cifra se puede pulsar.
             Un botón dentro de la tarjeta competiría con el número, que
             es lo que se viene a leer. */}
-        {enlace !== undefined && (
+        {esPulsable && (
           <ArrowUpRight
             aria-hidden
             className={[
@@ -835,6 +1033,14 @@ function TarjetaDeMetrica({
       </div>
     </>
   );
+
+  if (ancla !== undefined) {
+    return (
+      <a className={clases} href={`#${ancla}`}>
+        {contenido}
+      </a>
+    );
+  }
 
   if (enlace === undefined) {
     return <div className={clases}>{contenido}</div>;
@@ -902,13 +1108,19 @@ function GraficoDeInversionPorZona({
         {zonasConMarcas.map((zona) => (
           <div key={zona.zona}>
             <div className="mb-1.5 flex items-baseline justify-between gap-2">
-              <span className="text-xs font-semibold text-foreground">
+              <Link
+                className="text-xs font-semibold text-foreground hover:text-primary hover:underline"
+                to={`/marcas?zona=${encodeURIComponent(filtroDeZona(zona.zona))}`}
+              >
                 {zona.zona}
-              </span>
+              </Link>
 
-              <span className="text-[11px] text-default-500">
+              <Link
+                className="text-[11px] text-default-500 hover:text-primary hover:underline"
+                to={`/marcas?zona=${encodeURIComponent(filtroDeZona(zona.zona))}&invierte=si`}
+              >
                 {zona.siInvierte} de {zona.total} ya invierten
-              </span>
+              </Link>
             </div>
 
             <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-default-100">
@@ -926,11 +1138,8 @@ function GraficoDeInversionPorZona({
                       backgroundColor: tramo.color,
                     }}
                     title={`${tramo.etiqueta}: ${cantidad}`}
-                    // Las marcas sin zona se filtran con el valor
-                    // especial que entiende el servidor, no con el
-                    // texto que se enseña en el gráfico.
                     to={`/marcas?zona=${encodeURIComponent(
-                      zona.zona === "Sin zona" ? "sin_zona" : zona.zona,
+                      filtroDeZona(zona.zona),
                     )}&invierte=${
                       tramo.clave === "siInvierte"
                         ? "si"
@@ -991,27 +1200,49 @@ function GraficoDeZonas({ zonas }: { zonas: ResumenDeZona[] }) {
         {zonas.map((zona) => (
           <div key={zona.zona}>
             <div className="mb-1.5 flex items-baseline justify-between gap-2">
-              <span className="text-xs font-semibold text-foreground">
+              <Link
+                className="text-xs font-semibold text-foreground hover:text-primary hover:underline"
+                to={`/marcas?zona=${encodeURIComponent(filtroDeZona(zona.zona))}`}
+              >
                 {zona.zona}
-              </span>
+              </Link>
 
-              <span className="text-[11px] text-default-500">
+              {/* El importe solo lo suman las marcas con propuesta
+                  (regla 4), así que el enlace lleva a esas y ordenadas
+                  por valor: de otro modo la lista no cuadraría con la
+                  cifra pulsada. */}
+              <Link
+                className="text-[11px] text-default-500 hover:text-primary hover:underline"
+                to={`/marcas?zona=${encodeURIComponent(
+                  filtroDeZona(zona.zona),
+                )}&fase=propuesta&orden=valor_desc`}
+              >
                 {zona.total} {zona.total === 1 ? "marca" : "marcas"} ·{" "}
                 <strong className="text-foreground">
                   {formatearDineroAbreviado(zona.valor)}
                 </strong>
-              </span>
+              </Link>
             </div>
 
             <div className="space-y-1">
               {(
                 [
-                  [zona.aproximacion, COLOR_DE_FASE.aproximacion, "Aproximación"],
-                  [zona.prospeccion, COLOR_DE_FASE.prospeccion, "Prospección"],
-                  [zona.propuesta, COLOR_DE_FASE.propuesta, "Propuesta"],
+                  [zona.aproximacion, COLOR_DE_FASE.aproximacion, "Aproximación", "aproximacion"],
+                  [zona.prospeccion, COLOR_DE_FASE.prospeccion, "Prospección", "prospeccion"],
+                  [zona.propuesta, COLOR_DE_FASE.propuesta, "Propuesta", "propuesta"],
                 ] as const
-              ).map(([cantidad, colorDeLaBarra, nombreDeLaFase]) => (
-                <div key={nombreDeLaFase} className="flex items-center gap-2">
+              ).map(([cantidad, colorDeLaBarra, nombreDeLaFase, claveDeLaFase]) => (
+                <Link
+                  key={nombreDeLaFase}
+                  className="flex items-center gap-2 rounded-lg py-0.5 transition hover:bg-default-100"
+                  // Cada barra es una fase suelta, igual que los
+                  // contadores de arriba: `?fase=` cuenta casillas
+                  // marcadas y `?etapa=` metería cada marca en un único
+                  // cajón, con lo que la lista saldría más corta.
+                  to={`/marcas?zona=${encodeURIComponent(
+                    filtroDeZona(zona.zona),
+                  )}&fase=${claveDeLaFase}`}
+                >
                   <div className="h-2 flex-1 overflow-hidden rounded-full bg-default-100">
                     <div
                       className="h-full rounded-full transition-all duration-500"
@@ -1030,7 +1261,7 @@ function GraficoDeZonas({ zonas }: { zonas: ResumenDeZona[] }) {
                   <span className="w-6 shrink-0 text-right text-[11px] tabular-nums text-default-500">
                     {cantidad}
                   </span>
-                </div>
+                </Link>
               ))}
             </div>
           </div>
@@ -1097,15 +1328,19 @@ function MisMarcasDeUnVistazo({
           etiqueta="Con propuesta"
           valor={formatearNumero(numeros.conPropuesta)}
         />
-        {/* Las dos últimas no llevan a ningún sitio: el pronóstico sale
-            de los checklists, y las acciones, del calendario que ya está
-            en esta misma pantalla. */}
+        {/* El pronóstico sale de los checklists, no de un filtro del
+            tablero; lleva igualmente a la cartera porque cada tarjeta de
+            marca enseña su OVP acumulado, que es de donde se suma. Las
+            acciones se ven en el calendario, que está en esta misma
+            pantalla. */}
         <CifraPropia
           destacada
+          enlace={`/marcas?vendedor=${miId}`}
           etiqueta="Mi pronóstico"
           valor={formatearDineroAbreviado(numeros.miPronostico)}
         />
         <CifraPropia
+          ancla={ANCLA_DE_LA_CAJA_DEL_CALENDARIO}
           etiqueta="Acciones por delante"
           valor={formatearNumero(numeros.accionesPorDelante)}
         />
@@ -1119,12 +1354,15 @@ function CifraPropia({
   valor,
   destacada = false,
   enlace,
+  ancla,
 }: {
   etiqueta: string;
   valor: string;
   destacada?: boolean;
   /** El listado del que sale la cifra, cuando hay uno. */
   enlace?: string;
+  /** Una caja de esta misma pantalla; ver `TarjetaDeMetrica`. */
+  ancla?: string;
 }) {
   const contenido = (
     <>
@@ -1140,15 +1378,23 @@ function CifraPropia({
     </>
   );
 
+  const clases =
+    "block rounded-xl bg-content1 px-3 py-2.5 transition hover:ring-2 hover:ring-primary/40";
+
+  if (ancla !== undefined) {
+    return (
+      <a className={clases} href={`#${ancla}`}>
+        {contenido}
+      </a>
+    );
+  }
+
   if (enlace === undefined) {
     return <div className="rounded-xl bg-content1 px-3 py-2.5">{contenido}</div>;
   }
 
   return (
-    <Link
-      className="block rounded-xl bg-content1 px-3 py-2.5 transition hover:ring-2 hover:ring-primary/40"
-      to={enlace}
-    >
+    <Link className={clases} to={enlace}>
       {contenido}
     </Link>
   );

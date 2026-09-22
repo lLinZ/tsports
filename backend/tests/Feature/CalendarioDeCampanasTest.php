@@ -376,6 +376,48 @@ class CalendarioDeCampanasTest extends TestCase
         $respuesta->assertJsonPath('resumen.porVendedor.0.total', 3);
     }
 
+    /**
+     * De esto vive la leyenda que hay bajo el calendario: sin el color
+     * pegado a cada total, la interfaz tendría que rebuscarlo entre los
+     * eventos del periodo y una campaña podría salir con el color de
+     * otra.
+     */
+    public function test_cada_total_por_campana_trae_su_color(): void
+    {
+        $comercial = $this->crearUsuario(RolUsuario::Comercial);
+
+        foreach ([
+            ['Marca A', 'Visita presencial', '#f5a524', '2026-09-07'],
+            ['Marca B', 'Visita presencial', '#f5a524', '2026-09-08'],
+            ['Marca C', 'Kombat Challenge', '#2563eb', '2026-09-09'],
+        ] as [$nombreDeLaMarca, $nombreDeLaCampana, $color, $fecha]) {
+            $marca = Marca::create(['nombre_marca' => $nombreDeLaMarca]);
+
+            EventoDeCampana::create([
+                'marca_id' => $marca->id,
+                'campana_id' => null,
+                'campana_nombre' => $nombreDeLaCampana,
+                'campana_color' => $color,
+                'fecha' => $fecha,
+            ]);
+        }
+
+        $respuesta = $this->actingAs($comercial)
+            ->getJson('/api/panel/calendario?desde=2026-09-10');
+
+        // El color acompaña al total y corresponde a SU campaña, no a la
+        // primera que se encontró.
+        $respuesta->assertOk()
+            ->assertJsonPath('resumen.porCampana.0.etiqueta', 'Visita presencial')
+            ->assertJsonPath('resumen.porCampana.0.color', '#f5a524')
+            ->assertJsonPath('resumen.porCampana.1.etiqueta', 'Kombat Challenge')
+            ->assertJsonPath('resumen.porCampana.1.color', '#2563eb');
+
+        // Los eventos se crearon sin campaña viva a propósito: el color
+        // sale del historial, así que sigue ahí aunque la campaña se
+        // haya renombrado o borrado después (regla 13).
+    }
+
     public function test_una_fecha_con_formato_invalido_se_rechaza(): void
     {
         $comercial = $this->crearUsuario(RolUsuario::Comercial);

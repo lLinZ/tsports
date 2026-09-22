@@ -40,6 +40,12 @@ referencia para el negocio, **no** para el estilo de código.
 | Enrutado | React Router | 7 |
 | Iconos | lucide-react | — |
 | Tipografía | **Inter** (Google Fonts) | — |
+| Reportes en Excel | write-excel-file | 4.x |
+
+> **El escritor de .xlsx se carga solo al descargar.** Se pide con
+> `import()` dentro de `utilidades/excelDeCampanas.ts` y tiene su propio
+> paquete declarado en `vite.config.ts` (`vendor-excel`). Sin esa línea
+> acabaría dentro de `vendor`, que se descarga siempre al entrar.
 
 > **HeroUI v2, no v3.** Existe una v3, pero es una reescritura con otra
 > API. Todo el código está escrito contra la v2.8, que es estable y la
