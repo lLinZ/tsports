@@ -137,6 +137,58 @@ class PanelSegunElRolTest extends TestCase
      | El calendario
      |-----------------------------------------------------------------*/
 
+    /**
+     * «Mis campañas» tiene que seguir enseñando una campaña que el agente
+     * trabajó aunque sus marcas ya hayan pasado a otra.
+     *
+     * La casilla `campana_id` de la marca solo guarda la última, así que
+     * la lista salía solo de ella y el trabajo de hace un mes
+     * desaparecía del panel sin dejar rastro.
+     */
+    public function test_mis_campanas_conserva_las_que_ya_trabajo(): void
+    {
+        $agente = $this->crearUsuario(RolUsuario::Vendedor);
+
+        // Con color explícito: `anotarEvento` lo copia dentro del evento
+        // y esa columna no admite nulo.
+        $invitacion = Campana::create([
+            'nombre' => 'Invitación a evento',
+            'color' => '#db2777',
+        ]);
+        $materialPop = Campana::create([
+            'nombre' => 'Envió material pop',
+            'color' => '#f59e0b',
+        ]);
+
+        $suMarca = $this->crearMarca('Marca del agente', $agente);
+        $suMarca->update(['campana_id' => $materialPop->id]);
+
+        $this->anotarEvento($suMarca, $invitacion, '2026-09-17');
+        $this->anotarEvento($suMarca, $materialPop, '2026-09-28');
+
+        // La misma campaña en una marca AJENA no debe sumarle nada.
+        $deOtro = $this->crearMarca('Marca de otro', $this->crearUsuario(
+            RolUsuario::Vendedor,
+            'Otro agente',
+        ));
+        $this->anotarEvento($deOtro, $invitacion, '2026-09-17');
+
+        $misCampanas = collect(
+            $this->actingAs($agente)->getJson('/api/panel/resumen')->json('misCampanas'),
+        )->keyBy('nombre');
+
+        // La que trabajó y ya no tiene puesta: cero ahora, una alcanzada.
+        $this->assertSame(0, $misCampanas['Invitación a evento']['total']);
+        $this->assertSame(1, $misCampanas['Invitación a evento']['alcanzadas']);
+
+        // La que tiene puesta hoy.
+        $this->assertSame(1, $misCampanas['Envió material pop']['total']);
+        $this->assertSame(1, $misCampanas['Envió material pop']['alcanzadas']);
+
+        // Primero lo que tiene puesto hoy, que es lo que le toca.
+        $this->assertSame('Envió material pop', $misCampanas->keys()->first());
+    }
+
     public function test_el_calendario_del_agente_solo_trae_sus_acciones(): void
     {
         $agente = $this->crearUsuario(RolUsuario::Vendedor);

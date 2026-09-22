@@ -75,6 +75,10 @@ class MarcaController extends Controller
             ->deVendedor($peticion->query('vendedor'))
             ->deZona($peticion->query('zona'))
             ->deCampana($peticion->query('campana'))
+            // A quién ALCANZÓ una campaña, según el historial. Es lo que
+            // hay detrás de la cifra «alcanzadas» del panel; `campana`
+            // filtra por la que tienen puesta hoy, que es otra cosa.
+            ->alcanzadasPorLaCampana($peticion->query('campanaAlcanzada'))
             ->queOfrecenLaPropiedad($peticion->query('propiedad'))
             ->conInversion($peticion->query('invierte'));
 

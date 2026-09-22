@@ -100,8 +100,10 @@ import {
   formatearTiempoRelativo,
 } from "@/utilidades/formato";
 import type {
+  MiCampanaDelPanel,
   MisNumerosDelPanel,
   RegistroDeActividad,
+  ResumenDeCampana,
   ResumenDeInversionPorZona,
   ResumenDelAgente,
   ResumenDeZona,
@@ -428,7 +430,7 @@ export function PaginaPanel() {
 
         <TarjetaBento
           columnas={6}
-          descripcion="Cuántas marcas se están trabajando dentro de cada campaña."
+          descripcion="Marcas con la campaña puesta ahora, y marcas a las que ha llegado en total."
           icono={<Activity className="size-4" />}
           titulo="Reparto por campaña"
         >
@@ -441,41 +443,7 @@ export function PaginaPanel() {
             <ul className="space-y-2.5">
               {porCampana.map((campana) => (
                 <li key={campana.campanaId ?? "sin_campana"}>
-                  {/* Antes solo era pulsable el nombre; ahora la fila
-                      entera, porque lo que se quiere pulsar es la cifra
-                      que hay al otro extremo. */}
-                  <FilaPulsable
-                    enlace={`/marcas?campana=${campana.campanaId ?? "sin_campana"}`}
-                  >
-                    <span className="flex min-w-0 items-center gap-2">
-                      <span
-                        className="size-2.5 shrink-0 rounded-full"
-                        style={{ backgroundColor: campana.color }}
-                      />
-                      <span className="truncate text-xs font-medium text-foreground">
-                        {campana.nombre}
-                      </span>
-
-                      {!campana.estaVigente && campana.campanaId !== null && (
-                        <span className="shrink-0 text-[10px] text-default-400">
-                          (cerrada)
-                        </span>
-                      )}
-                    </span>
-
-                    <div className="flex shrink-0 items-center gap-2">
-                      <Chip radius="lg" size="sm" variant="flat">
-                        {campana.total}{" "}
-                        {campana.total === 1 ? "marca" : "marcas"}
-                      </Chip>
-
-                      {campana.valor > 0 && (
-                        <span className="text-[11px] font-semibold text-success">
-                          {formatearDineroAbreviado(campana.valor)}
-                        </span>
-                      )}
-                    </div>
-                  </FilaPulsable>
+                  <FilaDeCampana campana={campana} />
                 </li>
               ))}
             </ul>
@@ -796,7 +764,7 @@ function PanelDelAgente({
 
         <TarjetaBento
           columnas={6}
-          descripcion="Dentro de qué empujón comercial estás trabajando cada marca."
+          descripcion="Tus marcas con cada campaña puesta ahora, y a cuántas ha llegado en total."
           icono={<Megaphone className="size-4" />}
           titulo="Mis campañas"
         >
@@ -809,28 +777,10 @@ function PanelDelAgente({
             <ul className="space-y-2.5">
               {misCampanas.map((campana) => (
                 <li key={campana.campanaId ?? "sin_campana"}>
-                  {/* Con el filtro de agente puesto: esta caja habla de
-                      SUS marcas, y sin él la lista traería las de todo
-                      el equipo y no cuadraría con la cifra. */}
-                  <FilaPulsable
-                    enlace={`/marcas?vendedor=${usuario.id}&campana=${
-                      campana.campanaId ?? "sin_campana"
-                    }`}
-                  >
-                    <span className="flex min-w-0 items-center gap-2">
-                      <span
-                        className="size-2.5 shrink-0 rounded-full"
-                        style={{ backgroundColor: campana.color }}
-                      />
-                      <span className="truncate text-xs font-medium text-foreground">
-                        {campana.nombre}
-                      </span>
-                    </span>
-
-                    <Chip radius="lg" size="sm" variant="flat">
-                      {campana.total}
-                    </Chip>
-                  </FilaPulsable>
+                  {/* Con el filtro de agente puesto en los dos enlaces:
+                      esta caja habla de SUS marcas, y sin él la lista
+                      traería las de todo el equipo y no cuadraría. */}
+                  <FilaDeCampana campana={campana} soloDelAgente={usuario.id} />
                 </li>
               ))}
             </ul>
@@ -868,6 +818,107 @@ function FilaPulsable({
     >
       {children}
     </Link>
+  );
+}
+
+/**
+ * Una campaña del reparto, con sus DOS cifras.
+ *
+ * Las dos contestan preguntas distintas y por eso salen las dos:
+ *
+ *   · «N ahora»      → marcas que tienen esa campaña puesta hoy. Es con
+ *     lo que el comercial reparte trabajo.
+ *   · «N alcanzadas» → marcas a las que esa campaña llegó alguna vez.
+ *     Es lo que mide el esfuerzo hecho.
+ *
+ * Enseñar solo la primera llevaba a engaño: una marca guarda su campaña
+ * en UNA casilla, así que al ponerle otra desaparece de la anterior. En
+ * la base de pruebas eso dejaba campañas con acciones hechas marcadas a
+ * cero, y era imposible saber por qué desde la pantalla.
+ *
+ * Cada cifra es su propio enlace y cada una lleva a SU lista: «ahora»
+ * filtra por la casilla y «alcanzadas» por el historial. La fila no es
+ * un único enlace porque un enlace no puede contener otro, y aquí hacen
+ * falta dos destinos distintos.
+ */
+function FilaDeCampana({
+  campana,
+  soloDelAgente,
+}: {
+  campana: ResumenDeCampana | MiCampanaDelPanel;
+  /** Id del agente, cuando la caja habla solo de sus marcas. */
+  soloDelAgente?: string;
+}) {
+  const deEsteAgente =
+    soloDelAgente === undefined ? "" : `vendedor=${soloDelAgente}&`;
+
+  const claveDeLaCampana = campana.campanaId ?? "sin_campana";
+
+  const estaCerrada =
+    "estaVigente" in campana && !campana.estaVigente && campana.campanaId !== null;
+
+  const valor = "valor" in campana ? campana.valor : 0;
+
+  return (
+    // Envuelve en vez de apretar: los nombres de campaña son largos
+    // ("Invitación a evento enamorados del marketing deportivo") y con
+    // la caja estrecha —un portátil pequeño, o el móvil, donde ocupa el
+    // ancho entero— las dos cifras dejaban el nombre en "Invitación a
+    // e...". Antes que recortarlo, las cifras se van a la línea de
+    // abajo.
+    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 rounded-xl bg-default-50 px-3 py-2.5">
+      <Link
+        className="flex min-w-36 flex-1 items-center gap-2 hover:text-primary"
+        to={`/marcas?${deEsteAgente}campana=${claveDeLaCampana}`}
+      >
+        <span
+          className="size-2.5 shrink-0 rounded-full"
+          style={{ backgroundColor: campana.color }}
+        />
+        <span className="truncate text-xs font-medium">{campana.nombre}</span>
+
+        {estaCerrada && (
+          <span className="shrink-0 text-[10px] text-default-400">(cerrada)</span>
+        )}
+      </Link>
+
+      <div className="flex shrink-0 items-center gap-1.5">
+        <Link
+          title="Marcas que tienen esta campaña puesta ahora mismo"
+          to={`/marcas?${deEsteAgente}campana=${claveDeLaCampana}`}
+        >
+          <Chip className="cursor-pointer" radius="lg" size="sm" variant="flat">
+            {campana.total} ahora
+          </Chip>
+        </Link>
+
+        {/* «Sin campaña» no alcanza a nadie: el servidor manda nulo y
+            aquí no se pinta, en vez de un cero que se leería como dato. */}
+        {campana.alcanzadas !== null && campana.campanaId !== null && (
+          <Link
+            title="Marcas a las que esta campaña ha llegado alguna vez, según el historial"
+            to={`/marcas?${deEsteAgente}campanaAlcanzada=${campana.campanaId}`}
+          >
+            <Chip
+              className="cursor-pointer"
+              color="primary"
+              radius="lg"
+              size="sm"
+              variant="flat"
+            >
+              {campana.alcanzadas} alcanzada
+              {campana.alcanzadas === 1 ? "" : "s"}
+            </Chip>
+          </Link>
+        )}
+
+        {valor > 0 && (
+          <span className="text-[11px] font-semibold text-success">
+            {formatearDineroAbreviado(valor)}
+          </span>
+        )}
+      </div>
+    </div>
   );
 }
 
