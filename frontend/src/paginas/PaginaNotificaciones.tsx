@@ -33,6 +33,7 @@ import {
 import { useScrollInfinito } from "@/hooks/useScrollInfinito";
 import { avisarDeError, avisarDeExito } from "@/utilidades/avisos";
 import { formatearNumero } from "@/utilidades/formato";
+import { TarjetaDeAvisosEnElMovil } from "@/componentes/layout/TarjetaDeAvisosEnElMovil";
 
 type Vista = "todas" | "sinLeer";
 
@@ -101,6 +102,8 @@ export function PaginaNotificaciones() {
           </Button>
         </div>
       </div>
+
+      <TarjetaDeAvisosEnElMovil />
 
       <TarjetaBento>
         {listado.estaCargando ? (

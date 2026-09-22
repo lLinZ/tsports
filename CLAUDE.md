@@ -41,6 +41,7 @@ referencia para el negocio, **no** para el estilo de código.
 | Iconos | lucide-react | — |
 | Tipografía | **Inter** (Google Fonts) | — |
 | Reportes en Excel | write-excel-file | 4.x |
+| Avisos al móvil | minishlink/web-push | 11.x |
 
 > **El escritor de .xlsx se carga solo al descargar.** Se pide con
 > `import()` dentro de `utilidades/excelDeCampanas.ts` y tiene su propio
@@ -439,9 +440,11 @@ Salieron del cliente y están implementadas a propósito así:
 
 17. **Los avisos se guardan antes de empujarse.** Toda notificación la
     crea `App\Support\Notificador` y es una fila en `notificaciones`;
-    el WebSocket solo la adelanta a quien tenga el panel abierto. Si
-    Reverb está caído, la petición sale bien y el aviso espera en la
-    campanita. A quién le toca cada uno:
+    el WebSocket solo la adelanta a quien tenga el panel abierto y el
+    push solo la lleva al móvil de quien lo tenga cerrado. Si Reverb
+    está caído, o no hay trabajador de colas, la petición sale bien y
+    el aviso espera en la campanita. **La fila es el aviso; los demás
+    canales son salidas.** A quién le toca cada uno:
 
     - **Lead de la web** → a quien ve todas las marcas (hoy admin y
       comercial), por permiso del rol. Nunca al agente: no ve los leads
@@ -451,6 +454,16 @@ Salieron del cliente y están implementadas a propósito así:
       agente no cambió, si se quitó, ni a quien se la asigna a sí mismo.
 
     Cada quien lee y marca solo SUS avisos; ni un admin los de otro.
+
+    El push va **en cola** y el empuje en vivo **no**, y no es un
+    descuido: el WebSocket es un mensaje a un proceso de esta misma
+    máquina, y cada push es una petición de red al servidor de Google o
+    de Apple, una por dispositivo. Sin claves VAPID no se encola nada.
+
+    Y un dispositivo pertenece a **quien lo está usando**: el endpoint
+    del navegador lleva índice único y el alta reasigna, de modo que en
+    un ordenador compartido al siguiente que entre no le suenan los
+    avisos del anterior.
 
 18. **El panel se instala y se consulta sin conexión, pero nunca se
     escribe sin conexión.** Son tres piezas y cada una tiene su regla:

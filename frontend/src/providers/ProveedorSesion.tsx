@@ -49,6 +49,7 @@ import {
   leerTokenGuardado,
   registrarManejadorDeSesionCaducada,
 } from "@/api/clienteHttp";
+import { darDeBajaEsteDispositivo } from "@/api/push";
 import { borrarLasCopiasDeDatos } from "@/providers/ProveedorDatosGuardados";
 import { useTema } from "@/providers/ProveedorTema";
 import type { Usuario } from "@/tipos/modelos";
@@ -232,6 +233,10 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
 
   const salir = useCallback(async () => {
     try {
+      // Antes de invalidar el token, mientras todavía vale: este
+      // dispositivo deja de estar en la libreta del push, para que sus
+      // avisos no le suenen al siguiente que entre aquí.
+      await darDeBajaEsteDispositivo();
       await cerrarSesionEnLaApi();
     } finally {
       // Pase lo que pase con el servidor —puede no haber red— salir

@@ -38,6 +38,7 @@ use App\Http\Controllers\Api\NotificacionController;
 use App\Http\Controllers\Api\PanelController;
 use App\Http\Controllers\Api\PropiedadController;
 use App\Http\Controllers\Api\SectorController;
+use App\Http\Controllers\Api\SuscripcionPushController;
 use App\Http\Controllers\Api\TiempoRealController;
 use App\Http\Controllers\Api\UsuarioController;
 use Illuminate\Support\Facades\Route;
@@ -77,6 +78,14 @@ Route::middleware('auth:sanctum')->group(function (): void {
      | autorización de cada canal privado va aparte, en
      | /api/broadcasting/auth, registrada en bootstrap/app.php.          */
     Route::get('/tiempo-real', [TiempoRealController::class, 'configuracion']);
+
+    /* ---------- Avisos al móvil ----------
+     | La libreta de direcciones del push: cada quien da de alta y de
+     | baja SU navegador. Quién recibe qué lo sigue decidiendo
+     | App\Support\Notificador, igual que con la campanita.             */
+    Route::get('/push', [SuscripcionPushController::class, 'configuracion']);
+    Route::post('/push/suscripciones', [SuscripcionPushController::class, 'store']);
+    Route::delete('/push/suscripciones', [SuscripcionPushController::class, 'destroy']);
 
     /* ---------- Notificaciones (la campanita) ----------
      | Cada quien, las suyas. Las crea App\Support\Notificador; aquí

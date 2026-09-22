@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support;
 
 use App\Events\NotificacionNueva;
+use App\Jobs\EnviarAvisoPush;
 use App\Models\Marca;
 use App\Models\Notificacion;
 use App\Models\User;
@@ -19,13 +20,20 @@ use Throwable;
  * lo que acaba de pasar («entró un lead», «cambió el agente de esta
  * marca») y aquí se decide a quién avisar y con qué palabras.
  *
- * DOS PASOS, EN ESTE ORDEN
+ * TRES PASOS, EN ESTE ORDEN
  *   1. Guardar el aviso. A partir de aquí ya no se pierde.
  *   2. Empujarlo en vivo por Reverb, a quien tenga el panel abierto.
- * El segundo paso es una mejora, no una condición: si Reverb está
- * parado, el error se anota en el registro y la petición sigue como si
- * nada. Quien asignó la marca no tiene por qué enterarse de que el
- * demonio del tiempo real está caído; el agente verá el aviso al entrar.
+ *   3. Encolar el aviso al móvil, para quien lo tenga cerrado.
+ * Los pasos 2 y 3 son mejoras, no condiciones: si Reverb está parado, el
+ * error se anota en el registro y la petición sigue como si nada; si no
+ * hay trabajador de colas, el push espera en la tabla `jobs`. Quien
+ * asignó la marca no tiene por qué enterarse de que un demonio está
+ * caído; el agente verá el aviso al entrar.
+ *
+ * El push va EN COLA y el empuje en vivo NO, y es deliberado: el
+ * WebSocket es un mensaje a un proceso de esta misma máquina, y un push
+ * es una petición de red al servidor de Google o de Apple por cada
+ * dispositivo. Ver EnviarAvisoPush.
  *
  * A QUIÉN
  * Por permisos del rol (`RolUsuario`), nunca comparando nombres de rol.
@@ -119,6 +127,31 @@ class Notificador
         ]));
 
         $this->empujarEnVivo($notificaciones);
+        $this->empujarAlMovil($notificaciones);
+    }
+
+    /**
+     * Pone en cola el aviso al móvil de cada destinatario.
+     *
+     * Va detrás de guardar y detrás del empuje en vivo. Si el panel está
+     * abierto, para cuando el trabajador saque esto de la cola el aviso
+     * ya estará leído y el trabajo no hará sonar nada (lo comprueba
+     * EnviarAvisoPush).
+     *
+     * @param  Collection<int,Notificacion>  $notificaciones
+     */
+    private function empujarAlMovil(Collection $notificaciones): void
+    {
+        // Sin claves VAPID no hay push. Se comprueba aquí además de
+        // dentro del trabajo para no llenar la tabla `jobs` de trabajos
+        // que solo van a devolverse a sí mismos.
+        if (! Push::estaActivo()) {
+            return;
+        }
+
+        foreach ($notificaciones as $notificacion) {
+            EnviarAvisoPush::dispatch($notificacion->id);
+        }
     }
 
     /**

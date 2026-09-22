@@ -355,6 +355,37 @@ composer install \
 paso "Generando la clave de cifrado de la aplicación"
 php "${CARPETA_DEL_PROYECTO}/backend/artisan" key:generate --force
 
+# Claves VAPID de los avisos al móvil.
+#
+# No sirve `openssl rand` como con Reverb: esto es un par de claves de
+# curva elíptica en un formato concreto, así que lo genera el propio
+# comando de la aplicación, que ya sabe hacerlo. Por eso va DESPUÉS de
+# composer install (necesita la librería) y no arriba con las demás.
+#
+# Solo si están vacías: en una reinstalación sobre un .env que ya las
+# tiene, generar unas nuevas dejaría sin avisos a todos los dispositivos
+# que ya los aceptaron.
+if grep -q '^VAPID_PUBLIC_KEY=$' "${CARPETA_DEL_PROYECTO}/backend/.env"; then
+  paso "Generando las claves de los avisos al móvil"
+
+  CLAVES_DE_PUSH="$(php "${CARPETA_DEL_PROYECTO}/backend/artisan" push:claves --no-ansi)"
+
+  VAPID_PUBLICA="$(echo "${CLAVES_DE_PUSH}" | grep '^VAPID_PUBLIC_KEY=' | cut -d= -f2)"
+  VAPID_PRIVADA="$(echo "${CLAVES_DE_PUSH}" | grep '^VAPID_PRIVATE_KEY=' | cut -d= -f2)"
+
+  if [[ -n "${VAPID_PUBLICA}" && -n "${VAPID_PRIVADA}" ]]; then
+    sed -i "s|^VAPID_SUBJECT=.*|VAPID_SUBJECT=https://${DOMINIO}|"          "${CARPETA_DEL_PROYECTO}/backend/.env"
+    sed -i "s|^VAPID_PUBLIC_KEY=.*|VAPID_PUBLIC_KEY=${VAPID_PUBLICA}|"      "${CARPETA_DEL_PROYECTO}/backend/.env"
+    sed -i "s|^VAPID_PRIVATE_KEY=.*|VAPID_PRIVATE_KEY=${VAPID_PRIVADA}|"    "${CARPETA_DEL_PROYECTO}/backend/.env"
+    echo "  Avisos al móvil listos."
+  else
+    # No es motivo para parar la instalación: sin push, los avisos
+    # siguen llegando a la campanita, que es donde se guardan.
+    echo "  AVISO: no se pudieron generar las claves VAPID. El push queda apagado;"
+    echo "         se puede arreglar luego con 'php artisan push:claves'."
+  fi
+fi
+
 paso "Creando las tablas"
 php "${CARPETA_DEL_PROYECTO}/backend/artisan" migrate --force
 

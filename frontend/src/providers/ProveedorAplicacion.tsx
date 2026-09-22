@@ -2,7 +2,8 @@
  * providers/ProveedorAplicacion.tsx
  * ---------------------------------------------------------------------
  * El panel como aplicación instalada: el service worker, el aviso de
- * versión nueva y la invitación a instalarla.
+ * versión nueva, la invitación a instalarla y lo que pasa al pulsar un
+ * aviso en el móvil.
  *
  * TRES DECISIONES QUE NO SE VEN EN EL CÓDIGO
  *
@@ -37,6 +38,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useNavigate } from "react-router-dom";
 import { useSesion } from "@/providers/ProveedorSesion";
 
 /**
@@ -122,6 +124,7 @@ const ContextoDeAplicacion = createContext<ValorDelContextoDeAplicacion | null>(
 
 export function ProveedorAplicacion({ children }: { children: ReactNode }) {
   const { estadoDeLaSesion } = useSesion();
+  const navegar = useNavigate();
   const haySesion = estadoDeLaSesion === "conSesion";
 
   const [hayVersionNueva, establecerHayVersionNueva] = useState(false);
@@ -233,6 +236,31 @@ export function ProveedorAplicacion({ children }: { children: ReactNode }) {
       navigator.serviceWorker.removeEventListener("controllerchange", alCambiarElControlador);
     };
   }, [haySesion]);
+
+  /* ---------------------------------------------------------------- */
+  /* Al pulsar un aviso en el móvil                                   */
+  /* ---------------------------------------------------------------- */
+
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) {
+      return;
+    }
+
+    // El service worker, al pulsarse un aviso, busca una pestaña abierta
+    // y le pide que navegue ELLA en vez de recargarla. Así quien
+    // estuviera a mitad de una ficha no pierde lo que tenía escrito.
+    const alLlegarUnMensaje = (evento: MessageEvent) => {
+      if (evento.data?.tipo === "abrir-aviso" && typeof evento.data.enlace === "string") {
+        navegar(evento.data.enlace);
+      }
+    };
+
+    navigator.serviceWorker.addEventListener("message", alLlegarUnMensaje);
+
+    return () => {
+      navigator.serviceWorker.removeEventListener("message", alLlegarUnMensaje);
+    };
+  }, [navegar]);
 
   /* ---------------------------------------------------------------- */
   /* Búsqueda periódica de versiones                                  */

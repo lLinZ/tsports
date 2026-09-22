@@ -244,3 +244,89 @@ function respuestaDeSinConexion() {
     headers: { "Content-Type": "text/plain; charset=utf-8" },
   });
 }
+
+/* ==================================================================== */
+/* Avisos al móvil con el panel cerrado                                 */
+/* ==================================================================== */
+
+/**
+ * Llega un aviso empujado desde el servidor.
+ *
+ * ESTO TIENE QUE ENSEÑAR ALGO SIEMPRE. Los navegadores exigen que todo
+ * push acabe en una notificación visible: si el evento termina sin
+ * llamar a `showNotification`, Chrome pinta un aviso genérico del tipo
+ * «Este sitio se actualizó en segundo plano» y, si se repite, deja de
+ * entregar los avisos de este sitio. Por eso hasta el caso raro —un
+ * push sin datos o con datos rotos— acaba enseñando algo.
+ *
+ * El contenido lo arma el servidor (`App\Support\Push`) y viene con el
+ * enlace ya resuelto: aquí no se compone ninguna ruta.
+ */
+self.addEventListener("push", (evento) => {
+  let aviso = {};
+
+  try {
+    aviso = evento.data ? evento.data.json() : {};
+  } catch {
+    /* Un push que no es JSON nuestro; se enseña el texto de respaldo. */
+  }
+
+  const titulo = aviso.titulo || "TS Sports";
+
+  evento.waitUntil(
+    self.registration.showNotification(titulo, {
+      body: aviso.cuerpo || "Tienes un aviso nuevo en el panel.",
+      icon: "/iconos/icono-192.png",
+      // El icono pequeño y monocromo de la barra de estado de Android.
+      // Sin él, algunos teléfonos pintan un cuadrado gris.
+      badge: "/iconos/icono-enmascarable-192.png",
+      lang: "es",
+      // Dos avisos del mismo tipo se sustituyen en vez de apilarse:
+      // volver de un fin de semana con quince leads dejaría quince
+      // avisos en el teléfono. El servidor manda ya la misma etiqueta
+      // como `topic`, que hace lo propio en el servicio de entrega.
+      tag: aviso.tipo || "tsports",
+      // Lo que hace falta al pulsarlo, y nada más: ni nombres de marca
+      // ni datos que no estén ya en el texto del aviso.
+      data: { enlace: aviso.enlace || "/panel" },
+    }),
+  );
+});
+
+/**
+ * Se pulsa el aviso: se va a la ficha.
+ *
+ * Si ya hay una ventana del panel abierta se reutiliza —abrir una
+ * segunda con la misma sesión desconcierta— y solo si no hay ninguna se
+ * abre una nueva.
+ */
+self.addEventListener("notificationclick", (evento) => {
+  evento.notification.close();
+
+  const destino = evento.notification.data?.enlace || "/panel";
+
+  evento.waitUntil(
+    (async () => {
+      const ventanas = await self.clients.matchAll({
+        type: "window",
+        // Cuentan también las que todavía se están cargando.
+        includeUncontrolled: true,
+      });
+
+      for (const ventana of ventanas) {
+        if (new URL(ventana.url).origin === self.location.origin) {
+          await ventana.focus();
+
+          // Se le pide a la pestaña que navegue ella, con su enrutador,
+          // en vez de recargarla entera: quien estuviera a mitad de algo
+          // no pierde lo que tenía escrito.
+          ventana.postMessage({ tipo: "abrir-aviso", enlace: destino });
+
+          return;
+        }
+      }
+
+      await self.clients.openWindow(destino);
+    })(),
+  );
+});
