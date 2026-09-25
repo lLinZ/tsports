@@ -55,3 +55,7 @@ Thumbs.db
 *.log
 npm-debug.log*
 yarn-error.log*
+
+# Grafo de conocimiento de /graphify: lleva contenido de los documentos
+# internos (plan, informes) y el repositorio es público.
+graphify-out/
