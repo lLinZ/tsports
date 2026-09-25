@@ -168,6 +168,38 @@ class BitacoraConversacionTest extends TestCase
     }
 
     /**
+     * La ficha de una marca con conversación se abre.
+     *
+     * Hasta septiembre de 2026 la ficha cargaba además todos los
+     * comentarios sin sus reacciones ni respuestas: en producción eso era
+     * una consulta por comentario al abrir cada ficha, y aquí (con la
+     * carga perezosa bloqueada) un 500. Se vio al abrir una marca desde
+     * el chat. La bitácora se pide aparte; la ficha solo trae cuántos hay.
+     */
+    public function test_la_ficha_de_una_marca_con_conversacion_se_abre(): void
+    {
+        $comercial = $this->crearUsuario(RolUsuario::Comercial);
+        $marca = $this->crearMarca('Marca con hilo');
+
+        $idDeLaRaiz = $this->actingAs($comercial)
+            ->postJson("/api/marcas/{$marca->id}/comentarios", ['cuerpo' => 'Llamé y no contestan'])
+            ->json('data.id');
+
+        $this->actingAs($comercial)->postJson("/api/marcas/{$marca->id}/comentarios", [
+            'cuerpo' => 'Yo probé por WhatsApp',
+            'comentarioPadreId' => $idDeLaRaiz,
+        ]);
+        $this->actingAs($comercial)
+            ->putJson("/api/marcas/{$marca->id}/comentarios/{$idDeLaRaiz}/reacciones", ['emoji' => '👍']);
+
+        $this->actingAs($comercial)
+            ->getJson("/api/marcas/{$marca->id}")
+            ->assertOk()
+            ->assertJsonPath('data.totalComentarios', 2)
+            ->assertJsonMissingPath('data.comentarios');
+    }
+
+    /**
      * No se responde a una respuesta.
      *
      * Anidar sin límite hace la bitácora ilegible en tres semanas, y

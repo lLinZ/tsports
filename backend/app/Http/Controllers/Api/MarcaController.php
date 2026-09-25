@@ -311,8 +311,14 @@ class MarcaController extends Controller
     {
         $this->authorize('view', $marca);
 
+        // La bitácora NO viaja con la ficha: la pide aparte el panel de
+        // comentarios (`/marcas/{id}/comentarios`), con sus respuestas,
+        // reacciones y menciones ya cargadas. Traerla también aquí, sin
+        // eso, hacía una consulta por comentario al abrir cada ficha. Solo
+        // hace falta cuántos hay, para el número de la pestaña «Bitácora».
+        $marca->loadCount('comentarios');
+
         $marca->load([
-            'comentarios' => fn ($consulta) => $consulta->orderBy('created_at'),
             'campana',
             'propiedadesOfrecidas.propiedad',
             // El historial de acciones solo se carga aquí, en la ficha:
