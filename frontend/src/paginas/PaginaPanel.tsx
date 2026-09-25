@@ -378,11 +378,24 @@ export function PaginaPanel() {
                       </span>
                     </div>
 
-                    <BarraDeProporcion
-                      montoDeLaMeta={propiedad.forecastDeVentaUsd}
-                      montoPronosticado={propiedad.ovpAcumuladoUsd}
-                      montoTotal={propiedad.montoTotalUsd}
-                    />
+                    {/* Sin MTP no hay barra que llenar, pero lo pronosticado
+                        sí cuenta y se enseña: es justo lo que dice que a
+                        esa propiedad le falta el precio. */}
+                    {propiedad.montoTotalUsd > 0 ? (
+                      <BarraDeProporcion
+                        montoDeLaMeta={propiedad.forecastDeVentaUsd}
+                        montoPronosticado={propiedad.ovpAcumuladoUsd}
+                        montoTotal={propiedad.montoTotalUsd}
+                      />
+                    ) : (
+                      <p className="text-[11px] text-default-500">
+                        OVP{" "}
+                        <strong className="text-foreground">
+                          {formatearDineroAbreviado(propiedad.ovpAcumuladoUsd)}
+                        </strong>{" "}
+                        · falta cargar el MTP
+                      </p>
+                    )}
                   </Link>
                 </li>
               ))}
