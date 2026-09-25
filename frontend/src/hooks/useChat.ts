@@ -8,9 +8,9 @@
  * DOS FORMAS DE ENTERARSE, COMO LA CAMPANITA
  *   · Con Reverb, el servidor avisa de cada cambio (`.chat`) y aquí se
  *     pide lo que falte.
- *   · Sin Reverb —producción, hoy—, la charla abierta pregunta por lo
- *     nuevo cada pocos segundos y el latido del proveedor avisa de lo
- *     demás. El mensaje está guardado antes de que nadie lo empuje, así
+ *   · Sin Reverb —apagado, caído o con el WebSocket cortado—, la
+ *     charla abierta pregunta por lo nuevo cada pocos segundos y el
+ *     latido del proveedor avisa de lo demás. El mensaje está guardado antes de que nadie lo empuje, así
  *     que lo peor que pasa es verlo unos segundos más tarde.
  *
  * TODO LO DEL CHAT SE QUEDA FUERA DE LA COPIA SIN CONEXIÓN

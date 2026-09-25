@@ -40,16 +40,21 @@ class ConexionesEnVivo
             /** @var PusherBroadcaster $emisor */
             $emisor = Broadcast::connection('reverb');
 
-            $respuesta = $emisor->getPusher()->getChannels([
+            // get() en modo array y no getChannels(): sin ningún canal
+            // ocupado Reverb contesta `"channels": []`, una LISTA vacía, y
+            // getChannels() solo sabe leer un objeto — revienta con un
+            // TypeError que ningún catch de aquí recoge (un 500 en la
+            // pantalla del administrador). Como array valen las dos formas.
+            $respuesta = $emisor->getPusher()->get('/channels', [
                 'filter_by_prefix' => self::PREFIJO_DEL_CANAL_PERSONAL,
-            ]);
+            ], true);
         } catch (GuzzleException|PusherException) {
             return null;
         }
 
         return array_values(array_map(
             fn (string $nombreDelCanal): string => Str::after($nombreDelCanal, self::PREFIJO_DEL_CANAL_PERSONAL),
-            array_keys($respuesta->channels),
+            array_keys($respuesta['channels'] ?? []),
         ));
     }
 }

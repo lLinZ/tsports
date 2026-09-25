@@ -355,8 +355,8 @@ class Mensajeria
      */
     private function empujarA(array $idsDeDestinatarios, Conversacion $conversacion, string $tipo, ?int $idDelMensaje = null): void
     {
-        // Sin tiempo real (producción, hasta que se active) no se
-        // intenta: los navegadores preguntan solos cada pocos segundos.
+        // Sin tiempo real configurado no se intenta: los navegadores
+        // preguntan solos cada pocos segundos.
         if (! TiempoReal::estaActivo() || $idsDeDestinatarios === []) {
             return;
         }

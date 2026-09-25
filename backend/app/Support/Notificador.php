@@ -212,9 +212,8 @@ class Notificador
      */
     private function empujarEnVivo(Collection $notificaciones): void
     {
-        // Con el tiempo real apagado (producción, hasta que se active) no
-        // se intenta: con el driver `log` cada aviso acabaría escrito en
-        // el registro sin llegar a nadie.
+        // Con el tiempo real apagado no se intenta: con el driver `log`
+        // cada aviso acabaría escrito en el registro sin llegar a nadie.
         if (! TiempoReal::estaActivo()) {
             return;
         }
