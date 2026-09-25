@@ -165,15 +165,17 @@ class ChatController extends Controller
     }
 
     /**
-     * POST /api/chat/grupos  { nombre, personas: [id, …] }
+     * POST /api/chat/grupos  { nombre?, personas: [id, …] }
      */
     public function crearGrupo(Request $peticion): JsonResponse
     {
         /** @var User $persona */
         $persona = $peticion->user();
 
+        // El nombre es opcional: sin él, Mensajeria le pone el de quienes
+        // están. Obligatorio dejaba el botón de crear apagado sin decir por qué.
         $datos = $peticion->validate([
-            'nombre' => ['required', 'string', 'max:80'],
+            'nombre' => ['nullable', 'string', 'max:80'],
             'personas' => ['required', 'array', 'min:1', 'max:50'],
             'personas.*' => ['uuid', Rule::exists('users', 'id')->where('activo', true)],
         ], [
@@ -186,7 +188,7 @@ class ChatController extends Controller
 
         $conversacion = $this->mensajeria->crearGrupo(
             $persona,
-            trim($datos['nombre']),
+            trim($datos['nombre'] ?? ''),
             $this->personasPorId($datos['personas']),
         );
 

@@ -80,6 +80,7 @@ export async function abrirConversacionDirecta(idDeLaPersona: string): Promise<C
 }
 
 export async function crearGrupoDelChat(datos: {
+  /** Vacío: el servidor le pone el de quienes están («Ana, Luisa y Pedro»). */
   nombre: string;
   personas: string[];
 }): Promise<ConversacionDelChat> {

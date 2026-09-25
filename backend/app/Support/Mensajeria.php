@@ -15,6 +15,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -181,6 +182,10 @@ class Mensajeria
      */
     public function crearGrupo(User $creador, string $nombre, Collection $personas): Conversacion
     {
+        if (trim($nombre) === '') {
+            $nombre = $this->nombrePorDefectoDelGrupo($creador, $personas);
+        }
+
         $conversacion = DB::transaction(function () use ($creador, $nombre, $personas): Conversacion {
             $conversacion = Conversacion::create([
                 'tipo' => Conversacion::TIPO_GRUPO,
@@ -202,6 +207,36 @@ class Mensajeria
         );
 
         return $conversacion;
+    }
+
+    /**
+     * El nombre de un grupo al que no se le puso: el de pila de quien lo
+     * crea y después el de los demás por orden alfabético («Ana, Luisa y
+     * Pedro»); con más de cuatro, los tres primeros y cuántos más.
+     *
+     * Se guarda como cualquier otro nombre y se cambia igual. No se
+     * recalcula cuando alguien entra o sale: un grupo que cambia de nombre
+     * solo deja de reconocerse en la lista.
+     *
+     * @param  Collection<int, User>  $personas
+     */
+    private function nombrePorDefectoDelGrupo(User $creador, Collection $personas): string
+    {
+        $nombreDePila = fn (User $persona): string => Str::before(trim($persona->nombreParaMostrar()), ' ');
+
+        $nombres = $personas
+            ->reject(fn (User $persona): bool => $persona->id === $creador->id)
+            ->map($nombreDePila)
+            ->sort(fn (string $uno, string $otro): int => strcasecmp($uno, $otro))
+            ->prepend($nombreDePila($creador))
+            ->values();
+
+        $texto = $nombres->count() <= 4
+            ? $nombres->join(', ', ' y ')
+            : $nombres->take(3)->join(', ').' y '.($nombres->count() - 3).' más';
+
+        // El mismo tope que el nombre escrito a mano (80), con el «…» dentro.
+        return Str::limit($texto, 79, '…');
     }
 
     public function renombrarGrupo(Conversacion $conversacion, User $quien, string $nombreNuevo): void

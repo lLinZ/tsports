@@ -99,7 +99,9 @@ export function FormularioDeGrupo({
   const candidatas = filtrarPorNombre(equipo, busqueda).filter((persona) => !yaEstan.has(persona.id));
 
   const estaGuardando = crearGrupo.isPending || anadirAlGrupo.isPending;
-  const puedeGuardar = elegidas.length > 0 && (!esNuevo || nombre.trim() !== "") && !estaGuardando;
+  // El nombre no hace falta: sin él, el servidor le pone el de quienes
+  // están (Mensajeria). Pedirlo dejaba el botón apagado sin decir por qué.
+  const puedeGuardar = elegidas.length > 0 && !estaGuardando;
 
   async function guardar() {
     if (!puedeGuardar) return;
@@ -125,9 +127,9 @@ export function FormularioDeGrupo({
         {esNuevo && (
           <Input
             autoFocus
-            label="Nombre del grupo"
+            label="Nombre del grupo (opcional)"
             maxLength={80}
-            placeholder="Ej.: Zona Centro, Sportbiz 2026…"
+            placeholder="Si lo dejas vacío, lleva el de quienes están"
             radius="lg"
             size="sm"
             value={nombre}
@@ -183,12 +185,16 @@ export function FormularioDeGrupo({
           isDisabled={!puedeGuardar}
           isLoading={estaGuardando}
           radius="lg"
-          startContent={!estaGuardando && <UserPlus className="size-4" />}
+          startContent={!estaGuardando && elegidas.length > 0 && <UserPlus className="size-4" />}
           onPress={() => void guardar()}
         >
-          {esNuevo
-            ? `Crear el grupo${elegidas.length > 0 ? ` con ${elegidas.length + 1} personas` : ""}`
-            : `Añadir${elegidas.length > 0 ? ` (${elegidas.length})` : ""}`}
+          {elegidas.length === 0
+            ? esNuevo
+              ? "Elige a quién meter en el grupo"
+              : "Elige a quién añadir"
+            : esNuevo
+              ? `Crear el grupo con ${elegidas.length + 1} personas`
+              : `Añadir (${elegidas.length})`}
         </Button>
       </div>
     </div>

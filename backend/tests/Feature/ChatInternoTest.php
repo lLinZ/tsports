@@ -301,6 +301,32 @@ class ChatInternoTest extends TestCase
         $this->assertNull(Conversacion::query()->find($grupo));
     }
 
+    public function test_un_grupo_sin_nombre_se_llama_como_quienes_estan(): void
+    {
+        $ana = $this->crearUsuario(RolUsuario::Comercial, 'Ana Torres');
+        $pedro = $this->crearUsuario(RolUsuario::Vendedor, 'Pedro Gil');
+        $luisa = $this->crearUsuario(RolUsuario::Vendedor, 'Luisa Mar');
+
+        // Quien lo crea primero; los demás, por orden alfabético.
+        $this->actingAs($ana)
+            ->postJson('/api/chat/grupos', ['personas' => [$pedro->id, $luisa->id]])
+            ->assertCreated()
+            ->assertJsonPath('data.nombre', 'Ana, Luisa y Pedro');
+
+        $this->actingAs($ana)
+            ->postJson('/api/chat/grupos', ['nombre' => '   ', 'personas' => [$pedro->id]])
+            ->assertCreated()
+            ->assertJsonPath('data.nombre', 'Ana y Pedro');
+
+        $masGente = collect(['Beto', 'Carla', 'Dani', 'Eva'])
+            ->map(fn (string $nombre): string => $this->crearUsuario(RolUsuario::Vendedor, $nombre)->id);
+
+        $this->actingAs($ana)
+            ->postJson('/api/chat/grupos', ['personas' => $masGente->push($pedro->id)->all()])
+            ->assertCreated()
+            ->assertJsonPath('data.nombre', 'Ana, Beto, Carla y 3 más');
+    }
+
     public function test_una_charla_directa_no_se_renombra_ni_se_amplia(): void
     {
         $ana = $this->crearUsuario(RolUsuario::Comercial, 'Ana');
