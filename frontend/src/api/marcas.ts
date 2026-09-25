@@ -16,6 +16,8 @@ import type {
   DatosDeComentario,
   HistoricoDeBitacora,
   PersonaMencionable,
+  ReporteDeBitacora,
+  SugerenciaDeMarca,
   DatosDeAccionParaCorregir,
   DatosDeMarcaParaGuardar,
   FiltrosDeMarcas,
@@ -290,6 +292,56 @@ export async function obtenerHistoricoDeMarca(
   );
 
   return data;
+}
+
+/**
+ * Lo escrito en la bitácora entre dos fechas, agrupado por marca.
+ *
+ * Sin marcas elegidas es el de toda la agencia y solo lo puede pedir el
+ * administrador; el servidor responde 403 a los demás. Se manda la zona
+ * horaria del navegador porque un día es un día de quien mira: lo
+ * comentado a las nueve de la noche en Caracas ya es mañana en UTC.
+ */
+export async function obtenerReporteDeBitacora(parametros: {
+  desde: string;
+  hasta: string;
+  idsDeMarcas: string[];
+}): Promise<ReporteDeBitacora> {
+  const { data } = await clienteHttp.get<ReporteDeBitacora>("/bitacora/reporte", {
+    params: {
+      desde: parametros.desde,
+      hasta: parametros.hasta,
+      marcas: parametros.idsDeMarcas,
+      zona: zonaHorariaDelNavegador(),
+    },
+  });
+
+  return data;
+}
+
+function zonaHorariaDelNavegador(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    // Sin la API de zonas (navegadores muy viejos), el servidor usa la
+    // del equipo, Caracas.
+    return undefined;
+  }
+}
+
+/**
+ * Buscador corto de marcas: las que esta persona puede ver cuyo nombre
+ * contiene el texto, veinte como mucho.
+ */
+export async function buscarSugerenciasDeMarcas(
+  texto: string,
+): Promise<SugerenciaDeMarca[]> {
+  const { data } = await clienteHttp.get<{ data: SugerenciaDeMarca[] }>(
+    "/marcas/sugerencias",
+    { params: { q: texto } },
+  );
+
+  return data.data;
 }
 
 /** El histórico de TODAS las marcas. Solo administrador. */

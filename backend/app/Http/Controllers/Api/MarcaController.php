@@ -52,18 +52,7 @@ class MarcaController extends Controller
             // Un agente solo recibe su cartera. Se acota aquí, en la
             // consulta, y no al pintar: así las marcas de sus compañeros
             // ni siquiera salen del servidor.
-            //
-            // Por ID y no por nombre: esto decide quién ve qué, y el
-            // nombre se repite entre personas (ver `laMarcaEsSuya`). Una
-            // marca que lleve su nombre sin su id no le llega, y está
-            // bien que no le llegue: es trabajo sin asignar.
-            ->when(
-                ! $usuarioQueMira->rol->veTodasLasMarcas(),
-                fn ($subconsulta) => $subconsulta->where(
-                    'vendedor_asignado_id',
-                    $usuarioQueMira->id,
-                ),
-            )
+            ->quePuedeVer($usuarioQueMira)
             ->withCount('comentarios')
             // El checklist viaja con cada marca porque la tarjeta del
             // tablero enseña el pronóstico acumulado sin abrir la ficha.
@@ -162,6 +151,48 @@ class MarcaController extends Controller
                 ? round($ovpDeLaPropiedad * 100 / $montoTotal, 2)
                 : 0.0,
         ];
+    }
+
+    /**
+     * GET /api/marcas/sugerencias?q=sangr
+     * Un buscador corto para ELEGIR una marca: etiquetarla en el chat o
+     * acotar un reporte. Veinte resultados como mucho, con lo justo para
+     * reconocerla (nombre, logo, sector y zona).
+     *
+     * Solo salen las marcas que quien busca puede ver, con la misma
+     * regla que el tablero. Si el buscador del chat ofreciera marcas
+     * ajenas, un agente podría descubrir la cartera de sus compañeros
+     * tecleando letras.
+     */
+    public function sugerencias(Request $peticion): JsonResponse
+    {
+        $this->authorize('viewAny', Marca::class);
+
+        /** @var User $quienBusca */
+        $quienBusca = $peticion->user();
+
+        $texto = trim((string) $peticion->query('q', ''));
+
+        $marcas = Marca::query()
+            ->quePuedeVer($quienBusca)
+            ->when($texto !== '', fn ($consulta) => $consulta->where('nombre_marca', 'like', '%'.$texto.'%'))
+            // Primero las que EMPIEZAN por lo escrito, que es lo que se
+            // busca al teclear las primeras letras de un nombre.
+            ->orderByRaw('CASE WHEN nombre_marca LIKE ? THEN 0 ELSE 1 END', [$texto.'%'])
+            ->orderBy('nombre_marca')
+            ->orderBy('id')
+            ->limit(20)
+            ->get(['id', 'nombre_marca', 'logo_url', 'sector', 'zona']);
+
+        return response()->json([
+            'data' => $marcas->map(fn (Marca $marca): array => [
+                'id' => $marca->id,
+                'nombre' => $marca->nombre_marca,
+                'logoUrl' => $marca->logo_url,
+                'sector' => $marca->sector,
+                'zona' => $marca->zona,
+            ])->values()->all(),
+        ]);
     }
 
     /**

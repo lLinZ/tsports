@@ -49,6 +49,7 @@ import { PaginaPanel } from "@/paginas/PaginaPanel";
 import { PaginaPropiedades } from "@/paginas/PaginaPropiedades";
 import { PaginaSectores } from "@/paginas/PaginaSectores";
 import { PaginaPerfil } from "@/paginas/PaginaPerfil";
+import { PaginaReporteDeBitacora } from "@/paginas/PaginaReporteDeBitacora";
 import { PaginaTiempoReal } from "@/paginas/PaginaTiempoReal";
 import { PaginaUsuarios } from "@/paginas/PaginaUsuarios";
 import { PaginaWebPublica } from "@/paginas/publico/PaginaWebPublica";
@@ -192,6 +193,18 @@ function RutasDeLaAplicacion() {
           </RutaProtegida>
         }
         path="/perfil"
+      />
+
+      {/* Todo el equipo: un agente saca el reporte de sus marcas. Sin
+          marcas elegidas es el de toda la agencia, y eso lo comprueba el
+          servidor (solo administrador). */}
+      <Route
+        element={
+          <RutaProtegida>
+            <PaginaReporteDeBitacora />
+          </RutaProtegida>
+        }
+        path="/reportes/bitacora"
       />
 
       {/* Cada quien ve solo sus avisos: el corte lo hace el servidor. */}

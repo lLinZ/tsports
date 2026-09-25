@@ -121,9 +121,12 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/marcas', [MarcaController::class, 'index']);
     Route::post('/marcas', [MarcaController::class, 'store']);
 
-    // Va ANTES de /marcas/{marca}: si no, Laravel leería "agentes" como
+    // Van ANTES de /marcas/{marca}: si no, Laravel leería "agentes" como
     // el identificador de una marca y respondería 404.
     Route::get('/marcas/agentes', [MarcaController::class, 'agentes']);
+    // Buscador corto de marcas para elegir una (etiquetar en el chat,
+    // acotar un reporte). Solo devuelve las que quien busca puede ver.
+    Route::get('/marcas/sugerencias', [MarcaController::class, 'sugerencias']);
 
     Route::get('/marcas/{marca}', [MarcaController::class, 'show']);
     Route::put('/marcas/{marca}', [MarcaController::class, 'update']);
@@ -174,14 +177,19 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::delete('/marcas/{marca}/comentarios/{comentario}', [ComentarioMarcaController::class, 'destroy']);
     Route::put('/marcas/{marca}/comentarios/{comentario}/reacciones', [ComentarioMarcaController::class, 'reaccionar']);
 
-    // A qui''' + chr(0xE9) + '''n se puede etiquetar en ESTA marca. Sale de los
+    // A quién se puede etiquetar en ESTA marca. Sale de los
     // permisos sobre ella, no de la lista del equipo (regla 6).
     Route::get('/marcas/{marca}/mencionables', [ComentarioMarcaController::class, 'mencionables']);
 
-    // Sacar el hist''' + chr(0xF3) + '''rico. Las dos quedan anotadas en la auditor''' + chr(0xED) + '''a:
-    // exportar una bit''' + chr(0xE1) + '''cora es sacar del sistema toda la relaci''' + chr(0xF3) + '''n
-    // comercial con esa marca.
+    // Sacar el histórico. Todas las salidas quedan anotadas en la
+    // auditoría: exportar una bitácora es sacar del sistema toda la
+    // relación comercial con esa marca.
     Route::get('/marcas/{marca}/bitacora/exportacion', [ExportacionDeBitacoraController::class, 'deUnaMarca']);
+
+    // Lo que se escribió entre dos fechas, agrupado por marca. Sin marcas
+    // elegidas es la agencia entera y solo lo saca el administrador; con
+    // marcas, quien pueda ver cada una (lo decide el controlador).
+    Route::get('/bitacora/reporte', [ExportacionDeBitacoraController::class, 'porFechas']);
 
     /* ---------- Imágenes ---------- */
     Route::post('/media', [MediaController::class, 'subir']);

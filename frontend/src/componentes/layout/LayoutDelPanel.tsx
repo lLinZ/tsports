@@ -32,6 +32,7 @@ import {
   LogOut,
   Megaphone,
   Menu,
+  NotebookPen,
   Package,
   Radio,
   ScrollText,
@@ -90,6 +91,14 @@ const ENTRADAS_DEL_MENU: EntradaDeMenu[] = [
     etiqueta: "Propiedades",
     descripcion: "Los productos IOP",
     icono: Package,
+    laPuedeVer: () => true,
+  },
+  {
+    ruta: "/reportes/bitacora",
+    etiqueta: "Reportes",
+    descripcion: "La bitácora por fechas",
+    icono: NotebookPen,
+    // Todo el equipo: cada quien saca el de las marcas que ve.
     laPuedeVer: () => true,
   },
   {

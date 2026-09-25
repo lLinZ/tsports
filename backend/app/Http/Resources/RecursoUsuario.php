@@ -62,6 +62,10 @@ class RecursoUsuario extends JsonResource
                 'gestionaElCatalogoComercial' => $this->rol->puedeGestionarElCatalogoComercial(),
                 'veTodasLasMarcas' => $this->rol->veTodasLasMarcas(),
                 'veLasCifrasDeTodaLaEmpresa' => $this->rol->veLasCifrasDeTodaLaEmpresa(),
+                // Sacar la bitácora de TODAS las marcas (el histórico o un
+                // reporte sin marcas elegidas). Pregunta a la misma política
+                // que lo comprueba al pedirlo, para que no puedan discrepar.
+                'sacaLaBitacoraCompleta' => $this->resource->can('verAuditoria', User::class),
             ],
 
             'creadoEn' => $this->created_at?->toIso8601String(),

@@ -39,6 +39,11 @@ export interface PermisosDelUsuario {
    * decide la forma del panel de resumen y del calendario.
    */
   veLasCifrasDeTodaLaEmpresa: boolean;
+  /**
+   * Puede sacar la bitácora de TODAS las marcas: el histórico completo o
+   * un reporte por fechas sin marcas elegidas. Hoy, el administrador.
+   */
+  sacaLaBitacoraCompleta: boolean;
 }
 
 export interface Usuario {
@@ -514,6 +519,62 @@ export interface HistoricoDeBitacora {
   generadoEn: string;
   generadoPor: string;
   entradas: EntradaDelHistorico[];
+}
+
+/** Una marca en el buscador corto (etiquetar en el chat, acotar un reporte). */
+export interface SugerenciaDeMarca {
+  id: string;
+  nombre: string;
+  logoUrl: string | null;
+  sector: string | null;
+  zona: string | null;
+}
+
+/** Una entrada del reporte por fechas. */
+export interface EntradaDelReporte extends EntradaDelHistorico {
+  /**
+   * Solo en una respuesta cuya entrada quedó FUERA del periodo: de quién
+   * era y qué decía, para que la respuesta se entienda sola.
+   */
+  respondeA: {
+    autorNombre: string;
+    fecha: string | null;
+    /** Null si esa entrada se eliminó. */
+    extracto: string | null;
+  } | null;
+}
+
+/** Lo escrito en la bitácora de una marca durante el periodo. */
+export interface MarcaDelReporte {
+  marcaId: string;
+  marcaNombre: string;
+  logoUrl: string | null;
+  sector: string | null;
+  zona: string | null;
+  agenteNombre: string | null;
+  totalEntradas: number;
+  entradas: EntradaDelReporte[];
+}
+
+/** El reporte de bitácora entre dos fechas, agrupado por marca. */
+export interface ReporteDeBitacora {
+  /** Días en formato AAAA-MM-DD, los dos incluidos. */
+  desde: string;
+  hasta: string;
+  zonaHoraria: string;
+  /** «todas» = sin marcas elegidas; «seleccion» = solo las elegidas. */
+  alcance: "todas" | "seleccion";
+  marcasElegidas: Array<{ id: string; nombre: string }>;
+  generadoEn: string;
+  generadoPor: string;
+  resumen: {
+    totalEntradas: number;
+    totalMarcas: number;
+    totalAutores: number;
+    porAutor: Array<{ nombre: string; total: number }>;
+  };
+  /** Primero las marcas con más entradas en el periodo. */
+  marcas: MarcaDelReporte[];
 }
 
 /* ==================================================================== */

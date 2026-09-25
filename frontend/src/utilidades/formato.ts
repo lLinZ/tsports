@@ -110,6 +110,45 @@ export function comoFechaLocal(fechaIso: string | null | undefined): Date | null
   return Number.isNaN(fecha.getTime()) ? null : fecha;
 }
 
+/**
+ * Un periodo de días, dicho como se diría en voz alta:
+ *
+ *   · "el 25 de septiembre de 2026"                 (un solo día)
+ *   · "del 1 al 25 de septiembre de 2026"           (mismo mes)
+ *   · "del 28 de agosto al 3 de septiembre de 2026" (mismo año)
+ *   · "del 20 de diciembre de 2025 al 5 de enero de 2026"
+ *
+ * Recibe días AAAA-MM-DD y los arma como fecha local (ver arriba).
+ */
+export function formatearPeriodo(desde: string, hasta: string): string {
+  const inicio = comoFechaLocal(desde);
+  const fin = comoFechaLocal(hasta);
+
+  if (inicio === null || fin === null) return "—";
+
+  const diaYMes = (fecha: Date) =>
+    fecha.toLocaleDateString("es", { day: "numeric", month: "long" });
+  const completa = (fecha: Date) =>
+    fecha.toLocaleDateString("es", { day: "numeric", month: "long", year: "numeric" });
+
+  const mismoAnio = inicio.getFullYear() === fin.getFullYear();
+  const mismoMes = mismoAnio && inicio.getMonth() === fin.getMonth();
+
+  if (mismoMes && inicio.getDate() === fin.getDate()) {
+    return `el ${completa(fin)}`;
+  }
+
+  if (mismoMes) {
+    return `del ${inicio.getDate()} al ${completa(fin)}`;
+  }
+
+  if (mismoAnio) {
+    return `del ${diaYMes(inicio)} al ${completa(fin)}`;
+  }
+
+  return `del ${completa(inicio)} al ${completa(fin)}`;
+}
+
 /** Fecha corta: "24 ago 2026". */
 export function formatearFecha(fechaIso: string | null | undefined): string {
   const fecha = comoFechaLocal(fechaIso);

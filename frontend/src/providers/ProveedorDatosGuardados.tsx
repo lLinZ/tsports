@@ -27,6 +27,12 @@
  * Aquí las dos cosas se resuelven: la copia lleva el id de la persona en
  * la clave, se borra al cerrar sesión, caduca sola y se sabe la fecha,
  * que es lo que enseña el indicador de la barra superior.
+ *
+ * UNA CONSULTA PUEDE QUEDARSE FUERA con `meta: { sinCopiaLocal: true }`.
+ * La llevan el chat, que se refresca cada pocos segundos y obligaría a
+ * volver a escribir la copia entera en cada vuelta, y el reporte de
+ * bitácora, que puede ocupar más que todo lo demás junto y se pide a
+ * propósito, no se consulta de paso.
  * ---------------------------------------------------------------------
  */
 import {
@@ -55,6 +61,11 @@ const PREFIJO_DE_LA_CLAVE = "tsports:datos:";
  * hace un mes no es una ayuda: es una foto vieja que parece actual.
  */
 const DIAS_QUE_VALE_LA_COPIA = 7;
+
+/** ¿Esta consulta pidió no guardarse? Ver la cabecera del fichero. */
+function seQuedaFueraDeLaCopia(meta: Record<string, unknown> | undefined): boolean {
+  return meta?.sinCopiaLocal === true;
+}
 
 /** Cuánto se espera tras el último cambio antes de escribir en disco. */
 const ESPERA_ANTES_DE_GUARDAR_MS = 1500;
@@ -185,7 +196,8 @@ export function ProveedorDatosGuardados({
         const datos = dehydrate(clienteDeConsultas, {
           // Solo lo que salió bien. Guardar un error lo revive en el
           // arranque siguiente y hace pensar que el servidor falla.
-          shouldDehydrateQuery: (consulta) => consulta.state.status === "success",
+          shouldDehydrateQuery: (consulta) =>
+            consulta.state.status === "success" && !seQuedaFueraDeLaCopia(consulta.meta),
           // Ninguna escritura, ni siquiera las que quedaron en pausa:
           // esto es para consultar, no para sincronizar después.
           shouldDehydrateMutation: () => false,
@@ -217,7 +229,13 @@ export function ProveedorDatosGuardados({
     // Se escribe cuando amaina, no en cada cambio: cargar el tablero
     // dispara decenas de avisos seguidos y serializarlo en todos ellos
     // se notaría al desplazarse.
-    const desuscribir = cache.subscribe(() => {
+    const desuscribir = cache.subscribe((evento) => {
+      // Lo que no se guarda tampoco dispara el guardado: si no, el
+      // refresco del chat reescribiría la copia cada pocos segundos.
+      if (seQuedaFueraDeLaCopia(evento.query.meta)) {
+        return;
+      }
+
       if (temporizador.current !== null) {
         window.clearTimeout(temporizador.current);
       }

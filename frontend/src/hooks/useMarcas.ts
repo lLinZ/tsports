@@ -32,6 +32,7 @@ import {
   listarComentarios,
   listarMarcas,
   obtenerMarca,
+  buscarSugerenciasDeMarcas,
 } from "@/api/marcas";
 import { obtenerResumenDelPanel } from "@/api/sistema";
 import type {
@@ -64,6 +65,7 @@ export const clavesDeMarcas = {
   mencionables: (idDeLaMarca: string) => ["marcas", "mencionables", idDeLaMarca] as const,
   resumenDelPanel: ["panel", "resumen"] as const,
   agentes: ["marcas", "agentes"] as const,
+  sugerencias: (texto: string) => ["marcas", "sugerencias", texto] as const,
 };
 
 /* ==================================================================== */
@@ -110,6 +112,29 @@ export function useListadoDeMarcas(filtros: Partial<FiltrosDeMarcas>) {
     error: errorSoloSiNoHayNadaQueEnsenar(consulta),
     recargar: consulta.refetch,
   };
+}
+
+/**
+ * El buscador corto de marcas: para elegir una al etiquetarla en el chat
+ * o al acotar un reporte. Solo trae las que esta persona puede ver.
+ *
+ * Con el texto vacío también pregunta, y devuelve las primeras por
+ * orden alfabético: abrir el selector y ver ya algo que elegir es más
+ * rápido que tener que escribir primero.
+ */
+export function useSugerenciasDeMarcas(texto: string, { habilitado = true } = {}) {
+  const textoLimpio = texto.trim();
+
+  return useQuery({
+    queryKey: clavesDeMarcas.sugerencias(textoLimpio),
+    queryFn: () => buscarSugerenciasDeMarcas(textoLimpio),
+    enabled: habilitado,
+    // Mientras llega lo nuevo se queda lo anterior: la lista no parpadea
+    // a vacío con cada tecla.
+    placeholderData: (anteriores) => anteriores,
+    staleTime: 30_000,
+    meta: { sinCopiaLocal: true },
+  });
 }
 
 /**

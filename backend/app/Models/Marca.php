@@ -273,6 +273,28 @@ class Marca extends Model
      | Scopes de consulta (los usa el listado del tablero)
      |-----------------------------------------------------------------*/
 
+    /**
+     * Solo las marcas que esta persona puede ver: todas para quien
+     * reparte, su cartera para el agente.
+     *
+     * Es la misma regla que `MarcaPolicy::view`, pasada a SQL para los
+     * listados, donde preguntar a la política fila por fila no escala. La
+     * usan el tablero y el buscador corto de marcas (chat, reportes).
+     *
+     * Por ID y no por nombre: el nombre se repite entre personas y se
+     * puede editar (ver `User::laMarcaEsSuya`). Una marca que lleve el
+     * nombre del agente sin su id no le llega, y está bien: es trabajo
+     * sin asignar.
+     */
+    public function scopeQuePuedeVer(Builder $consulta, User $persona): Builder
+    {
+        if ($persona->rol->veTodasLasMarcas()) {
+            return $consulta;
+        }
+
+        return $consulta->where('vendedor_asignado_id', $persona->id);
+    }
+
     /** Busca por nombre de marca, persona de contacto o email. */
     public function scopeBuscarTexto(Builder $consulta, ?string $textoBuscado): Builder
     {
