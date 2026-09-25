@@ -453,6 +453,14 @@ class PanelController extends Controller
      * Con eso la interfaz pinta la barra que pidió el cliente: qué
      * porcentaje del valor total de la propiedad se está pronosticando.
      *
+     * VAN EN RANKING, de más a menos OVP sobre el MTP. Lo pidió Antonio
+     * (septiembre de 2026): el cuadro sirve para ver de un vistazo qué
+     * propiedad va mejor encaminada, y en el orden del catálogo eso
+     * obligaba a leer todas las barras. Las que aún no tienen MTP no
+     * tienen porcentaje posible y van al final, entre ellas por OVP; si
+     * se mezclaran con un 0 %, parecería que no se vende nada de ellas
+     * cuando lo que falta es cargarles el precio.
+     *
      * @return list<array<string,mixed>>
      */
     private function resumenDePropiedades(): array
@@ -501,6 +509,14 @@ class PanelController extends Controller
                         : 0.0,
                 ];
             })
+            // `sortBy` con varias claves es estable: a igualdad de todo,
+            // se queda el orden del catálogo que traía la consulta.
+            ->sortBy([
+                fn (array $una, array $otra): int => ($otra['montoTotalUsd'] > 0) <=> ($una['montoTotalUsd'] > 0),
+                fn (array $una, array $otra): int => $otra['porcentajeSobreElTotal'] <=> $una['porcentajeSobreElTotal'],
+                fn (array $una, array $otra): int => $otra['ovpAcumuladoUsd'] <=> $una['ovpAcumuladoUsd'],
+            ])
+            ->values()
             ->all();
     }
 

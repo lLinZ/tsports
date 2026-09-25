@@ -40,10 +40,15 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useState } from "react";
+import { BarraDeProporcion } from "@/componentes/comunes/BarraDeProporcion";
 import { useAsignarVendedor } from "@/hooks/useMarcas";
 import { useVendedores } from "@/hooks/useVendedores";
 import { avisarDeError, avisarDeExito } from "@/utilidades/avisos";
-import { formatearDineroAbreviado, inicialesDe } from "@/utilidades/formato";
+import {
+  formatearDineroAbreviado,
+  formatearPorcentaje,
+  inicialesDe,
+} from "@/utilidades/formato";
 import type { Marca } from "@/tipos/modelos";
 
 /**
@@ -71,6 +76,13 @@ const FASES_DE_LA_MARCA = [
 
 interface PropiedadesDeTarjetaDeMarca {
   marca: Marca;
+  /**
+   * La propiedad por la que se está filtrando el tablero, si alguna. Con
+   * ella, la tarjeta enseña el pronóstico DE ESA propiedad en vez del
+   * total de la marca: al entrar desde «Ver las marcas» de una propiedad,
+   * el total mezcla lo de las demás y no dice lo que se quiere saber.
+   */
+  idDeLaPropiedadEnFoco?: string;
   /** Abre la ficha completa. */
   alAbrirFicha: (marca: Marca) => void;
   /** Marca o desmarca una fase sin abrir la ficha. */
@@ -83,12 +95,20 @@ interface PropiedadesDeTarjetaDeMarca {
 
 export function TarjetaDeMarca({
   marca,
+  idDeLaPropiedadEnFoco,
   alAbrirFicha,
   alAlternarFase,
 }: PropiedadesDeTarjetaDeMarca) {
   // El checklist solo llega en el listado y en la ficha; en cualquier
   // otra respuesta viene sin él, así que se normaliza a lista vacía.
   const propiedadesOfrecidas = marca.propiedadesOfrecidas ?? [];
+
+  const lineaEnFoco =
+    idDeLaPropiedadEnFoco === undefined
+      ? undefined
+      : propiedadesOfrecidas.find(
+          (linea) => linea.propiedadId === idDeLaPropiedadEnFoco,
+        );
 
   /** ¿Está completada esta fase? */
   function estaCompletada(clave: (typeof FASES_DE_LA_MARCA)[number]["clave"]): boolean {
@@ -209,10 +229,53 @@ export function TarjetaDeMarca({
         </div>
       </div>
 
+      {/* Con el tablero filtrado por una propiedad, la cifra grande es
+          la de ESA propiedad, con su barra sobre el MTP; el total de la
+          marca queda debajo, en pequeño, para no perderlo. */}
+      {lineaEnFoco !== undefined && (
+        <div className="rounded-xl bg-default-50 px-2.5 py-2">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="flex min-w-0 items-center gap-1 text-[10px] uppercase tracking-wide text-default-400">
+              <Package className="size-3 shrink-0" />
+              <span className="truncate">OVP · {lineaEnFoco.propiedadNombre}</span>
+            </span>
+
+            <span className="shrink-0 text-xs font-bold text-primary">
+              {formatearDineroAbreviado(lineaEnFoco.ovpUsd)}
+            </span>
+          </div>
+
+          <div className="mt-1.5">
+            <BarraDeProporcion
+              compacta
+              conDetalle={false}
+              montoDeLaMeta={lineaEnFoco.forecastDeVentaUsd}
+              montoPronosticado={lineaEnFoco.ovpUsd}
+              montoTotal={lineaEnFoco.montoTotalUsd}
+            />
+          </div>
+
+          <p className="mt-1 flex items-baseline justify-between gap-2 text-[10px] text-default-500">
+            <span className="truncate">
+              {lineaEnFoco.montoTotalUsd > 0
+                ? `${formatearPorcentaje(lineaEnFoco.porcentajeSobreElTotal)} de ${formatearDineroAbreviado(lineaEnFoco.montoTotalUsd)}`
+                : "Propiedad sin MTP cargado"}
+            </span>
+
+            {propiedadesOfrecidas.length > 1 && (
+              <span className="shrink-0">
+                Total {propiedadesOfrecidas.length} prop.:{" "}
+                {formatearDineroAbreviado(marca.ovpTotalUsd ?? 0)}
+              </span>
+            )}
+          </p>
+        </div>
+      )}
+
       {/* Propiedades IOP que se le están ofreciendo. Se enseña el
           pronóstico acumulado y, debajo, las dos primeras propiedades:
           es lo que hace falta para saber por dónde va sin abrir nada. */}
-      {propiedadesOfrecidas.length > 0 && (
+      {lineaEnFoco === undefined && propiedadesOfrecidas.length > 0 && (
         <div className="rounded-xl bg-default-50 px-2.5 py-2">
           <div className="flex items-baseline justify-between gap-2">
             <span className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-default-400">

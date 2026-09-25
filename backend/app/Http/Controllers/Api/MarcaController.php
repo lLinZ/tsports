@@ -10,6 +10,7 @@ use App\Http\Requests\GuardarMarcaRequest;
 use App\Http\Resources\RecursoMarca;
 use App\Models\Marca;
 use App\Models\Propiedad;
+use App\Models\PropiedadDeMarca;
 use App\Models\RegistroActividad;
 use App\Models\User;
 use App\Support\Notificador;
@@ -88,13 +89,79 @@ class MarcaController extends Controller
             $consulta->where('sector', $sectorPedido);
         }
 
-        $consulta = $this->aplicarOrden($consulta, (string) $peticion->query('orden', 'recientes'));
+        $idDeLaPropiedad = $peticion->query('propiedad');
+
+        // Se calcula ANTES de ordenar y paginar: resume todas las marcas
+        // que cumplen los filtros, no solo las sesenta de la primera página.
+        $resumenDeLaPropiedad = is_string($idDeLaPropiedad) && $idDeLaPropiedad !== ''
+            ? $this->resumenDeLaPropiedadFiltrada($idDeLaPropiedad, clone $consulta)
+            : null;
+
+        $consulta = $this->aplicarOrden(
+            $consulta,
+            (string) $peticion->query('orden', 'recientes'),
+            $idDeLaPropiedad,
+        );
 
         // Paginación generosa: el tablero se pinta como cuadrícula y el
         // equipo prefiere desplazarse a saltar de página.
         $marcasPorPagina = min((int) $peticion->query('porPagina', 60), 200);
 
-        return RecursoMarca::collection($consulta->paginate($marcasPorPagina));
+        return RecursoMarca::collection($consulta->paginate($marcasPorPagina))
+            ->additional(['resumenDeLaPropiedad' => $resumenDeLaPropiedad]);
+    }
+
+    /**
+     * Las cifras de UNA propiedad sobre las marcas que se están mirando.
+     *
+     * Existe porque la tarjeta de cada marca enseña su pronóstico total,
+     * que suma todas las propiedades que se le ofrecen. Al entrar desde
+     * «Ver las marcas» de Águilas del Zulia, lo que se quiere saber es
+     * cuánto se pronostica de Águilas en cada una y en total, no cuánto
+     * suman todas las propiedades de esas marcas.
+     *
+     * El OVP se suma sobre las marcas QUE CUMPLEN LOS FILTROS y que esta
+     * persona puede ver. Un agente ve lo que pronostica él, y si además se
+     * filtra por zona, la cifra es la de esa zona: la cabecera dice lo
+     * mismo que la cuadrícula que tiene debajo.
+     *
+     * El porcentaje sale de aquí, como en el resto de montos IOP: la
+     * interfaz no lo recalcula (ver CLAUDE.md, sección 9).
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<Marca>  $marcasFiltradas
+     * @return array<string,mixed>|null
+     */
+    private function resumenDeLaPropiedadFiltrada(string $idDeLaPropiedad, $marcasFiltradas): ?array
+    {
+        $propiedad = Propiedad::query()->find($idDeLaPropiedad);
+
+        if ($propiedad === null) {
+            return null;
+        }
+
+        // `select` sustituye las columnas que añadió `withCount`, así que
+        // la subconsulta devuelve solo los ids.
+        $ovpDeLaPropiedad = (float) PropiedadDeMarca::query()
+            ->where('propiedad_id', $propiedad->id)
+            ->whereIn('marca_id', $marcasFiltradas->select('marcas.id'))
+            ->sum('ovp_usd');
+
+        $montoTotal = (float) $propiedad->monto_total_usd;
+
+        return [
+            'propiedadId' => $propiedad->id,
+            'nombre' => $propiedad->nombre,
+            'logoUrl' => $propiedad->logo_url,
+            'montoTotalUsd' => $montoTotal,
+            'porcentajeForecast' => (float) $propiedad->porcentaje_forecast,
+            'forecastDeVentaUsd' => $propiedad->forecastDeVenta(),
+            'ovpUsd' => round($ovpDeLaPropiedad, 2),
+            // Sin MTP cargado no hay proporción: 0 en lugar de dividir
+            // entre cero. La interfaz enseña entonces «sin MTP».
+            'porcentajeSobreElTotal' => $montoTotal > 0
+                ? round($ovpDeLaPropiedad * 100 / $montoTotal, 2)
+                : 0.0,
+        ];
     }
 
     /**
@@ -688,10 +755,28 @@ class MarcaController extends Controller
     /**
      * Traduce el criterio de orden que envía la interfaz a una cláusula
      * SQL. Cualquier valor no reconocido cae en "más recientes".
+     *
+     * `ovp_propiedad` ordena por lo que se pronostica vender a cada marca
+     * DE LA PROPIEDAD FILTRADA, no por su pronóstico total: es el ranking
+     * que se busca al entrar desde una propiedad («¿a quién le vamos a
+     * vender más Águilas del Zulia?»). Sin propiedad en el filtro no hay
+     * de qué propiedad ordenar, y cae en "más recientes" como cualquier
+     * otro valor desconocido.
      */
-    private function aplicarOrden(mixed $consulta, string $criterioDeOrden): mixed
+    private function aplicarOrden(mixed $consulta, string $criterioDeOrden, ?string $idDeLaPropiedad): mixed
     {
+        if ($criterioDeOrden === 'ovp_propiedad' && ($idDeLaPropiedad === null || $idDeLaPropiedad === '')) {
+            $criterioDeOrden = 'recientes';
+        }
+
         $ordenada = match ($criterioDeOrden) {
+            'ovp_propiedad' => $consulta->orderByDesc(
+                PropiedadDeMarca::query()
+                    ->select('ovp_usd')
+                    ->whereColumn('propiedades_de_marca.marca_id', 'marcas.id')
+                    ->where('propiedades_de_marca.propiedad_id', $idDeLaPropiedad)
+                    ->limit(1),
+            ),
             'valor_desc' => $consulta->orderByDesc('valor_anual_usd'),
             'valor_asc' => $consulta->orderBy('valor_anual_usd'),
             'nombre' => $consulta->orderBy('nombre_marca'),

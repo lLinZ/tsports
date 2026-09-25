@@ -20,6 +20,7 @@ import type {
   DatosDeMarcaParaGuardar,
   FiltrosDeMarcas,
   Marca,
+  ResumenDePropiedadFiltrada,
 } from "@/tipos/modelos";
 
 /** Respuesta paginada de Laravel, con lo que de verdad usamos. */
@@ -34,6 +35,8 @@ export interface ResultadoDeListado {
   total: number;
   pagina: number;
   ultimaPagina: number;
+  /** Solo con el filtro por propiedad puesto; si no, null. */
+  resumenDeLaPropiedad: ResumenDePropiedadFiltrada | null;
 }
 
 /**
@@ -69,7 +72,9 @@ export async function listarMarcas(
   if (filtros.invierte) parametrosDeConsulta.invierte = filtros.invierte;
   if (filtros.orden) parametrosDeConsulta.orden = filtros.orden;
 
-  const { data } = await clienteHttp.get<RespuestaPaginada<Marca>>("/marcas", {
+  const { data } = await clienteHttp.get<
+    RespuestaPaginada<Marca> & { resumenDeLaPropiedad?: ResumenDePropiedadFiltrada | null }
+  >("/marcas", {
     params: parametrosDeConsulta,
   });
 
@@ -78,6 +83,7 @@ export async function listarMarcas(
     total: data.meta?.total ?? data.data.length,
     pagina: data.meta?.current_page ?? 1,
     ultimaPagina: data.meta?.last_page ?? 1,
+    resumenDeLaPropiedad: data.resumenDeLaPropiedad ?? null,
   };
 }
 

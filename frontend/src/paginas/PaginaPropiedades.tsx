@@ -437,7 +437,7 @@ function TarjetaDePropiedad({
           {marcasQueLaOfrecen > 0 && (
             <Link
               className="text-[11px] font-semibold text-primary hover:underline"
-              to={`/marcas?propiedad=${propiedad.id}`}
+              to={`/marcas?propiedad=${propiedad.id}&orden=ovp_propiedad`}
               onClick={(evento) => evento.stopPropagation()}
             >
               Ver las marcas

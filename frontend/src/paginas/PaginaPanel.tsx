@@ -327,7 +327,7 @@ export function PaginaPanel() {
             </Button>
           }
           columnas={8}
-          descripcion="De cada propiedad: su valor total, la meta acordada y lo que el equipo pronostica venderle."
+          descripcion="Ranking de mayor a menor OVP sobre el MTP: cuánto de cada propiedad pronostica vender el equipo."
           icono={<Package className="size-4" />}
           titulo="Propiedades (productos IOP)"
         >
@@ -338,19 +338,35 @@ export function PaginaPanel() {
             />
           ) : (
             <ul className="space-y-4">
-              {propiedades.map((propiedad) => (
+              {propiedades.map((propiedad, posicion) => (
                 <li key={propiedad.propiedadId}>
+                  {/* El servidor las manda en ranking y con las que no
+                      tienen MTP al final: esas no tienen porcentaje que
+                      comparar, y se separan para que no se lean como un
+                      0 % de venta. */}
+                  {propiedad.montoTotalUsd <= 0 &&
+                    (posicion === 0 || propiedades[posicion - 1].montoTotalUsd > 0) && (
+                      <p className="mb-3 border-t border-default-100 pt-3 text-[10px] font-semibold uppercase tracking-wide text-default-400">
+                        Sin MTP cargado · fuera del ranking
+                      </p>
+                    )}
+
                   {/* La fila entera lleva a las marcas que ofrecen esta
                       propiedad: de sus checklists sale el pronóstico que
                       pinta la barra. La meta, en cambio, es un dato de la
                       propiedad y vive en el catálogo. */}
                   <Link
                     className="block rounded-lg px-1 py-0.5 -mx-1 transition hover:bg-default-100"
-                    to={`/marcas?propiedad=${propiedad.propiedadId}`}
+                    to={`/marcas?propiedad=${propiedad.propiedadId}&orden=ovp_propiedad`}
                   >
                     <div className="mb-1.5 flex items-baseline justify-between gap-2">
-                      <span className="min-w-0 truncate text-xs font-semibold text-foreground">
-                        {propiedad.nombre}
+                      <span className="flex min-w-0 items-baseline gap-1.5 text-xs font-semibold text-foreground">
+                        {propiedad.montoTotalUsd > 0 && (
+                          <span className="shrink-0 tabular-nums text-default-400">
+                            {posicion + 1}.
+                          </span>
+                        )}
+                        <span className="truncate">{propiedad.nombre}</span>
                       </span>
 
                       <span className="shrink-0 text-[11px] text-default-500">
@@ -740,7 +756,7 @@ function PanelDelAgente({
               {misPropiedades.map((propiedad) => (
                 <li key={propiedad.propiedadId}>
                   <FilaPulsable
-                    enlace={`/marcas?propiedad=${propiedad.propiedadId}&vendedor=${usuario.id}`}
+                    enlace={`/marcas?propiedad=${propiedad.propiedadId}&vendedor=${usuario.id}&orden=ovp_propiedad`}
                   >
                     <div className="min-w-0">
                       <p className="truncate text-xs font-medium text-foreground">

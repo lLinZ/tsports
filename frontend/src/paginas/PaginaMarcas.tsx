@@ -30,6 +30,7 @@
 import { Button, Chip, Input, Select, SelectItem } from "@heroui/react";
 import {
   Building2,
+  Package,
   Plus,
   RefreshCw,
   Search,
@@ -39,6 +40,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { mensajeDeError } from "@/api/clienteHttp";
+import { BarraDeProporcion } from "@/componentes/comunes/BarraDeProporcion";
 import {
   BloqueDeCarga,
   BloqueDeError,
@@ -58,13 +60,18 @@ import { usePropiedadesOfrecibles } from "@/hooks/usePropiedades";
 import { useScrollInfinito } from "@/hooks/useScrollInfinito";
 import { useUsuarioAutenticado } from "@/providers/ProveedorSesion";
 import { avisarDeError } from "@/utilidades/avisos";
-import { formatearNumero } from "@/utilidades/formato";
+import {
+  formatearDineroAbreviado,
+  formatearNumero,
+  formatearPorcentaje,
+} from "@/utilidades/formato";
 import type {
   EtapaDeMarca,
   FaseDeMarca,
   FiltrosDeMarcas,
   InversionEnPatrocinios,
   Marca,
+  ResumenDePropiedadFiltrada,
 } from "@/tipos/modelos";
 
 /** Las etapas del filtro, con el nombre que ve la persona. */
@@ -100,6 +107,16 @@ const OPCIONES_DE_ORDEN: Array<{
   { valor: "valor_asc", etiqueta: "Menor valor" },
   { valor: "nombre", etiqueta: "Nombre (A–Z)" },
 ];
+
+/**
+ * El orden que solo tiene sentido con una propiedad elegida: el ranking
+ * de marcas por lo que se pronostica venderles DE ESA propiedad. Es el
+ * que ponen los enlaces «Ver las marcas» del catálogo y del resumen.
+ */
+const ORDEN_POR_OVP_DE_LA_PROPIEDAD = {
+  valor: "ovp_propiedad" as const,
+  etiqueta: "Mayor OVP en la propiedad",
+};
 
 /** Milisegundos de espera antes de buscar mientras se escribe. */
 const RETARDO_DE_BUSQUEDA_MS = 350;
@@ -174,6 +191,16 @@ export function PaginaMarcas() {
 
     if (clave === "fase" && valor !== "") {
       parametrosNuevos.delete("etapa");
+    }
+
+    // Sin propiedad no hay de qué propiedad ordenar: el servidor volvería
+    // a «más recientes» y el selector se quedaría en blanco.
+    if (
+      clave === "propiedad" &&
+      valor === "" &&
+      parametrosNuevos.get("orden") === ORDEN_POR_OVP_DE_LA_PROPIEDAD.valor
+    ) {
+      parametrosNuevos.delete("orden");
     }
 
     establecerParametrosDeLaUrl(parametrosNuevos, { replace: true });
@@ -516,7 +543,7 @@ export function PaginaMarcas() {
 
           <Select
             aria-label="Ordenar"
-            className="w-40"
+            className={filtrosAplicados.propiedad ? "w-56" : "w-40"}
             radius="lg"
             selectedKeys={[filtrosAplicados.orden ?? "recientes"]}
             size="sm"
@@ -526,7 +553,10 @@ export function PaginaMarcas() {
               cambiarFiltro("orden", String(Array.from(seleccion)[0] ?? "recientes"))
             }
           >
-            {OPCIONES_DE_ORDEN.map((opcion) => (
+            {(filtrosAplicados.propiedad
+              ? [ORDEN_POR_OVP_DE_LA_PROPIEDAD, ...OPCIONES_DE_ORDEN]
+              : OPCIONES_DE_ORDEN
+            ).map((opcion) => (
               <SelectItem key={opcion.valor}>{opcion.etiqueta}</SelectItem>
             ))}
           </Select>
@@ -635,6 +665,13 @@ export function PaginaMarcas() {
         )}
       </div>
 
+      {listado.resumenDeLaPropiedad !== null && (
+        <ResumenDeLaPropiedad
+          resumen={listado.resumenDeLaPropiedad}
+          totalDeMarcas={listado.total}
+        />
+      )}
+
       {/* Cuadrícula */}
       {listado.estaCargando ? (
         <BloqueDeCarga alto="min-h-72" mensaje="Cargando las marcas…" />
@@ -682,6 +719,7 @@ export function PaginaMarcas() {
             {listado.marcas.map((marca) => (
               <TarjetaDeMarca
                 key={marca.id}
+                idDeLaPropiedadEnFoco={filtrosAplicados.propiedad || undefined}
                 alAbrirFicha={abrirFichaDe}
                 alAlternarFase={(marcaPulsada, fase, completada) =>
                   void alternarLaFaseDeUnaMarca(marcaPulsada, fase, completada)
@@ -729,6 +767,83 @@ export function PaginaMarcas() {
         estaAbierto={laFichaEstaAbierta}
         marcaEnEdicion={marcaEnEdicion}
       />
+    </div>
+  );
+}
+
+/**
+ * La cabecera del tablero filtrado por una propiedad: su MTP, su meta y
+ * cuánto se le pronostica en las marcas que hay debajo.
+ *
+ * Las cifras vienen hechas del servidor, sumadas sobre TODAS las marcas
+ * que cumplen los filtros —no solo las cargadas en pantalla— y solo las
+ * que esta persona puede ver. Así el número de arriba es la suma de las
+ * tarjetas de abajo, que es lo primero que alguien comprueba.
+ */
+function ResumenDeLaPropiedad({
+  resumen,
+  totalDeMarcas,
+}: {
+  resumen: ResumenDePropiedadFiltrada;
+  totalDeMarcas: number;
+}) {
+  const tieneMtp = resumen.montoTotalUsd > 0;
+
+  return (
+    <div className="bento-card flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-5">
+      <div className="flex min-w-0 items-center gap-3 sm:w-64 sm:shrink-0">
+        <div className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-default-100">
+          {resumen.logoUrl ? (
+            <img alt={resumen.nombre} className="size-full object-cover" src={resumen.logoUrl} />
+          ) : (
+            <Package className="size-5 text-default-400" />
+          )}
+        </div>
+
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-foreground">{resumen.nombre}</p>
+          <p className="text-[11px] text-default-500">
+            {formatearNumero(totalDeMarcas)} {totalDeMarcas === 1 ? "marca" : "marcas"} con
+            los filtros puestos
+          </p>
+        </div>
+      </div>
+
+      <dl className="grid grid-cols-3 gap-2 sm:w-80 sm:shrink-0">
+        <CifraDeLaPropiedad etiqueta="MTP" valor={tieneMtp ? formatearDineroAbreviado(resumen.montoTotalUsd) : "Sin MTP"} />
+        <CifraDeLaPropiedad
+          etiqueta={`Meta ${formatearPorcentaje(resumen.porcentajeForecast)}`}
+          valor={tieneMtp ? formatearDineroAbreviado(resumen.forecastDeVentaUsd) : "—"}
+        />
+        <CifraDeLaPropiedad destacada etiqueta="OVP" valor={formatearDineroAbreviado(resumen.ovpUsd)} />
+      </dl>
+
+      <div className="min-w-0 flex-1">
+        <BarraDeProporcion
+          montoDeLaMeta={resumen.forecastDeVentaUsd}
+          montoPronosticado={resumen.ovpUsd}
+          montoTotal={resumen.montoTotalUsd}
+        />
+      </div>
+    </div>
+  );
+}
+
+function CifraDeLaPropiedad({
+  etiqueta,
+  valor,
+  destacada = false,
+}: {
+  etiqueta: string;
+  valor: string;
+  destacada?: boolean;
+}) {
+  return (
+    <div className="rounded-xl bg-default-50 px-2.5 py-1.5">
+      <dt className="text-[10px] uppercase tracking-wide text-default-400">{etiqueta}</dt>
+      <dd className={["text-sm font-bold", destacada ? "text-primary" : "text-foreground"].join(" ")}>
+        {valor}
+      </dd>
     </div>
   );
 }

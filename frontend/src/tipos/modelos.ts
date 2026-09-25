@@ -388,7 +388,27 @@ export interface FiltrosDeMarcas {
   propiedad: string;
   /** Si invierte hoy en marketing deportivo. */
   invierte: InversionEnPatrocinios | "";
-  orden: "recientes" | "antiguas" | "valor_desc" | "valor_asc" | "nombre";
+  /**
+   * `ovp_propiedad` ordena por lo que se pronostica de la propiedad
+   * filtrada, de más a menos. Sin `propiedad`, el servidor lo ignora.
+   */
+  orden: "recientes" | "antiguas" | "valor_desc" | "valor_asc" | "nombre" | "ovp_propiedad";
+}
+
+/**
+ * Las cifras de la propiedad por la que se está filtrando el tablero,
+ * sumadas sobre las marcas que se están mirando (con los demás filtros
+ * puestos y solo las que esta persona puede ver).
+ */
+export interface ResumenDePropiedadFiltrada {
+  propiedadId: string;
+  nombre: string;
+  logoUrl: string | null;
+  montoTotalUsd: number;
+  porcentajeForecast: number;
+  forecastDeVentaUsd: number;
+  ovpUsd: number;
+  porcentajeSobreElTotal: number;
 }
 
 /* ==================================================================== */

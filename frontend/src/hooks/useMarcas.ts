@@ -97,6 +97,8 @@ export function useListadoDeMarcas(filtros: Partial<FiltrosDeMarcas>) {
     // El total es el de TODO el listado filtrado, no el de lo que hay
     // cargado en pantalla: es lo que la cabecera necesita decir.
     total: consulta.data?.pages[0]?.total ?? 0,
+    // Igual que el total: resume el listado entero, no lo cargado.
+    resumenDeLaPropiedad: consulta.data?.pages[0]?.resumenDeLaPropiedad ?? null,
     estaCargando: consulta.isLoading,
     // `isFetching` se pone a cierto también al traer una página más, y
     // eso haría girar el botón de recargar en cada desplazamiento. Aquí
