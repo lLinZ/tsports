@@ -1,10 +1,9 @@
 /**
  * componentes/chat/EquipoYGruposDelChat.tsx
  * ---------------------------------------------------------------------
- * Las tres vistas del chat que no son una charla:
+ * Las vistas de los grupos (el equipo, con quién está en línea, va en
+ * la propia lista del chat: ver ListaDeConversaciones):
  *
- *   · EquipoDelChat     → todo el equipo, con quién está en línea, para
- *                         escribirle a cualquiera.
  *   · FormularioDeGrupo → crear un grupo, o añadir gente a uno.
  *   · DetallesDelGrupo  → quién está, cambiar el nombre, sacar a
  *                         alguien, salirse.
@@ -18,22 +17,19 @@
 import { Button, Checkbox, Input, Spinner } from "@heroui/react";
 import { ArrowLeft, LogOut, Search, UserMinus, UserPlus } from "lucide-react";
 import { useState } from "react";
-import { mensajeDeError } from "@/api/clienteHttp";
-import { AvatarDePersona } from "@/componentes/chat/AvataresDelChat";
+import { AvatarDePersona, PresenciaDeLaPersona } from "@/componentes/chat/AvataresDelChat";
 import {
   useAnadirAlGrupo,
   useConversacion,
   useCrearGrupo,
-  usePersonasDelChat,
+  useEquipoConPresencia,
   useQuienEstaEnLinea,
   useRenombrarGrupo,
   useSacarDelGrupo,
 } from "@/hooks/useChat";
-import { useChat } from "@/providers/ProveedorChat";
 import { useUsuarioAutenticado } from "@/providers/ProveedorSesion";
 import type { PersonaDelChat } from "@/tipos/modelos";
 import { avisarDeError, avisarDeExito } from "@/utilidades/avisos";
-import { formatearPresencia } from "@/utilidades/formato";
 
 /* ==================================================================== */
 /* Cabecera común                                                       */
@@ -76,70 +72,6 @@ function CampoDeBusqueda({ valor, alCambiar }: { valor: string; alCambiar: (valo
 }
 
 /* ==================================================================== */
-/* El equipo                                                            */
-/* ==================================================================== */
-
-export function EquipoDelChat({ alVolver }: { alVolver: () => void }) {
-  const { escribirA, abriendoCharla } = useChat();
-  const enLinea = useQuienEstaEnLinea();
-  const { data: equipo = [], isLoading, error } = usePersonasDelChat();
-  const [busqueda, establecerBusqueda] = useState("");
-
-  // En línea primero, con el dato del último latido (más fresco que el
-  // de la lista del equipo).
-  const ordenados = [...filtrarPorNombre(equipo, busqueda)].sort(
-    (una, otra) => Number(enLinea.has(otra.id)) - Number(enLinea.has(una.id)),
-  );
-
-  return (
-    <div className="flex h-full min-h-0 flex-col">
-      <CabeceraConVolver alVolver={alVolver} titulo="Escribir a alguien" />
-
-      <div className="px-3 pt-2">
-        <CampoDeBusqueda alCambiar={establecerBusqueda} valor={busqueda} />
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-1.5 py-2">
-        {isLoading ? (
-          <div className="flex justify-center py-8">
-            <Spinner size="sm" />
-          </div>
-        ) : error ? (
-          <p className="m-2 text-xs text-danger">{mensajeDeError(error)}</p>
-        ) : (
-          <ul className="flex flex-col gap-0.5">
-            {ordenados.map((persona) => {
-              const estaEnLinea = enLinea.has(persona.id);
-
-              return (
-                <li key={persona.id}>
-                  <button
-                    className="flex w-full items-center gap-3 rounded-2xl px-2 py-2 text-left transition hover:bg-default-100 disabled:opacity-60"
-                    disabled={abriendoCharla}
-                    type="button"
-                    onClick={() => void escribirA(persona.id)}
-                  >
-                    <AvatarDePersona enLinea={estaEnLinea} persona={persona} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-foreground">{persona.nombre}</span>
-                      <span className="block truncate text-[11px] text-default-500">
-                        {persona.rolEtiqueta}
-                        {formatearPresencia(estaEnLinea, persona.vistoPorUltimaVezEn) !== "" &&
-                          ` · ${formatearPresencia(estaEnLinea, persona.vistoPorUltimaVezEn)}`}
-                      </span>
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ==================================================================== */
 /* Crear un grupo o añadir gente                                        */
 /* ==================================================================== */
 
@@ -153,8 +85,7 @@ export function FormularioDeGrupo({
   alVolver: () => void;
   alTerminar: (idDeLaConversacion: string) => void;
 }) {
-  const enLinea = useQuienEstaEnLinea();
-  const { data: equipo = [], isLoading } = usePersonasDelChat();
+  const { equipo, enLinea, estaCargando } = useEquipoConPresencia();
   const { data: grupo } = useConversacion(idDelGrupo ?? null);
   const crearGrupo = useCrearGrupo();
   const anadirAlGrupo = useAnadirAlGrupo();
@@ -208,7 +139,7 @@ export function FormularioDeGrupo({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
-        {isLoading ? (
+        {estaCargando ? (
           <div className="flex justify-center py-8">
             <Spinner size="sm" />
           </div>
@@ -233,10 +164,10 @@ export function FormularioDeGrupo({
                     )
                   }
                 >
-                  <AvatarDePersona enLinea={enLinea.has(persona.id)} persona={persona} tamano="sm" />
+                  <AvatarDePersona enLinea={enLinea.has(persona.id)} marcarSiNoEsta persona={persona} tamano="sm" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm text-foreground">{persona.nombre}</span>
-                    <span className="block truncate text-[11px] text-default-500">{persona.rolEtiqueta}</span>
+                    <PresenciaDeLaPersona enLinea={enLinea.has(persona.id)} persona={persona} />
                   </span>
                 </Checkbox>
               </li>
@@ -368,13 +299,22 @@ export function DetallesDelGrupo({
 
             return (
               <li key={persona.id} className="flex items-center gap-2.5 rounded-2xl px-1 py-1.5">
-                <AvatarDePersona enLinea={!esYo && enLinea.has(persona.id)} persona={persona} tamano="sm" />
+                <AvatarDePersona
+                  enLinea={!esYo && enLinea.has(persona.id)}
+                  marcarSiNoEsta={!esYo}
+                  persona={persona}
+                  tamano="sm"
+                />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm text-foreground">
                     {persona.nombre}
                     {esYo && <span className="text-default-400"> (tú)</span>}
                   </span>
-                  <span className="block truncate text-[11px] text-default-500">{persona.rolEtiqueta}</span>
+                  {esYo ? (
+                    <span className="block truncate text-[11px] text-default-500">{persona.rolEtiqueta}</span>
+                  ) : (
+                    <PresenciaDeLaPersona enLinea={enLinea.has(persona.id)} persona={persona} />
+                  )}
                 </span>
                 {!esYo && (
                   <Button

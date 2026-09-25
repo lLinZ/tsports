@@ -69,6 +69,12 @@ interface EntradaDeMenu {
   laPuedeVer: (usuario: Usuario) => boolean;
   /** Lleva al lado el número de mensajes sin leer del chat. */
   conContadorDelChat?: boolean;
+  /**
+   * La pantalla ocupa todo el hueco, sin márgenes ni ancho máximo: la
+   * del chat, que es una aplicación dentro del panel y no una página
+   * que se lee de arriba abajo.
+   */
+  aLoAncho?: boolean;
 }
 
 /**
@@ -98,6 +104,7 @@ const ENTRADAS_DEL_MENU: EntradaDeMenu[] = [
     icono: MessageCircle,
     laPuedeVer: () => true,
     conContadorDelChat: true,
+    aLoAncho: true,
   },
   {
     ruta: "/propiedades",
@@ -169,9 +176,14 @@ export function LayoutDelPanel({ children }: { children: ReactNode }) {
   const usuario = useUsuarioAutenticado();
   const [elCajonMovilEstaAbierto, establecerCajonMovilAbierto] = useState(false);
 
+  const ubicacion = useLocation();
+
   const entradasVisibles = ENTRADAS_DEL_MENU.filter((entrada) =>
     entrada.laPuedeVer(usuario),
   );
+
+  const vaALoAncho =
+    ENTRADAS_DEL_MENU.find((entrada) => ubicacion.pathname.startsWith(entrada.ruta))?.aLoAncho === true;
 
   return (
     <div className="min-h-screen bg-background">
@@ -221,7 +233,7 @@ export function LayoutDelPanel({ children }: { children: ReactNode }) {
           onAbrirMenuMovil={() => establecerCajonMovilAbierto(true)}
         />
 
-        <main className="mx-auto w-full max-w-[1500px] px-4 py-6 lg:px-8">
+        <main className={vaALoAncho ? "w-full" : "mx-auto w-full max-w-[1500px] px-4 py-6 lg:px-8"}>
           {children}
         </main>
       </div>

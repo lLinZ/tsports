@@ -289,14 +289,14 @@
 /* Chat interno                                                        */
 /* ------------------------------------------------------------------ */
 
-/* La página del chat ocupa el alto que dejan la barra superior (4rem) y
-   el margen del contenido (1,5rem arriba y abajo). Se escribe dos veces
-   a propósito: la primera la entiende el Chrome 103 del equipo; la
-   segunda, un móvil actual, que descuenta además la barra del navegador
-   y no deja la caja de escribir escondida debajo. */
+/* La página del chat ocupa el alto que deja la barra superior (4rem):
+   va sin márgenes, de borde a borde (ver `aLoAncho` en LayoutDelPanel).
+   Se escribe dos veces a propósito: la primera la entiende el Chrome 103
+   del equipo; la segunda, un móvil actual, que descuenta además la barra
+   del navegador y no deja la caja de escribir escondida debajo. */
 .alto-del-chat {
-  height: calc(100vh - 7rem);
-  height: calc(100dvh - 7rem);
+  height: calc(100vh - 4rem);
+  height: calc(100dvh - 4rem);
   min-height: 22rem;
 }
 

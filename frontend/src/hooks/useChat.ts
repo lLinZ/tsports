@@ -133,6 +133,10 @@ export function usePersonasDelChat({ habilitado = true } = {}) {
  * de hace unos segundos.
  */
 export function useQuienEstaEnLinea(): Set<string> {
+  return new Set(useUltimoLatido()?.enLinea ?? []);
+}
+
+function useUltimoLatido(): LatidoDelChat | null {
   const { data } = useQuery<LatidoDelChat | null>({
     queryKey: clavesDelChat.latido,
     // No se pide nunca desde aquí: lo rellena el latido del proveedor.
@@ -141,7 +145,41 @@ export function useQuienEstaEnLinea(): Set<string> {
     meta: SIN_COPIA_LOCAL,
   });
 
-  return new Set(data?.enLinea ?? []);
+  return data ?? null;
+}
+
+/**
+ * El equipo en el orden en que se enseña: primero quien está en línea y
+ * después el resto, por nombre (por nombre y no por «visto hace…»: la
+ * lista se recorre buscando a alguien, y si bailara con cada latido no
+ * se le encontraría).
+ *
+ * Quién está en línea sale del último latido, más fresco que la lista.
+ * Hasta que llega el primero, vale lo que trajo la lista.
+ */
+export function useEquipoConPresencia() {
+  const latido = useUltimoLatido();
+  const { data: personas = [], isLoading, error } = usePersonasDelChat();
+
+  const enLinea = new Set(
+    latido !== null
+      ? latido.enLinea
+      : personas.filter((persona) => persona.enLinea).map((persona) => persona.id),
+  );
+
+  const equipo = [...personas].sort(
+    (una, otra) =>
+      Number(enLinea.has(otra.id)) - Number(enLinea.has(una.id)) ||
+      una.nombre.localeCompare(otra.nombre, "es"),
+  );
+
+  return {
+    equipo,
+    enLinea,
+    cuantosEnLinea: equipo.filter((persona) => enLinea.has(persona.id)).length,
+    estaCargando: isLoading,
+    error,
+  };
 }
 
 /**

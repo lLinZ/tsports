@@ -488,8 +488,11 @@ Salieron del cliente y están implementadas a propósito así:
       la pantalla se vacía a los pocos segundos de abrirla.
 
     Una consulta puede quedarse fuera de la copia con
-    `meta: { sinCopiaLocal: true }`: la llevan el chat y el reporte de
-    bitácora.
+    `meta: { sinCopiaLocal: true }`: la llevan el chat, el reporte de
+    bitácora y la configuración del tiempo real. Esta última, además, se
+    pide siempre al arrancar: restaurada de la copia, el «apagado» de antes
+    de encender Reverb en producción dejó el panel sin tiempo real, y con
+    `staleTime: Infinity` no se volvía a preguntar nunca.
 
     Y una cuarta que las sostiene: **solo un 401 cierra la sesión**. Que
     el servidor no conteste —sin cobertura, nginx devolviendo 502
@@ -557,6 +560,9 @@ Salieron del cliente y están implementadas a propósito así:
     - **«En línea» es tener el panel A LA VISTA**, no abierto: lo apunta
       el latido (`App\Support\Presencia`) y caduca solo. Y decide el push:
       a quien está en línea no le suena el teléfono, ya lo ve en pantalla.
+      La lista del chat enseña **al equipo entero**, con quién está y
+      desde cuándo no está el resto; nunca solo a quien está, que con
+      nadie conectado dejaba la pantalla sin decir nada.
     - **Los mensajes llevan id numérico, no UUID**: ordena sin empates y
       sirve de cursor para pedir «lo nuevo desde el 1532» (la misma
       trampa que resuelve el desempate de la regla 14).

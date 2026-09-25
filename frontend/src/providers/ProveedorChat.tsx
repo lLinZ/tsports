@@ -13,7 +13,9 @@
  * esté para contestar. Al esconderla se despide, y al cerrar la pestaña
  * también (con una petición que sobrevive al cierre).
  *
- *   · Con Reverb, cada 30 s: lo nuevo llega por el WebSocket.
+ *   · Con Reverb, cada 30 s: lo nuevo llega por el WebSocket. Con el
+ *     chat abierto, cada 10 s, porque quién está en línea NO llega por
+ *     el WebSocket: solo lo trae el latido.
  *   · Sin Reverb, cada 15 s, y cada 5 s con el chat abierto: es lo que
  *     trae la lista al día.
  *
@@ -85,8 +87,14 @@ interface ValorDelChat {
 const ContextoDelChat = createContext<ValorDelChat | null>(null);
 
 const INTERVALO_EN_VIVO_MS = 30_000;
+const INTERVALO_EN_VIVO_CON_EL_CHAT_ABIERTO_MS = 10_000;
 const INTERVALO_SIN_TIEMPO_REAL_MS = 15_000;
 const INTERVALO_CON_EL_CHAT_ABIERTO_MS = 5_000;
+
+/** Para comparar dos latidos sin que importe el orden de los ids. */
+function huellaDeQuienEsta(ids: string[]): string {
+  return [...ids].sort().join(",");
+}
 
 export function ProveedorChat({ children }: { children: ReactNode }) {
   const { estadoDeLaSesion, usuario } = useSesion();
@@ -147,6 +155,13 @@ export function ProveedorChat({ children }: { children: ReactNode }) {
             void clienteDeConsultas.invalidateQueries({ queryKey: clavesDelChat.todosLosMensajes });
           }
         }
+
+        // Alguien entró o se fue: la lista del equipo trae el «visto hace…»
+        // de quien se acaba de ir, y sin esto diría la hora de la vez
+        // anterior hasta el siguiente refresco.
+        if (anterior !== null && huellaDeQuienEsta(anterior.enLinea) !== huellaDeQuienEsta(latido.enLinea)) {
+          void clienteDeConsultas.invalidateQueries({ queryKey: clavesDelChat.personas });
+        }
       } catch {
         // Sin red o con el servidor reiniciándose: el latido siguiente lo
         // arregla. No se avisa de nada, no es algo que la persona haya
@@ -155,7 +170,9 @@ export function ProveedorChat({ children }: { children: ReactNode }) {
     };
 
     const intervalo = enVivo
-      ? INTERVALO_EN_VIVO_MS
+      ? chatAbierto
+        ? INTERVALO_EN_VIVO_CON_EL_CHAT_ABIERTO_MS
+        : INTERVALO_EN_VIVO_MS
       : chatAbierto
         ? INTERVALO_CON_EL_CHAT_ABIERTO_MS
         : INTERVALO_SIN_TIEMPO_REAL_MS;

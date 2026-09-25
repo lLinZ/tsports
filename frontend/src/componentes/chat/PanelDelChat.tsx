@@ -17,17 +17,13 @@
  */
 import { MessagesSquare } from "lucide-react";
 import { useEffect, useState } from "react";
-import {
-  DetallesDelGrupo,
-  EquipoDelChat,
-  FormularioDeGrupo,
-} from "@/componentes/chat/EquipoYGruposDelChat";
+import { DetallesDelGrupo, FormularioDeGrupo } from "@/componentes/chat/EquipoYGruposDelChat";
 import { ListaDeConversaciones } from "@/componentes/chat/ListaDeConversaciones";
 import { VistaDeConversacion } from "@/componentes/chat/VistaDeConversacion";
 import { useChat } from "@/providers/ProveedorChat";
 
 /** Lo que enseña la columna de la lista. */
-type VistaLateral = "charlas" | "equipo" | "nuevoGrupo";
+type VistaLateral = "charlas" | "nuevoGrupo";
 
 /** Lo que enseña la columna de la charla. */
 type VistaDeLaCharla = "mensajes" | "detalles" | "anadir";
@@ -61,9 +57,7 @@ export function PanelDelChat({
   const hayCharla = idDeLaConversacion !== null;
 
   const lateral =
-    vistaLateral === "equipo" ? (
-      <EquipoDelChat alVolver={() => establecerVistaLateral("charlas")} />
-    ) : vistaLateral === "nuevoGrupo" ? (
+    vistaLateral === "nuevoGrupo" ? (
       <FormularioDeGrupo
         alTerminar={(id) => {
           establecerVistaLateral("charlas");
@@ -76,7 +70,7 @@ export function PanelDelChat({
         alCerrar={enVentana ? alCerrar : undefined}
         alElegir={alElegirConversacion}
         alNuevoGrupo={() => establecerVistaLateral("nuevoGrupo")}
-        alVerEquipo={() => establecerVistaLateral("equipo")}
+        conTitulo={enVentana}
         idSeleccionada={idDeLaConversacion}
       />
     );
@@ -113,12 +107,14 @@ export function PanelDelChat({
   }
 
   // Página: lado a lado en pantalla grande; una cosa cada vez en el
-  // teléfono, igual que la ventana.
+  // teléfono, igual que la ventana. Ocupa el hueco entero, sin caja
+  // alrededor: la lista va con el fondo de la barra lateral, como una
+  // columna más del panel, y la charla con el del contenido.
   return (
     <div className="flex h-full min-h-0">
       <div
         className={[
-          "min-h-0 w-full flex-col border-default-100 lg:flex lg:w-80 lg:shrink-0 lg:border-r",
+          "min-h-0 w-full flex-col bg-content1 lg:flex lg:w-80 lg:shrink-0 lg:border-r lg:border-default-200 xl:w-96",
           hayCharla ? "hidden" : "flex",
         ].join(" ")}
       >
@@ -140,8 +136,8 @@ function SinCharlaElegida() {
       </span>
       <p className="text-sm font-semibold text-foreground">Elige una charla</p>
       <p className="max-w-xs text-xs text-default-500">
-        O escríbele a alguien del equipo. Con <strong>#</strong> puedes etiquetar una marca en el mensaje y
-        quien la lleve podrá abrirla desde ahí.
+        O a alguien del equipo en la lista, para escribirle. Con <strong>#</strong> puedes etiquetar una marca en
+        el mensaje y quien la lleve podrá abrirla desde ahí.
       </p>
     </div>
   );

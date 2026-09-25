@@ -5,6 +5,10 @@
  * charla abierta a la derecha. Es la misma pieza que la ventana
  * flotante (PanelDelChat), con más sitio.
  *
+ * Va sin caja y sin márgenes, de borde a borde del hueco que deja el
+ * panel (la entrada del menú lleva `aLoAncho`): dentro de una caja se
+ * veía como una ventana metida en otra ventana.
+ *
  * La charla abierta va en la dirección (`/chat/<id>`), y no en un estado
  * de la pantalla, por tres motivos: el aviso al móvil lleva ahí
  * directamente, el botón de atrás del navegador vuelve a la lista, y el
@@ -20,7 +24,7 @@ export function PaginaChat() {
   const navegar = useNavigate();
 
   return (
-    <div className="bento-card alto-del-chat overflow-hidden">
+    <div className="alto-del-chat overflow-hidden">
       <PanelDelChat
         alElegirConversacion={(id) => navegar(id === null ? "/chat" : `/chat/${id}`)}
         idDeLaConversacion={idDeLaConversacion ?? null}

@@ -3,6 +3,8 @@
  * ---------------------------------------------------------------------
  * Las caras del chat: la de una persona, con su punto verde si está en
  * línea, y la de una charla (la de la otra persona o la de un grupo).
+ * Y la línea de presencia que va debajo del nombre en las listas del
+ * equipo («En línea», «Visto hace 2 horas»).
  *
  * Sin foto, el avatar lleva las iniciales sobre el COLOR DE PERFIL de
  * esa persona, el mismo que ve ella en su barra superior: así se
@@ -12,7 +14,7 @@
 import { Users } from "lucide-react";
 import { colorDeTextoLegibleSobre } from "@/theme/colorAcento";
 import type { ConversacionDelChat, PersonaDelChat } from "@/tipos/modelos";
-import { inicialesDe } from "@/utilidades/formato";
+import { formatearTiempoRelativo, inicialesDe } from "@/utilidades/formato";
 
 const TAMANOS = {
   sm: { caja: "size-7", letra: "text-[10px]", punto: "size-2.5" },
@@ -25,10 +27,17 @@ type Tamano = keyof typeof TAMANOS;
 export function AvatarDePersona({
   persona,
   enLinea = false,
+  marcarSiNoEsta = false,
   tamano = "md",
 }: {
   persona: Pick<PersonaDelChat, "nombre" | "colorAcento" | "urlAvatar">;
   enLinea?: boolean;
+  /**
+   * Punto gris cuando NO está. Solo en las listas del equipo, que son
+   * las que responden «¿quién está y quién no?»; en una charla, un punto
+   * gris en cada cara sería ruido.
+   */
+  marcarSiNoEsta?: boolean;
   tamano?: Tamano;
 }) {
   const medidas = TAMANOS[tamano];
@@ -51,13 +60,46 @@ export function AvatarDePersona({
         </span>
       )}
 
-      {enLinea && (
+      {enLinea ? (
         <span
           aria-label="En línea"
           className={`absolute -bottom-0.5 -right-0.5 ${medidas.punto} rounded-full bg-success ring-2 ring-content1`}
           role="img"
         />
+      ) : (
+        marcarSiNoEsta && (
+          <span
+            aria-label="Desconectado"
+            className={`absolute -bottom-0.5 -right-0.5 ${medidas.punto} rounded-full bg-default-300 ring-2 ring-content1 dark:bg-default-400`}
+            role="img"
+          />
+        )
       )}
+    </span>
+  );
+}
+
+/**
+ * La línea de debajo del nombre en las listas del equipo: «En línea»
+ * en verde, o desde cuándo no está, y el rol.
+ */
+export function PresenciaDeLaPersona({
+  persona,
+  enLinea,
+}: {
+  persona: Pick<PersonaDelChat, "rolEtiqueta" | "vistoPorUltimaVezEn">;
+  enLinea: boolean;
+}) {
+  return (
+    <span className="block truncate text-[11px] text-default-500">
+      {enLinea ? (
+        <span className="font-semibold text-success">En línea</span>
+      ) : persona.vistoPorUltimaVezEn !== null ? (
+        `Visto ${formatearTiempoRelativo(persona.vistoPorUltimaVezEn)}`
+      ) : (
+        "Desconectado"
+      )}
+      {` · ${persona.rolEtiqueta}`}
     </span>
   );
 }
