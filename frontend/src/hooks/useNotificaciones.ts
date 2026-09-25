@@ -22,6 +22,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   contarNotificacionesSinLeer,
@@ -34,6 +35,7 @@ import { useEventoPersonal, useTiempoReal } from "@/providers/ProveedorTiempoRea
 import { avisarDeError, avisarDeNotificacion } from "@/utilidades/avisos";
 import type { Notificacion } from "@/tipos/modelos";
 import { errorSoloSiNoHayNadaQueEnsenar } from "@/utilidades/consultas";
+import { sonarAviso } from "@/utilidades/sonidos";
 
 /* ==================================================================== */
 /* Claves de caché                                                     */
@@ -159,10 +161,27 @@ export function useAbrirNotificacion() {
  * Además de la campanita refresca el tablero y el resumen: los dos
  * avisos que existen hoy (un lead nuevo, una marca asignada) significan
  * que hay una marca más en la lista de quien lo recibe.
+ *
+ * EL SONIDO no sale del aviso en vivo sino de que suba el número de la
+ * campanita: así suena igual si el aviso llega por el WebSocket o por la
+ * consulta de cada minuto (Reverb caído), y una sola vez en los dos casos.
  */
 export function useAvisosEnVivo() {
   const clienteDeConsultas = useQueryClient();
   const abrirNotificacion = useAbrirNotificacion();
+  const { data: sinLeer } = useContadorDeNotificaciones();
+  const sinLeerAntes = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (sinLeer === undefined) return;
+
+    // La primera lectura no suena: lo que ya había al entrar no es nuevo.
+    if (sinLeerAntes.current !== null && sinLeer > sinLeerAntes.current) {
+      sonarAviso();
+    }
+
+    sinLeerAntes.current = sinLeer;
+  }, [sinLeer]);
 
   useEventoPersonal<Notificacion>(".notificacion-nueva", (notificacion) => {
     void clienteDeConsultas.invalidateQueries({ queryKey: clavesDeNotificaciones.todas });

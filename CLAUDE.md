@@ -457,6 +457,14 @@ Salieron del cliente y están implementadas a propósito así:
 
     Cada quien lee y marca solo SUS avisos; ni un admin los de otro.
 
+    En el panel, un aviso nuevo **suena** («ding») cuando sube el número
+    de la campanita —no al llegar el evento, para que suene igual en vivo
+    que por la consulta de cada minuto— y un mensaje del chat hace «pop».
+    Los dos salen de `utilidades/sonidos.ts`, generados con Web Audio (sin
+    ficheros), solo con la pestaña a la vista (escondida ya suena la
+    notificación del sistema) y se apagan por dispositivo desde el menú de
+    la cuenta.
+
     El push va **en cola** y el empuje en vivo **no**, y no es un
     descuido: el WebSocket es un mensaje a un proceso de esta misma
     máquina, y cada push es una petición de red al servidor de Google o

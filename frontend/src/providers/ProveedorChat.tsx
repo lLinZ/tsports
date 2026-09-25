@@ -20,9 +20,10 @@
  *     trae la lista al día.
  *
  * LOS AVISOS DE MENSAJE NUEVO salen en pantalla cuando llega algo de
- * otra persona a una charla que no se está mirando. Al móvil no va nada
- * desde aquí: eso lo decide el servidor, que no se lo manda a quien está
- * en línea (ver EnviarMensajeDeChatAlMovil).
+ * otra persona a una charla que no se está mirando, y el «pop» suena con
+ * cualquier mensaje de otra persona (utilidades/sonidos.ts). Al móvil no
+ * va nada desde aquí: eso lo decide el servidor, que no se lo manda a
+ * quien está en línea (ver EnviarMensajeDeChatAlMovil).
  * ---------------------------------------------------------------------
  */
 import { useQueryClient } from "@tanstack/react-query";
@@ -46,6 +47,7 @@ import {
 import { useSesion } from "@/providers/ProveedorSesion";
 import { useEventoPersonal, useTiempoReal } from "@/providers/ProveedorTiempoReal";
 import { avisarDeError, avisarDeNotificacion } from "@/utilidades/avisos";
+import { sonarMensaje } from "@/utilidades/sonidos";
 import type { LatidoDelChat, SugerenciaDeMarca } from "@/tipos/modelos";
 
 /** Una marca que alguien quiere mandar por el chat desde su ficha. */
@@ -248,6 +250,7 @@ export function ProveedorChat({ children }: { children: ReactNode }) {
 
     const conocidos = ultimoMensajeConocido.current;
     const nuevosConocidos = new Map<string, number>();
+    let llegoAlgoDeOtro = false;
 
     for (const conversacion of datosDeLasConversaciones) {
       const ultimo = conversacion.ultimoMensaje;
@@ -258,6 +261,13 @@ export function ProveedorChat({ children }: { children: ReactNode }) {
       if (conocidos === null || ultimo === null) continue;
 
       const esNuevo = ultimo.id > (conocidos.get(conversacion.id) ?? 0);
+
+      // El «pop» suena también en la charla que se está mirando (el aviso
+      // flotante no, que ya se lee ahí mismo): es lo que hace levantar la
+      // vista cuando contestan.
+      if (esNuevo && !ultimo.esMio && !ultimo.esDeSistema) {
+        llegoAlgoDeOtro = true;
+      }
 
       if (
         esNuevo &&
@@ -276,6 +286,9 @@ export function ProveedorChat({ children }: { children: ReactNode }) {
     }
 
     ultimoMensajeConocido.current = nuevosConocidos;
+
+    // Uno por tanda, aunque hayan llegado varios a la vez.
+    if (llegoAlgoDeOtro) sonarMensaje();
   }, [datosDeLasConversaciones, abrirConversacion]);
 
   /* ---------------------------------------------------------------- */

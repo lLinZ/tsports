@@ -40,6 +40,8 @@ import {
   Shapes,
   UserCircle,
   Users,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
@@ -56,7 +58,8 @@ import { useCatalogos } from "@/hooks/useCatalogos";
 import { useChat } from "@/providers/ProveedorChat";
 import { useSesion, useUsuarioAutenticado } from "@/providers/ProveedorSesion";
 import { inicialesDe } from "@/utilidades/formato";
-import { avisarDeError } from "@/utilidades/avisos";
+import { avisarDeError, avisarDeExito } from "@/utilidades/avisos";
+import { guardarSonidosActivados, sonarAviso, sonidosActivados } from "@/utilidades/sonidos";
 import type { Usuario } from "@/tipos/modelos";
 
 /** Una entrada del menú lateral. */
@@ -376,6 +379,20 @@ function BarraSuperior({
   const navegar = useNavigate();
   const ubicacion = useLocation();
   const { catalogos } = useCatalogos();
+  const [conSonidos, establecerConSonidos] = useState(sonidosActivados);
+
+  // El menú se cierra al pulsar y lo confirma un aviso: con el menú
+  // abierto, HeroUI no repinta el texto de la opción y se quedaba diciendo
+  // el estado anterior.
+  function alternarLosSonidos() {
+    const activados = !conSonidos;
+    guardarSonidosActivados(activados);
+    establecerConSonidos(activados);
+    avisarDeExito(activados ? "Sonidos activados en este dispositivo." : "Sonidos apagados en este dispositivo.");
+    // Al encenderlos suena la muestra: así se sabe cómo son y que el
+    // altavoz del ordenador no está en silencio.
+    if (activados) sonarAviso({ esUnaPrueba: true });
+  }
 
   // Las pantallas que no salen en el menú lateral —se llega a ellas desde
   // la barra superior— tienen su título aparte.
@@ -448,6 +465,14 @@ function BarraSuperior({
                 onPress={() => navegar("/perfil")}
               >
                 Mi perfil
+              </DropdownItem>
+              <DropdownItem
+                key="sonidos"
+                description="Avisos y mensajes del chat, en este dispositivo"
+                startContent={conSonidos ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
+                onPress={alternarLosSonidos}
+              >
+                {conSonidos ? "Sonidos activados" : "Sonidos apagados"}
               </DropdownItem>
             </DropdownSection>
 
