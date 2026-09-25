@@ -75,6 +75,15 @@ export function ProveedorTiempoReal({ children }: { children: ReactNode }) {
     // una vez por carga de la página.
     staleTime: Infinity,
     refetchOnWindowFocus: false,
+    // Pero UNA vez por carga, sí o sí. Hasta el 2026-09-25 esta consulta
+    // entraba en la copia sin conexión: el «apagado» de antes de encender
+    // Reverb en producción se restauraba en cada arranque y, con el
+    // staleTime infinito, no se volvía a preguntar nunca. El panel se
+    // quedaba sin tiempo real aunque el servidor ya lo tuviera. El
+    // `sinCopiaLocal` evita que se guarde; esto, que valga una copia
+    // vieja que ya estuviera guardada.
+    refetchOnMount: "always",
+    meta: { sinCopiaLocal: true },
     // Si falla, el panel sigue sin tiempo real: no compensa insistir.
     retry: false,
   });

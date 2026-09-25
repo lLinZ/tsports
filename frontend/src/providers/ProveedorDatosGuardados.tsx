@@ -32,7 +32,10 @@
  * La llevan el chat, que se refresca cada pocos segundos y obligaría a
  * volver a escribir la copia entera en cada vuelta, y el reporte de
  * bitácora, que puede ocupar más que todo lo demás junto y se pide a
- * propósito, no se consulta de paso.
+ * propósito, no se consulta de paso. También la configuración del
+ * tiempo real: sin conexión no hay WebSocket que abrir, y restaurada
+ * dejaba el panel con el tiempo real apagado después de encenderlo en
+ * el servidor (ver ProveedorTiempoReal).
  * ---------------------------------------------------------------------
  */
 import {
