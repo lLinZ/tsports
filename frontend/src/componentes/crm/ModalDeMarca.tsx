@@ -50,6 +50,7 @@ import {
   Check,
   ClipboardList,
   Megaphone,
+  MessageCircle,
   MessageSquare,
   Package,
   Save,
@@ -73,6 +74,7 @@ import {
   useEliminarMarca,
   useFichaDeMarca,
 } from "@/hooks/useMarcas";
+import { useChat } from "@/providers/ProveedorChat";
 import { useUsuarioAutenticado } from "@/providers/ProveedorSesion";
 import { avisarDeError, avisarDeExito } from "@/utilidades/avisos";
 import { enumerarEnEspanol, formatearDinero } from "@/utilidades/formato";
@@ -208,6 +210,7 @@ export function ModalDeMarca({
   alCerrar,
 }: PropiedadesDelModalDeMarca) {
   const usuario = useUsuarioAutenticado();
+  const { compartirMarca } = useChat();
   const { catalogos } = useCatalogos();
   // Solo las campañas abiertas: ofrecer una ya cerrada en el selector
   // únicamente sirve para equivocarse al asignar.
@@ -548,11 +551,36 @@ export function ModalDeMarca({
                     )}
                   </div>
 
-                  {!laMarcaEsEditable && (
-                    <Chip color="warning" radius="lg" size="sm" variant="flat">
-                      Solo lectura
-                    </Chip>
-                  )}
+                  <div className="flex shrink-0 items-center gap-2 pr-7">
+                    {/* Mandar esta marca por el chat: se cierra la ficha y
+                        se abre el chat para elegir a quién, con la marca
+                        ya etiquetada en el mensaje. */}
+                    {estamosEditando && (
+                      <Button
+                        aria-label="Enviar esta marca por el chat"
+                        radius="full"
+                        size="sm"
+                        startContent={<MessageCircle className="size-3.5" />}
+                        variant="flat"
+                        onPress={() => {
+                          compartirMarca({
+                            id: marcaEnEdicion.id,
+                            nombre: marcaEnEdicion.nombreMarca,
+                            logoUrl: marcaEnEdicion.logoUrl,
+                          });
+                          alCerrar();
+                        }}
+                      >
+                        <span className="hidden sm:inline">Enviar por chat</span>
+                      </Button>
+                    )}
+
+                    {!laMarcaEsEditable && (
+                      <Chip color="warning" radius="lg" size="sm" variant="flat">
+                        Solo lectura
+                      </Chip>
+                    )}
+                  </div>
                 </div>
 
                 {estamosEditando && (

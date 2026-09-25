@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\AuditoriaController;
 use App\Http\Controllers\Api\AutenticacionController;
 use App\Http\Controllers\Api\CalendarioController;
 use App\Http\Controllers\Api\CampanaController;
+use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\CatalogoController;
 use App\Http\Controllers\Api\ComentarioMarcaController;
 use App\Http\Controllers\Api\ContenidoSitioController;
@@ -190,6 +191,27 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // elegidas es la agencia entera y solo lo saca el administrador; con
     // marcas, quien pueda ver cada una (lo decide el controlador).
     Route::get('/bitacora/reporte', [ExportacionDeBitacoraController::class, 'porFechas']);
+
+    /* ---------- Chat interno ----------
+     | Mensajería entre personas, uno a uno y en grupo. Lo de una charla
+     | es de quien está dentro (ConversacionPolicy), administrador
+     | incluido. Todo lo que escribe pasa por App\Support\Mensajeria.    */
+    // Presencia y novedades en una sola llamada, cada pocos segundos.
+    Route::post('/chat/latido', [ChatController::class, 'latido']);
+    Route::get('/chat/personas', [ChatController::class, 'personas']);
+    Route::get('/chat/conversaciones', [ChatController::class, 'conversaciones']);
+    Route::post('/chat/directas', [ChatController::class, 'abrirDirecta']);
+    Route::post('/chat/grupos', [ChatController::class, 'crearGrupo']);
+    Route::get('/chat/conversaciones/{conversacion}', [ChatController::class, 'mostrar']);
+    Route::patch('/chat/conversaciones/{conversacion}', [ChatController::class, 'renombrar']);
+    Route::post('/chat/conversaciones/{conversacion}/personas', [ChatController::class, 'anadirPersonas']);
+    Route::delete('/chat/conversaciones/{conversacion}/personas/{usuario}', [ChatController::class, 'sacarPersona']);
+    Route::get('/chat/conversaciones/{conversacion}/mensajes', [ChatController::class, 'mensajes']);
+    // Un tope por persona: cuarenta mensajes por minuto es mucho escribir,
+    // y frena un bucle de la interfaz antes de llenar la charla de todos.
+    Route::post('/chat/conversaciones/{conversacion}/mensajes', [ChatController::class, 'enviar'])
+        ->middleware('throttle:40,1');
+    Route::post('/chat/conversaciones/{conversacion}/leido', [ChatController::class, 'marcarComoLeido']);
 
     /* ---------- Imágenes ---------- */
     Route::post('/media', [MediaController::class, 'subir']);

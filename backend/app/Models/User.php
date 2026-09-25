@@ -83,6 +83,9 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'ultimo_acceso_at' => 'datetime',
+            // La presencia del chat (ver App\Support\Presencia).
+            'en_linea_hasta' => 'datetime',
+            'visto_por_ultima_vez_en' => 'datetime',
             'password' => 'hashed',
             'rol' => RolUsuario::class,
             'tema' => TemaInterfaz::class,

@@ -285,7 +285,14 @@ self.addEventListener("push", (evento) => {
       // volver de un fin de semana con quince leads dejaría quince
       // avisos en el teléfono. El servidor manda ya la misma etiqueta
       // como `topic`, que hace lo propio en el servicio de entrega.
-      tag: aviso.tipo || "tsports",
+      //
+      // Los mensajes del chat traen su propia etiqueta, una por charla:
+      // los de una misma charla se sustituyen entre sí, y los de charlas
+      // distintas no se pisan.
+      tag: aviso.etiqueta || aviso.tipo || "tsports",
+      // Y aun sustituyendo, un mensaje nuevo tiene que volver a sonar;
+      // sin esto, el segundo mensaje de una charla llega callado.
+      renotify: Boolean(aviso.volverAAvisar),
       // Lo que hace falta al pulsarlo, y nada más: ni nombres de marca
       // ni datos que no estén ya en el texto del aviso.
       data: { enlace: aviso.enlace || "/panel" },

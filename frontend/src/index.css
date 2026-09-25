@@ -285,6 +285,33 @@
   }
 }
 
+/* ------------------------------------------------------------------ */
+/* Chat interno                                                        */
+/* ------------------------------------------------------------------ */
+
+/* La página del chat ocupa el alto que dejan la barra superior (4rem) y
+   el margen del contenido (1,5rem arriba y abajo). Se escribe dos veces
+   a propósito: la primera la entiende el Chrome 103 del equipo; la
+   segunda, un móvil actual, que descuenta además la barra del navegador
+   y no deja la caja de escribir escondida debajo. */
+.alto-del-chat {
+  height: calc(100vh - 7rem);
+  height: calc(100dvh - 7rem);
+  min-height: 22rem;
+}
+
+/* La burbuja respeta la zona segura del iPhone (la raya de abajo y la
+   muesca en horizontal), o quedaría debajo de ellas. */
+.burbuja-del-chat {
+  bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+  right: calc(1.25rem + env(safe-area-inset-right, 0px));
+}
+
+/* Y la caja de escribir, lo mismo cuando la ventana ocupa la pantalla. */
+.margen-seguro-inferior {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 /* Respeta a quien pidió menos movimiento en su sistema operativo. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

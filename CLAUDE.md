@@ -297,6 +297,8 @@ tsports/
 │   └── src/
 │       ├── api/           ← única capa que habla con el servidor
 │       ├── componentes/
+│       │   ├── chat/      ← burbuja y ventana flotante, charla, emoji,
+│       │   │                grupos (la página es paginas/PaginaChat)
 │       │   ├── comunes/   ← TarjetaBento, CampoDeImagen, BarraDeProporcion…
 │       │   ├── crm/       ← tarjeta de marca, ficha, bitácora,
 │       │   │                checklist de propiedades
@@ -485,6 +487,10 @@ Salieron del cliente y están implementadas a propósito así:
       Sin esta regla la consulta sin conexión no sirve de nada, porque
       la pantalla se vacía a los pocos segundos de abrirla.
 
+    Una consulta puede quedarse fuera de la copia con
+    `meta: { sinCopiaLocal: true }`: la llevan el chat y el reporte de
+    bitácora.
+
     Y una cuarta que las sostiene: **solo un 401 cierra la sesión**. Que
     el servidor no conteste —sin cobertura, nginx devolviendo 502
     mientras Laravel reinicia— no es un token inválido, y tratarlo como
@@ -520,6 +526,43 @@ Salieron del cliente y están implementadas a propósito así:
     de una marca es sacar del sistema toda la relación comercial con
     ella; el histórico completo es el de la agencia entera, y ese solo
     lo saca el administrador.
+
+    El **reporte por fechas** (`/reportes/bitacora`, desde el
+    2026-09-25) es la misma bitácora cortada por días y agrupada por
+    marca, y hereda esos permisos: sin marcas elegidas es el de toda la
+    agencia y solo lo saca el administrador (si no, un rango de diez años
+    sería el histórico completo); con marcas, quien pueda ver cada una, y
+    una ajena rechaza la petición entera. Un día es un día **de quien
+    mira**: el navegador manda su zona horaria, porque lo comentado a las
+    nueve de la noche en Caracas ya es mañana en UTC.
+
+20. **El chat es entre personas, y lo de una charla es de quien está
+    dentro.** Desde el 2026-09-25. Uno a uno y en grupo; nunca un hilo
+    por marca, que eso es la bitácora.
+
+    - **Ni un administrador lee las charlas de otros**
+      (`ConversacionPolicy`), igual que no lee sus avisos. En un grupo,
+      cualquiera de dentro lo cambia (nombre, quién está) y cada cambio
+      deja una línea en la charla.
+    - **Con una persona hay UNA charla directa**: `clave_directa` lleva
+      los dos ids ordenados con índice único.
+    - **Todo mensaje lo escribe `App\Support\Mensajeria`**, en el orden de
+      la regla 17: guardar, empujar en vivo, encolar el push. Sin Reverb
+      el chat funciona igual: el navegador pregunta cada pocos segundos.
+    - **Solo se etiquetan marcas que uno puede ver**, y se comprueba al
+      guardar. Quien recibe una que no ve, recibe el nombre copiado al
+      escribir y nada más —ni logo, ni enlace—; el mensaje se arma para
+      cada persona que lo lee (`RecursoMensajeDeChat`). Por eso el aviso
+      en vivo (`CambioEnElChat`) no lleva el mensaje, solo de qué charla es.
+    - **«En línea» es tener el panel A LA VISTA**, no abierto: lo apunta
+      el latido (`App\Support\Presencia`) y caduca solo. Y decide el push:
+      a quien está en línea no le suena el teléfono, ya lo ve en pantalla.
+    - **Los mensajes llevan id numérico, no UUID**: ordena sin empates y
+      sirve de cursor para pedir «lo nuevo desde el 1532» (la misma
+      trampa que resuelve el desempate de la regla 14).
+    - El chat se queda **fuera de la copia sin conexión**
+      (`meta: { sinCopiaLocal: true }`, ver regla 18): se refresca cada
+      pocos segundos y reescribiría la copia entera en cada vuelta.
 
 ---
 
@@ -608,6 +651,9 @@ VPS usa **MySQL**: la plantilla es `backend/.env.example`.
 - Poner `scrollbar-width` o `scrollbar-color` a todos los elementos: en
   el Mac la barra vuelve a esconderse (ver 4.7).
 - Guardar una respuesta de `/api` en el service worker (regla 18).
+- Dejar que alguien lea una charla del chat en la que no está, ni
+  siendo administrador (regla 20).
+- Escribir un mensaje del chat sin pasar por `Mensajeria`.
 - Preguntar `¿hay error?` antes que `¿hay datos?` al pintar una
   pantalla: se usa `errorSoloSiNoHayNadaQueEnsenar` (regla 18).
 - Registrar el service worker en desarrollo: una caché por delante de

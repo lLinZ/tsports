@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Models\Campana;
+use App\Models\Conversacion;
 use App\Models\EventoDeCampana;
 use App\Models\Marca;
 use App\Models\Notificacion;
@@ -12,6 +13,7 @@ use App\Models\Propiedad;
 use App\Models\Sector;
 use App\Models\User;
 use App\Policies\CampanaPolicy;
+use App\Policies\ConversacionPolicy;
 use App\Policies\EventoDeCampanaPolicy;
 use App\Policies\MarcaPolicy;
 use App\Policies\NotificacionPolicy;
@@ -56,6 +58,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(EventoDeCampana::class, EventoDeCampanaPolicy::class);
         Gate::policy(Sector::class, SectorPolicy::class);
         Gate::policy(Notificacion::class, NotificacionPolicy::class);
+        Gate::policy(Conversacion::class, ConversacionPolicy::class);
 
         // Comprobaciones estrictas de Eloquent, solo fuera de producción.
         Model::shouldBeStrict(! $this->app->isProduction());

@@ -1076,3 +1076,89 @@ export interface Notificacion {
   leida: boolean;
   creadaEn: string | null;
 }
+
+/* ==================================================================== */
+/* Chat interno                                                         */
+/* ==================================================================== */
+
+/** Alguien del equipo, tal y como lo ve el chat. */
+export interface PersonaDelChat {
+  id: string;
+  nombre: string;
+  rolEtiqueta: string;
+  colorAcento: string | null;
+  urlAvatar: string | null;
+  activo: boolean;
+  /** Con el panel a la vista ahora mismo (ver App\Support\Presencia). */
+  enLinea: boolean;
+  vistoPorUltimaVezEn: string | null;
+}
+
+/** Lo último que se dijo en una charla, para la lista. */
+export interface AdelantoDeMensaje {
+  id: number;
+  autorNombre: string;
+  esMio: boolean;
+  esDeSistema: boolean;
+  /** En texto corrido, con las marcas etiquetadas como «#Nombre». */
+  texto: string;
+  creadoEn: string | null;
+}
+
+/** Una charla del chat, directa o de grupo. */
+export interface ConversacionDelChat {
+  id: string;
+  tipo: "directa" | "grupo";
+  esGrupo: boolean;
+  /** El del grupo, o en una directa el de la otra persona. */
+  nombre: string;
+  participantes: PersonaDelChat[];
+  ultimoMensaje: AdelantoDeMensaje | null;
+  /** Mensajes de otros después de lo último que leí. Lo cuenta el servidor. */
+  sinLeer: number;
+  miUltimoLeidoId: number;
+  /** Hasta qué mensaje han leído TODOS los demás: el doble check. */
+  leidoPorLosDemasHasta: number;
+  creadaEn: string | null;
+}
+
+/**
+ * Una marca etiquetada en un mensaje, vista por quien lo lee. Sin logo
+ * ni enlace si esa persona no puede abrirla: solo el nombre que le
+ * contaron (regla 6).
+ */
+export interface MarcaEnMensaje {
+  id: string;
+  nombre: string;
+  logoUrl: string | null;
+  enlace: string | null;
+}
+
+export interface MensajeDeChat {
+  /** Un número que crece: ordena y sirve de cursor. */
+  id: number;
+  conversacionId: string;
+  tipo: "texto" | "sistema";
+  autorId: string | null;
+  autorNombre: string;
+  esMio: boolean;
+  /** Con cada marca como `[[marca:<id>]]`, en su sitio. */
+  cuerpo: string;
+  marcas: MarcaEnMensaje[];
+  creadoEn: string | null;
+}
+
+/** Lo que se tiene cargado de una charla. */
+export interface MensajesDeLaConversacion {
+  mensajes: MensajeDeChat[];
+  hayMasAntiguos: boolean;
+  leidoPorLosDemasHasta: number;
+}
+
+/** La respuesta del latido: presencia y si hay algo nuevo. */
+export interface LatidoDelChat {
+  sinLeer: number;
+  ultimoMensajeId: number;
+  /** Ids de quienes están en línea ahora. */
+  enLinea: string[];
+}

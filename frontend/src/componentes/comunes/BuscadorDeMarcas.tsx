@@ -29,12 +29,15 @@ const RETARDO_DE_BUSQUEDA_MS = 250;
 
 export function BuscadorDeMarcas({
   alElegir,
+  alEscape,
   idsYaElegidos = [],
   marcadorDePosicion = "Buscar una marca…",
   enfocarAlMontar = false,
   listaSiempreVisible = false,
 }: {
   alElegir: (marca: SugerenciaDeMarca) => void;
+  /** Escape con la lista siempre visible: quien lo monta decide qué cerrar. */
+  alEscape?: () => void;
   /** Se marcan como ya puestas y no se ofrecen otra vez. */
   idsYaElegidos?: string[];
   marcadorDePosicion?: string;
@@ -168,8 +171,13 @@ export function BuscadorDeMarcas({
               evento.preventDefault();
               elegir(resaltada);
             }
-          } else if (evento.key === "Escape" && !listaSiempreVisible) {
-            establecerAbierta(false);
+          } else if (evento.key === "Escape") {
+            if (listaSiempreVisible) {
+              evento.preventDefault();
+              alEscape?.();
+            } else {
+              establecerAbierta(false);
+            }
           }
         }}
         onValueChange={(valor) => {

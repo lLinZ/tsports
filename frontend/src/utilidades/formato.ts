@@ -218,6 +218,98 @@ export function formatearTiempoRelativo(fechaIso: string | null | undefined): st
 }
 
 /* ==================================================================== */
+/* Fechas del chat                                                     */
+/* ==================================================================== */
+
+/** ¿Es el mismo día del calendario local? */
+function esElMismoDia(una: Date, otra: Date): boolean {
+  return (
+    una.getFullYear() === otra.getFullYear() &&
+    una.getMonth() === otra.getMonth() &&
+    una.getDate() === otra.getDate()
+  );
+}
+
+function ayer(): Date {
+  const hoy = new Date();
+
+  return new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - 1);
+}
+
+/** Hora del mensaje: "14:05". */
+export function formatearHora(fechaIso: string | null | undefined): string {
+  const fecha = comoFechaLocal(fechaIso);
+
+  if (fecha === null) return "";
+
+  return fecha.toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" });
+}
+
+/**
+ * El momento del último mensaje en la lista de charlas, lo más corto
+ * posible: "14:05" si es de hoy, "Ayer", el día de la semana si es de
+ * esta semana y "22/09" si es de antes. Es lo que hace cualquier chat, y
+ * es lo que la vista espera encontrar ahí.
+ */
+export function formatearMomentoCorto(fechaIso: string | null | undefined): string {
+  const fecha = comoFechaLocal(fechaIso);
+
+  if (fecha === null) return "";
+
+  const hoy = new Date();
+
+  if (esElMismoDia(fecha, hoy)) return formatearHora(fechaIso);
+  if (esElMismoDia(fecha, ayer())) return "Ayer";
+
+  const diasDeDiferencia = (hoy.getTime() - fecha.getTime()) / 86_400_000;
+
+  if (diasDeDiferencia < 6) {
+    return fecha.toLocaleDateString("es", { weekday: "short" }).replace(".", "");
+  }
+
+  return fecha.toLocaleDateString("es", {
+    day: "2-digit",
+    month: "2-digit",
+    ...(fecha.getFullYear() === hoy.getFullYear() ? {} : { year: "2-digit" }),
+  });
+}
+
+/** El separador de días dentro de una charla: "Hoy", "Ayer", "lunes 22 de septiembre". */
+export function formatearDiaDelChat(fechaIso: string | null | undefined): string {
+  const fecha = comoFechaLocal(fechaIso);
+
+  if (fecha === null) return "";
+
+  const hoy = new Date();
+
+  if (esElMismoDia(fecha, hoy)) return "Hoy";
+  if (esElMismoDia(fecha, ayer())) return "Ayer";
+
+  return fecha.toLocaleDateString("es", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    ...(fecha.getFullYear() === hoy.getFullYear() ? {} : { year: "numeric" }),
+  });
+}
+
+/** ¿Caen dos momentos en el mismo día del calendario local? */
+export function sonDelMismoDia(una: string | null, otra: string | null): boolean {
+  const primera = comoFechaLocal(una);
+  const segunda = comoFechaLocal(otra);
+
+  return primera !== null && segunda !== null && esElMismoDia(primera, segunda);
+}
+
+/** "en línea", "visto hace 5 minutos", o nada si nunca se le vio. */
+export function formatearPresencia(enLinea: boolean, vistoEn: string | null): string {
+  if (enLinea) return "en línea";
+  if (vistoEn === null) return "";
+
+  return `visto ${formatearTiempoRelativo(vistoEn)}`;
+}
+
+/* ==================================================================== */
 /* Texto                                                               */
 /* ==================================================================== */
 

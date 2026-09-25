@@ -5,7 +5,7 @@
  *
  * ORDEN DE LOS PROVEEDORES (importa):
  *   Enrutador → HeroUI → Tema → Consultas → Sesión → Tiempo real
- *                                                   → Aplicación instalada
+ *                                           → Chat → Aplicación instalada
  *
  *   · El TEMA va por fuera de la SESIÓN porque la pantalla de login ya
  *     tiene que respetar el modo oscuro guardado, antes de saber quién
@@ -16,6 +16,9 @@
  *     es la persona no hay canal privado al que suscribirse. Va aquí
  *     arriba y no en el layout del panel para que la conexión no se
  *     corte y se vuelva a abrir en cada cambio de pantalla.
+ *   · El CHAT va por dentro del TIEMPO REAL, porque escucha su canal, y
+ *     aquí arriba por lo mismo que él: cambiar de pantalla no puede
+ *     cerrar la ventana del chat ni cortar el latido de «en línea».
  *   · La APLICACIÓN INSTALADA va por dentro de la SESIÓN porque el
  *     service worker solo se registra con sesión iniciada: la raíz
  *     del dominio es la web de la agencia y a un visitante no hay
@@ -33,6 +36,7 @@ import type { ReactNode } from "react";
 import { PantallaDeArranque } from "@/componentes/comunes/EstadosDePantalla";
 import { LayoutDelPanel } from "@/componentes/layout/LayoutDelPanel";
 import { ProveedorAplicacion } from "@/providers/ProveedorAplicacion";
+import { ProveedorChat } from "@/providers/ProveedorChat";
 import { ProveedorConsultas } from "@/providers/ProveedorConsultas";
 import { ProveedorDatosGuardados } from "@/providers/ProveedorDatosGuardados";
 import { ProveedorSesion, useSesion } from "@/providers/ProveedorSesion";
@@ -40,6 +44,7 @@ import { ProveedorTema } from "@/providers/ProveedorTema";
 import { ProveedorTiempoReal } from "@/providers/ProveedorTiempoReal";
 import { PaginaAuditoria } from "@/paginas/PaginaAuditoria";
 import { PaginaCampanas } from "@/paginas/PaginaCampanas";
+import { PaginaChat } from "@/paginas/PaginaChat";
 import { PaginaContenidoWeb } from "@/paginas/PaginaContenidoWeb";
 import { PaginaEntrar } from "@/paginas/PaginaEntrar";
 import { PaginaMarcas } from "@/paginas/PaginaMarcas";
@@ -83,7 +88,9 @@ function ProveedoresDeLaAplicacion({ children }: { children: ReactNode }) {
           <ProveedorSesion>
             <DatosSegunLaPersona>
               <ProveedorTiempoReal>
-                <ProveedorAplicacion>{children}</ProveedorAplicacion>
+                <ProveedorChat>
+                  <ProveedorAplicacion>{children}</ProveedorAplicacion>
+                </ProveedorChat>
               </ProveedorTiempoReal>
             </DatosSegunLaPersona>
           </ProveedorSesion>
@@ -193,6 +200,18 @@ function RutasDeLaAplicacion() {
           </RutaProtegida>
         }
         path="/perfil"
+      />
+
+      {/* El chat, con la charla abierta en la dirección: es a donde lleva
+          el aviso al móvil. Quién puede abrir cada charla lo decide el
+          servidor (ConversacionPolicy). */}
+      <Route
+        element={
+          <RutaProtegida>
+            <PaginaChat />
+          </RutaProtegida>
+        }
+        path="/chat/:idDeLaConversacion?"
       />
 
       {/* Todo el equipo: un agente saca el reporte de sus marcas. Sin

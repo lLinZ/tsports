@@ -59,9 +59,38 @@ final class Push
      */
     public static function enviar(iterable $suscripciones, Notificacion $notificacion): array
     {
+        return self::enviarContenido($suscripciones, [
+            'titulo' => $notificacion->titulo,
+            'cuerpo' => $notificacion->cuerpo,
+            // El enlace lo resuelve el modelo, igual que para la
+            // campanita: la interfaz no compone rutas a mano.
+            'enlace' => $notificacion->enlaceEnElPanel(),
+            'tipo' => $notificacion->tipo,
+            'id' => $notificacion->id,
+        ], $notificacion->tipo);
+    }
+
+    /**
+     * Lo mismo, con el contenido ya armado. Lo usa además el chat, cuyos
+     * mensajes no son avisos de la campanita (ver
+     * EnviarMensajeDeChatAlMovil).
+     *
+     * `$tema` es la etiqueta con la que el servicio de entrega sustituye
+     * un aviso por el siguiente del mismo tema. El estándar la limita a
+     * 32 caracteres del alfabeto base64 de URL; si no cumple, el servicio
+     * rechaza el envío entero, así que se recorta aquí.
+     *
+     * @param  iterable<SuscripcionPush>  $suscripciones
+     * @param  array<string,mixed>  $contenido
+     * @return list<string>  endpoints a borrar (404 o 410)
+     */
+    public static function enviarContenido(iterable $suscripciones, array $contenido, string $tema): array
+    {
         if (! self::estaActivo()) {
             return [];
         }
+
+        $tema = substr((string) preg_replace('/[^A-Za-z0-9_-]/', '', $tema), 0, 32);
 
         $mensajero = new WebPush([
             'VAPID' => [
@@ -83,18 +112,10 @@ final class Push
             // Un aviso nuevo de la misma clase SUSTITUYE al anterior en
             // la bandeja del teléfono. Sin esto, volver de un fin de
             // semana con quince leads deja quince avisos apilados.
-            'topic' => $notificacion->tipo,
+            'topic' => $tema,
         ]);
 
-        $contenido = json_encode([
-            'titulo' => $notificacion->titulo,
-            'cuerpo' => $notificacion->cuerpo,
-            // El enlace lo resuelve el modelo, igual que para la
-            // campanita: la interfaz no compone rutas a mano.
-            'enlace' => $notificacion->enlaceEnElPanel(),
-            'tipo' => $notificacion->tipo,
-            'id' => $notificacion->id,
-        ], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        $contenidoEnJson = json_encode($contenido, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
 
         foreach ($suscripciones as $suscripcion) {
             $mensajero->queueNotification(
@@ -103,7 +124,7 @@ final class Push
                     'publicKey' => $suscripcion->clave_p256dh,
                     'authToken' => $suscripcion->clave_auth,
                 ]),
-                $contenido,
+                $contenidoEnJson,
             );
         }
 

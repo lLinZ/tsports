@@ -32,6 +32,7 @@ import {
   LogOut,
   Megaphone,
   Menu,
+  MessageCircle,
   NotebookPen,
   Package,
   Radio,
@@ -49,8 +50,10 @@ import {
 import { AvisoDeVersionNueva } from "@/componentes/layout/AvisoDeVersionNueva";
 import { BotonDeInstalacion } from "@/componentes/layout/BotonDeInstalacion";
 import { CampanitaDeNotificaciones } from "@/componentes/layout/CampanitaDeNotificaciones";
+import { ChatFlotante } from "@/componentes/chat/ChatFlotante";
 import { IndicadorDeConexion } from "@/componentes/layout/IndicadorDeConexion";
 import { useCatalogos } from "@/hooks/useCatalogos";
+import { useChat } from "@/providers/ProveedorChat";
 import { useSesion, useUsuarioAutenticado } from "@/providers/ProveedorSesion";
 import { inicialesDe } from "@/utilidades/formato";
 import { avisarDeError } from "@/utilidades/avisos";
@@ -64,6 +67,8 @@ interface EntradaDeMenu {
   icono: typeof LayoutDashboard;
   /** Devuelve si este usuario puede ver la entrada. */
   laPuedeVer: (usuario: Usuario) => boolean;
+  /** Lleva al lado el número de mensajes sin leer del chat. */
+  conContadorDelChat?: boolean;
 }
 
 /**
@@ -85,6 +90,14 @@ const ENTRADAS_DEL_MENU: EntradaDeMenu[] = [
     descripcion: "El CRM de patrocinios",
     icono: Building2,
     laPuedeVer: () => true,
+  },
+  {
+    ruta: "/chat",
+    etiqueta: "Chat",
+    descripcion: "Mensajes del equipo",
+    icono: MessageCircle,
+    laPuedeVer: () => true,
+    conContadorDelChat: true,
   },
   {
     ruta: "/propiedades",
@@ -214,6 +227,7 @@ export function LayoutDelPanel({ children }: { children: ReactNode }) {
       </div>
 
       <AvisoDeVersionNueva />
+      <ChatFlotante />
     </div>
   );
 }
@@ -250,6 +264,8 @@ function EnlaceDelMenu({
   alNavegar?: () => void;
 }) {
   const IconoDeLaEntrada = entrada.icono;
+  const { sinLeer } = useChat();
+  const contador = entrada.conContadorDelChat ? sinLeer : 0;
 
   return (
     <NavLink
@@ -268,7 +284,7 @@ function EnlaceDelMenu({
         <>
           <IconoDeLaEntrada className="mt-0.5 size-[18px] shrink-0" />
 
-          <span className="flex min-w-0 flex-col leading-tight">
+          <span className="flex min-w-0 flex-1 flex-col leading-tight">
             <span className="text-sm font-semibold">{entrada.etiqueta}</span>
             <span
               className={[
@@ -279,6 +295,18 @@ function EnlaceDelMenu({
               {entrada.descripcion}
             </span>
           </span>
+
+          {contador > 0 && (
+            <span
+              aria-label={`${contador} sin leer`}
+              className={[
+                "mt-0.5 flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
+                isActive ? "bg-primary-foreground text-primary" : "bg-danger text-white",
+              ].join(" ")}
+            >
+              {contador > 99 ? "99+" : contador}
+            </span>
+          )}
         </>
       )}
     </NavLink>
