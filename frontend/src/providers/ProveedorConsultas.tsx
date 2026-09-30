@@ -15,6 +15,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { esErrorDeApi } from "@/api/clienteHttp";
+import { laConexionEstaEnVivo } from "@/api/conexionEnVivo";
 
 /** Códigos que nunca mejoran reintentando: son decisiones del servidor. */
 const CODIGOS_QUE_NO_SE_REINTENTAN = [400, 401, 403, 404, 422];
@@ -45,8 +46,12 @@ export function ProveedorConsultas({ children }: { children: ReactNode }) {
             },
 
             // Volver a la pestaña refresca los datos: el CRM lo usan
-            // varias personas a la vez y conviene ver lo último.
-            refetchOnWindowFocus: true,
+            // varias personas a la vez y conviene ver lo último. Salvo
+            // con la conexión en vivo abierta: entonces lo que cambian
+            // los demás ya llega por el WebSocket (regla 22), y preguntar
+            // otra vez cada vez que se cambia de pestaña sería repetir
+            // peticiones para traer lo mismo.
+            refetchOnWindowFocus: () => !laConexionEstaEnVivo(),
             refetchOnReconnect: true,
           },
 

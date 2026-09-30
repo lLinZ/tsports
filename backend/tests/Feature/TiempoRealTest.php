@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\RolUsuario;
+use App\Events\CambioEnLosDatos;
 use App\Events\PruebaDeTiempoReal;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -60,7 +61,7 @@ class TiempoRealTest extends TestCase
     public function test_el_aviso_de_prueba_va_al_canal_privado_de_esa_persona(): void
     {
         $this->encenderReverb();
-        Event::fake([PruebaDeTiempoReal::class]);
+        Event::fake([PruebaDeTiempoReal::class, CambioEnLosDatos::class]);
 
         $destinatario = $this->crearUsuario();
         $this->crearUsuario();
@@ -79,7 +80,7 @@ class TiempoRealTest extends TestCase
     public function test_el_aviso_de_prueba_falla_con_un_correo_que_no_existe(): void
     {
         $this->encenderReverb();
-        Event::fake([PruebaDeTiempoReal::class]);
+        Event::fake([PruebaDeTiempoReal::class, CambioEnLosDatos::class]);
 
         $this->artisan('tiempo-real:probar', ['correo' => 'nadie@test.test'])
             ->assertFailed();
@@ -89,7 +90,7 @@ class TiempoRealTest extends TestCase
 
     public function test_el_aviso_de_prueba_no_dice_enviado_si_reverb_no_esta_activo(): void
     {
-        Event::fake([PruebaDeTiempoReal::class]);
+        Event::fake([PruebaDeTiempoReal::class, CambioEnLosDatos::class]);
 
         $this->artisan('tiempo-real:probar', ['correo' => $this->crearUsuario()->email])
             ->assertFailed();

@@ -30,7 +30,6 @@ import {
   marcarNotificacionComoLeida,
   marcarTodasLasNotificacionesComoLeidas,
 } from "@/api/notificaciones";
-import { clavesDeMarcas } from "@/hooks/useMarcas";
 import { useEventoPersonal, useTiempoReal } from "@/providers/ProveedorTiempoReal";
 import { avisarDeError, avisarDeNotificacion } from "@/utilidades/avisos";
 import type { Notificacion } from "@/tipos/modelos";
@@ -184,9 +183,11 @@ export function useAvisosEnVivo() {
   }, [sinLeer]);
 
   useEventoPersonal<Notificacion>(".notificacion-nueva", (notificacion) => {
+    // Solo la campanita. El tablero y el resumen (el lead nuevo, la marca
+    // asignada) los pone al día el aviso de cambios que llega por el
+    // mismo WebSocket (ProveedorCambiosEnVivo); pedirlos también aquí
+    // era descargarlos dos veces.
     void clienteDeConsultas.invalidateQueries({ queryKey: clavesDeNotificaciones.todas });
-    void clienteDeConsultas.invalidateQueries({ queryKey: clavesDeMarcas.todas });
-    void clienteDeConsultas.invalidateQueries({ queryKey: clavesDeMarcas.resumenDelPanel });
 
     avisarDeNotificacion(
       notificacion.titulo,

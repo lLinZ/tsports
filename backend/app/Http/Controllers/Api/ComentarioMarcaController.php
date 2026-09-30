@@ -183,14 +183,16 @@ class ComentarioMarcaController extends Controller
                 },
         );
 
+        $notificador = app(Notificador::class);
+        $textoParaElAviso = $this->textoParaElAviso($comentario->cuerpo, $adjuntos);
+
         if ($mencionados->isNotEmpty()) {
-            app(Notificador::class)->avisarDeUnaMencion(
-                $mencionados,
-                $marca,
-                $autor,
-                $this->textoParaElAviso($comentario->cuerpo, $adjuntos),
-            );
+            $notificador->avisarDeUnaMencion($mencionados, $marca, $autor, $textoParaElAviso);
         }
+
+        // Después de las menciones y sabiendo quiénes fueron: a quien ya
+        // le llegó «te etiquetaron» no le llega también «comentario nuevo».
+        $notificador->avisarDeUnComentario($marca, $autor, $textoParaElAviso, $padre !== null, $mencionados);
 
         $comentario->load($this->loQueAcompanaAlComentario());
 

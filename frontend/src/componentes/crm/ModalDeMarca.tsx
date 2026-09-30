@@ -598,7 +598,11 @@ export function ModalDeMarca({
                   >
                     {VISTAS_EN_PANTALLA_ESTRECHA.map(({ vista, etiqueta, Icono }) => {
                       const estaElegida = vistaEnPantallaEstrecha === vista;
-                      const totalDeComentarios = marcaEnEdicion.totalComentarios ?? 0;
+                      // De la ficha recién pedida, que se pone al día con
+                      // cada comentario (también los de otros, en vivo); la
+                      // marca que llegó al abrir es una foto de ese momento.
+                      const totalDeComentarios =
+                        fichaCompleta.data?.totalComentarios ?? marcaEnEdicion.totalComentarios ?? 0;
 
                       return (
                         <button

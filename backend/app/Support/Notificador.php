@@ -154,6 +154,57 @@ class Notificador
     }
 
     /**
+     * Alguien escribió en la bitácora de una marca: una entrada o una
+     * respuesta.
+     *
+     * Le llega a dos grupos, pedidos el 2026-09-30:
+     *
+     *   · A los administradores, de TODAS las marcas. Por permiso del rol
+     *     (`recibeAvisoDeCadaComentario`), nunca comparando nombres.
+     *   · A la persona que lleva la marca. Es lo que prometía la función 7
+     *     de la Fase 3 («cuando le escriben en una ficha suya»); hasta
+     *     entonces solo se le avisaba si la etiquetaban.
+     *
+     * Ninguno de los dos filtra una marca ajena (regla 6): el
+     * administrador las ve todas y el agente solo recibe las suyas.
+     *
+     * No se avisa a quien escribió. Y a quien además etiquetaron le basta
+     * el aviso de la mención, que es el que dice que va con él: dos avisos
+     * por el mismo comentario serían ruido.
+     *
+     * @param  Collection<int,User>  $yaAvisados  los etiquetados en este comentario
+     */
+    public function avisarDeUnComentario(
+        Marca $marca,
+        User $quienEscribe,
+        string $textoDelComentario,
+        bool $esUnaRespuesta,
+        Collection $yaAvisados,
+    ): void {
+        $idsQueNoSeAvisan = $yaAvisados->pluck('id')->push($quienEscribe->id)->all();
+
+        $aQuienAvisar = User::query()
+            ->where('activo', true)
+            ->get()
+            ->filter(fn (User $persona): bool => $persona->rol->recibeAvisoDeCadaComentario()
+                || $persona->laMarcaEsSuya($marca))
+            ->reject(fn (User $persona): bool => in_array($persona->id, $idsQueNoSeAvisan, true))
+            ->values();
+
+        if ($aQuienAvisar->isEmpty()) {
+            return;
+        }
+
+        $this->crearYEmpujar(
+            $aQuienAvisar,
+            Notificacion::TIPO_COMENTARIO,
+            ($esUnaRespuesta ? 'Respuesta nueva en ' : 'Comentario nuevo en ').$marca->nombre_marca,
+            sprintf('%s: «%s»', $quienEscribe->nombreParaMostrar(), $this->comoAdelanto($textoDelComentario)),
+            $marca,
+        );
+    }
+
+    /**
      * Las primeras palabras del comentario, para que el aviso diga de
      * qué va sin tener que abrir la ficha.
      *

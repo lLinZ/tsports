@@ -13,6 +13,11 @@
  *
  * Una pantalla que quiera enterarse de algo de ese canal usa
  * `useEventoPersonal`, que se suscribe mientras la pantalla está montada.
+ * Los avisos de «cambiaron los datos» los escucha ProveedorCambiosEnVivo.
+ *
+ * El estado y el id de la conexión se copian además en
+ * `api/conexionEnVivo`, para el cliente HTTP y las consultas, que no
+ * pueden leer este contexto.
  *
  * El tiempo real es una mejora, no un requisito: si el servidor lo
  * tiene apagado o el demonio se cae, el panel funciona igual y solo deja
@@ -35,6 +40,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { anotarLaConexionEnVivo } from "@/api/conexionEnVivo";
 import {
   crearClienteDeEcho,
   obtenerConfiguracionDeTiempoReal,
@@ -116,9 +122,13 @@ export function ProveedorTiempoReal({ children }: { children: ReactNode }) {
       if (conexion.state === "connected" && estaSuscrito) {
         yaHuboDesenlace = true;
         establecerEstadoDeLaConexion("enVivo");
+        // El id cambia en cada reconexión: se apunta cada vez.
+        anotarLaConexionEnVivo(true, echo.socketId() ?? null);
 
         return;
       }
+
+      anotarLaConexionEnVivo(false, null);
 
       if (conexion.state === "unavailable" || conexion.state === "failed") {
         yaHuboDesenlace = true;
@@ -170,6 +180,7 @@ export function ProveedorTiempoReal({ children }: { children: ReactNode }) {
       conexion.unbind("state_change", alCambiarLaConexion);
       echo.leaveAllChannels();
       echo.disconnect();
+      anotarLaConexionEnVivo(false, null);
       establecerCanalPersonal(null);
       establecerEstadoDeLaConexion("inactivo");
     };

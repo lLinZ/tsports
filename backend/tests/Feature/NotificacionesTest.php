@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\RolUsuario;
+use App\Events\CambioEnLosDatos;
 use App\Events\NotificacionNueva;
 use App\Models\Marca;
 use App\Models\Notificacion;
@@ -13,6 +14,7 @@ use Illuminate\Broadcasting\BroadcastManager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
+use Mockery;
 use Tests\TestCase;
 
 /**
@@ -236,7 +238,9 @@ class NotificacionesTest extends TestCase
     public function test_el_aviso_se_empuja_por_el_canal_privado_de_quien_lo_recibe(): void
     {
         $this->encenderReverb();
-        Event::fake([NotificacionNueva::class]);
+        // El aviso a las pantallas (CambiosEnVivo) se intercepta también:
+        // sin Reverb escuchando, sería un intento de conexión que espera.
+        Event::fake([NotificacionNueva::class, CambioEnLosDatos::class]);
 
         $comercial = $this->crearUsuario(RolUsuario::Comercial);
         $agente = $this->crearUsuario(RolUsuario::Vendedor);
@@ -260,7 +264,7 @@ class NotificacionesTest extends TestCase
     {
         // Como producción hoy: sin Reverb configurado.
         config(['broadcasting.default' => 'null']);
-        Event::fake([NotificacionNueva::class]);
+        Event::fake([NotificacionNueva::class, CambioEnLosDatos::class]);
 
         $comercial = $this->crearUsuario(RolUsuario::Comercial);
         $agente = $this->crearUsuario(RolUsuario::Vendedor);
@@ -305,8 +309,12 @@ class NotificacionesTest extends TestCase
         $this->assertSame(1, Notificacion::query()->where('destinatario_id', $comercial->id)->count());
 
         // Y se intenta UNA vez, no una por aviso: con el primer fallo ya se
-        // sabe que Reverb no está, y cada intento es otra espera.
-        Log::shouldHaveReceived('warning')->once();
+        // sabe que Reverb no está, y cada intento es otra espera. (El otro
+        // aviso del registro es el de las pantallas en vivo, CambiosEnVivo,
+        // que sale al terminar la petición.)
+        Log::shouldHaveReceived('warning')
+            ->with('No se pudo empujar en vivo; los avisos quedan guardados.', Mockery::any())
+            ->once();
     }
 
     /* ------------------------------------------------------------------

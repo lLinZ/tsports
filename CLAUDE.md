@@ -283,6 +283,7 @@ tsports/
 │   │   │   └── Resources/      cómo se ve cada modelo desde el cliente
 │   │   ├── Models/             User, Marca, ComentarioMarca,
 │   │   │                       Propiedad, PropiedadDeMarca, Campana…
+│   │   ├── Observers/          ObservadorDeCambiosEnVivo (regla 22)
 │   │   ├── Policies/           quién puede hacer qué
 │   │   └── Support/            catálogos, contenido de fábrica y
 │   │                           GuardadoDeArchivos (la puerta de los ficheros)
@@ -308,7 +309,8 @@ tsports/
 │       ├── hooks/         ← useMarcas, usePropiedades, useCampanas,
 │       │                    useCatalogos, useEfectosDeScroll
 │       ├── paginas/       ← una por ruta
-│       ├── providers/     ← tema, sesión, caché de datos
+│       ├── providers/     ← tema, sesión, caché de datos, tiempo real
+│       │                    y cambios en vivo
 │       ├── theme/         ← conversión del color de acento
 │       ├── tipos/         ← los tipos de la API, en un solo fichero
 │       └── utilidades/    ← formato de dinero y fechas, avisos
@@ -456,6 +458,12 @@ Salieron del cliente y están implementadas a propósito así:
     - **Te asignaron una marca** → al agente nuevo, venga del camino que
       venga (alta, ficha o selector del tablero). No se avisa si el
       agente no cambió, si se quitó, ni a quien se la asigna a sí mismo.
+    - **Comentario en la bitácora** (entrada o respuesta, desde el
+      2026-09-30) → a los administradores, de todas las marcas (solo el
+      rol admin: `recibeAvisoDeCadaComentario`; el comercial no, se
+      decidió así), y a quien lleva esa marca. Nunca a quien lo escribió,
+      y a quien además etiquetaron le llega un solo aviso: el de la
+      mención. Editar no vuelve a avisar.
 
     Cada quien lee y marca solo SUS avisos; ni un admin los de otro.
 
@@ -612,6 +620,44 @@ Salieron del cliente y están implementadas a propósito así:
       sube uno solo, el que se queda corto corta la petición sin mensaje
       y parece un fallo del sistema.
 
+22. **Las pantallas se ponen al día solas, y el aviso no lleva datos.**
+    Desde el 2026-09-30, por el mismo WebSocket de la regla 17. Cuando
+    alguien cambia una marca, su bitácora, una propiedad, una campaña,
+    un sector o una cuenta, a los demás se les refresca lo que tengan en
+    pantalla: tablero, resumen, calendario, ficha abierta, auditoría.
+
+    - **El aviso solo dice qué cambió** (`{entidad: 'marca', id}`,
+      evento `.datos`). Cada navegador vuelve a pedirlo con su sesión,
+      como el chat (regla 20): así el servidor sigue decidiendo qué ve
+      cada quien.
+    - **Lo de una marca solo le llega a quien puede verla**
+      (`MarcaPolicy::view`, regla 6); si cambió de agente, también al
+      anterior, para que desaparezca de su tablero. Lo del catálogo, a
+      todo el equipo.
+    - **Lo anota ObservadorDeCambiosEnVivo** al guardarse cada modelo,
+      así ningún camino se queda fuera, y `App\Support\CambiosEnVivo`
+      lo envía **una vez por petición**, al terminar y con la respuesta
+      ya entregada (en la cola, al acabar cada trabajo). Un modelo nuevo que se vea en el panel se añade a
+      la lista de AppServiceProvider.
+    - **La pestaña que hizo el cambio no lo recibe** (`X-Socket-ID`): ya
+      refresca lo suyo al guardar.
+    - En el navegador, `ProveedorCambiosEnVivo` junta los avisos que
+      llegan seguidos y solo se piden otra vez las consultas que están
+      en pantalla. **Al volver de un corte se refresca todo una vez**:
+      lo que llegó durante el corte se perdió.
+    - **Con la conexión en vivo, volver a la pestaña no refresca nada**
+      (ProveedorConsultas). Sin Reverb todo funciona como antes: al
+      entrar en cada pantalla y al volver a la pestaña.
+    - **El formulario de una ficha abierta no se reescribe** con lo que
+      llega: se rellena una vez al abrirla. Se pone al día lo que se
+      enseña alrededor (bitácora, historial de campañas, el tablero de
+      detrás).
+
+    Lo único que sigue preguntando cada cierto tiempo con la conexión
+    en vivo es el latido del chat («en línea», regla 20), la búsqueda de
+    versión nueva (cada 30 minutos) y la pantalla «Tiempo real» del
+    administrador mientras está abierta.
+
 ---
 
 ## 7. Errores: una sola forma
@@ -710,3 +756,10 @@ VPS usa **MySQL**: la plantilla es `backend/.env.example`.
   adjunto de la bitácora desde `/storage` (regla 21).
 - Subir el tope de subida en un solo sitio: Laravel, PHP y nginx van
   juntos (regla 21).
+- Mandar datos dentro del aviso de «cambiaron los datos», o avisar de
+  una marca a quien no la ve (regla 22).
+- Añadir un modelo que se ve en el panel sin engancharlo a
+  ObservadorDeCambiosEnVivo: su pantalla dejaría de ponerse al día sola.
+- Llamar a `Event::fake([...])` en una prueba sin `CambioEnLosDatos` en
+  la lista: no falla, pero la prueba vuelve a esperar a Reverb (ver
+  `tests/TestCase.php`).

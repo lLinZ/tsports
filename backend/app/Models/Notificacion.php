@@ -36,6 +36,9 @@ class Notificacion extends Model
     /** Te etiquetaron en la bitácora de una marca. */
     public const TIPO_MENCION = 'mencion_en_bitacora';
 
+    /** Alguien escribió en la bitácora de una marca (a los administradores y a su agente). */
+    public const TIPO_COMENTARIO = 'comentario_en_bitacora';
+
     protected $fillable = [
         'destinatario_id',
         'tipo',

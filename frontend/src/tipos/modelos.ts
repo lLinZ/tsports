@@ -1168,7 +1168,12 @@ export interface ResultadoDelAvisoDePrueba {
  * interfaz solo lo usa para elegir el icono: un tipo que aún no conozca
  * se pinta con la campana y sigue funcionando.
  */
-export type TipoDeNotificacion = "lead_nuevo" | "marca_asignada" | (string & {});
+export type TipoDeNotificacion =
+  | "lead_nuevo"
+  | "marca_asignada"
+  | "mencion_en_bitacora"
+  | "comentario_en_bitacora"
+  | (string & {});
 
 /** Un aviso, tal como lo devuelve RecursoNotificacion y lo empuja Reverb. */
 export interface Notificacion {

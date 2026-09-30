@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\RolUsuario;
+use App\Events\CambioEnLosDatos;
 use App\Events\PruebaDeTiempoReal;
 use App\Models\User;
 use App\Support\ConexionesEnVivo;
@@ -36,7 +37,7 @@ class PantallaDeTiempoRealTest extends TestCase
     public function test_solo_un_administrador_entra_en_la_pantalla_de_pruebas(): void
     {
         $this->encenderReverb();
-        Event::fake([PruebaDeTiempoReal::class]);
+        Event::fake([PruebaDeTiempoReal::class, CambioEnLosDatos::class]);
 
         foreach ([RolUsuario::Comercial, RolUsuario::Vendedor] as $rol) {
             $persona = $this->crearUsuario($rol);
@@ -82,7 +83,7 @@ class PantallaDeTiempoRealTest extends TestCase
     public function test_un_aviso_a_una_persona_va_solo_a_su_canal_con_el_texto_escrito(): void
     {
         $this->encenderReverb();
-        Event::fake([PruebaDeTiempoReal::class]);
+        Event::fake([PruebaDeTiempoReal::class, CambioEnLosDatos::class]);
         $administrador = $this->crearUsuario(RolUsuario::Admin, 'Ana Admin');
         $destinataria = $this->crearUsuario(RolUsuario::Vendedor, 'Beatriz');
         $this->crearUsuario(RolUsuario::Vendedor, 'Otra persona');
@@ -109,7 +110,7 @@ class PantallaDeTiempoRealTest extends TestCase
     public function test_un_aviso_a_todos_llega_a_cada_cuenta_activa_y_no_a_las_desactivadas(): void
     {
         $this->encenderReverb();
-        Event::fake([PruebaDeTiempoReal::class]);
+        Event::fake([PruebaDeTiempoReal::class, CambioEnLosDatos::class]);
         $administrador = $this->crearUsuario(RolUsuario::Admin);
         $activa = $this->crearUsuario(RolUsuario::Vendedor);
         $desactivada = $this->crearUsuario(RolUsuario::Vendedor, activo: false);
@@ -133,7 +134,7 @@ class PantallaDeTiempoRealTest extends TestCase
     public function test_un_destinatario_que_no_existe_se_rechaza(): void
     {
         $this->encenderReverb();
-        Event::fake([PruebaDeTiempoReal::class]);
+        Event::fake([PruebaDeTiempoReal::class, CambioEnLosDatos::class]);
         $administrador = $this->crearUsuario(RolUsuario::Admin);
 
         $this->actingAs($administrador)
@@ -147,7 +148,7 @@ class PantallaDeTiempoRealTest extends TestCase
     public function test_con_el_tiempo_real_apagado_se_explica_por_que_no_salio(): void
     {
         // phpunit.xml deja BROADCAST_CONNECTION=null: no hay tiempo real.
-        Event::fake([PruebaDeTiempoReal::class]);
+        Event::fake([PruebaDeTiempoReal::class, CambioEnLosDatos::class]);
         $administrador = $this->crearUsuario(RolUsuario::Admin);
 
         $respuesta = $this->actingAs($administrador)

@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Enums\RolUsuario;
 use App\Events\CambioEnElChat;
+use App\Events\CambioEnLosDatos;
 use App\Jobs\EnviarMensajeDeChatAlMovil;
 use App\Models\Conversacion;
 use App\Models\Marca;
@@ -376,7 +377,7 @@ class ChatInternoTest extends TestCase
             'broadcasting.default' => 'reverb',
             'broadcasting.connections.reverb.key' => 'clave-de-prueba',
         ]);
-        Event::fake([CambioEnElChat::class]);
+        Event::fake([CambioEnElChat::class, CambioEnLosDatos::class]);
 
         $ana = $this->crearUsuario(RolUsuario::Comercial, 'Ana');
         $pedro = $this->crearUsuario(RolUsuario::Vendedor, 'Pedro');

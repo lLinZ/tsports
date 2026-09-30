@@ -129,6 +129,21 @@ enum RolUsuario: string
         return $this === self::Admin || $this === self::Comercial;
     }
 
+    /**
+     * ¿Le llega un aviso por CADA comentario de la bitácora, en cualquier
+     * marca?
+     *
+     * Solo al administrador. Se pidió así el 2026-09-30: quiere enterarse
+     * de todo lo que se habla con las marcas sin tener que ir a buscarlo.
+     * El comercial se dejó fuera a propósito, aunque vea todas las
+     * marcas. Al agente le llegan solo los de las marcas que lleva; eso
+     * lo decide Notificador::avisarDeUnComentario.
+     */
+    public function recibeAvisoDeCadaComentario(): bool
+    {
+        return $this === self::Admin;
+    }
+
     /** Todos los valores, para poblar selectores y validaciones. */
     public static function valores(): array
     {

@@ -36,6 +36,7 @@ import type { ReactNode } from "react";
 import { PantallaDeArranque } from "@/componentes/comunes/EstadosDePantalla";
 import { LayoutDelPanel } from "@/componentes/layout/LayoutDelPanel";
 import { ProveedorAplicacion } from "@/providers/ProveedorAplicacion";
+import { ProveedorCambiosEnVivo } from "@/providers/ProveedorCambiosEnVivo";
 import { ProveedorChat } from "@/providers/ProveedorChat";
 import { ProveedorConsultas } from "@/providers/ProveedorConsultas";
 import { ProveedorDatosGuardados } from "@/providers/ProveedorDatosGuardados";
@@ -88,9 +89,11 @@ function ProveedoresDeLaAplicacion({ children }: { children: ReactNode }) {
           <ProveedorSesion>
             <DatosSegunLaPersona>
               <ProveedorTiempoReal>
-                <ProveedorChat>
-                  <ProveedorAplicacion>{children}</ProveedorAplicacion>
-                </ProveedorChat>
+                <ProveedorCambiosEnVivo>
+                  <ProveedorChat>
+                    <ProveedorAplicacion>{children}</ProveedorAplicacion>
+                  </ProveedorChat>
+                </ProveedorCambiosEnVivo>
               </ProveedorTiempoReal>
             </DatosSegunLaPersona>
           </ProveedorSesion>

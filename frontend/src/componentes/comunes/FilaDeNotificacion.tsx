@@ -13,13 +13,15 @@
  * pinta con la campana y funciona igual.
  * ---------------------------------------------------------------------
  */
-import { Bell, Globe, UserCheck, type LucideIcon } from "lucide-react";
+import { AtSign, Bell, Globe, MessageSquare, UserCheck, type LucideIcon } from "lucide-react";
 import { formatearFechaYHora, formatearTiempoRelativo } from "@/utilidades/formato";
 import type { Notificacion, TipoDeNotificacion } from "@/tipos/modelos";
 
 const ICONOS_POR_TIPO: Partial<Record<TipoDeNotificacion, LucideIcon>> = {
   lead_nuevo: Globe,
   marca_asignada: UserCheck,
+  mencion_en_bitacora: AtSign,
+  comentario_en_bitacora: MessageSquare,
 };
 
 export function FilaDeNotificacion({

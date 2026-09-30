@@ -15,6 +15,7 @@
  * ---------------------------------------------------------------------
  */
 import axios, { AxiosError } from "axios";
+import { idDeLaConexionEnVivo } from "@/api/conexionEnVivo";
 
 /** Clave con la que se guarda el token de sesión en el navegador. */
 const CLAVE_DEL_TOKEN = "tsports:token";
@@ -84,6 +85,14 @@ clienteHttp.interceptors.request.use((configuracion) => {
 
   if (tokenDeSesion) {
     configuracion.headers.Authorization = `Bearer ${tokenDeSesion}`;
+  }
+
+  // Con la conexión en vivo abierta, el servidor no le devuelve a esta
+  // pestaña el aviso de los cambios que haga ella (ver conexionEnVivo).
+  const idDeLaConexion = idDeLaConexionEnVivo();
+
+  if (idDeLaConexion) {
+    configuracion.headers["X-Socket-ID"] = idDeLaConexion;
   }
 
   // Sin conexión, una escritura no sale de aquí.
