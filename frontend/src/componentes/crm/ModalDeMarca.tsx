@@ -33,6 +33,8 @@ import {
   Modal,
   ModalBody,
   ModalContent,
+  ModalFooter,
+  ModalHeader,
   NumberInput,
   Progress,
   Select,
@@ -45,6 +47,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Building2,
+  CalendarCheck,
   CalendarDays,
   CalendarPlus,
   Check,
@@ -77,7 +80,11 @@ import {
 import { useChat } from "@/providers/ProveedorChat";
 import { useUsuarioAutenticado } from "@/providers/ProveedorSesion";
 import { avisarDeError, avisarDeExito } from "@/utilidades/avisos";
-import { enumerarEnEspanol, formatearDinero } from "@/utilidades/formato";
+import {
+  enumerarEnEspanol,
+  formatearDiaConSuNombre,
+  formatearDinero,
+} from "@/utilidades/formato";
 import type {
   AccionDeCampanaEnElHistorial,
   Campana,
@@ -877,71 +884,185 @@ export function ModalDeMarca({
  */
 /**
  * Botón que deja la acción de campaña apuntada en el calendario sin
- * pasar por "Guardar cambios".
+ * pasar por "Guardar cambios", y la ventanita que pregunta si se agenda
+ * otra.
  *
  * Enseña en qué estado está para que se entienda qué va a pasar antes de
- * pulsarlo: si falta el día avisa de que hace falta, y una vez anotado
- * lo confirma en el propio botón en vez de solo con un aviso que se va
- * a los tres segundos.
+ * pulsarlo: si falta el día avisa de que hace falta, y si esa acción ya
+ * está en el calendario ofrece agendar otra en lugar de repetirla.
+ *
+ * AGENDAR VARIAS SEGUIDAS
+ * Hasta el 2026-09-30, al anotar, el botón se quedaba apagado mientras no
+ * se cambiase el día de arriba, y nada decía que ese era el camino: para
+ * anotar dos visitas seguidas había que cerrar la ficha y volver a
+ * abrirla. Ahora, al anotar, sale una ventanita que dice lo que ya hay en
+ * el calendario y pregunta si se agenda otra, con su propio día.
+ *
+ * Cada acción que se anota pasa a ser la vigente de la marca (el
+ * servidor le pone esa campaña y ese día), y por eso se copia al
+ * formulario con `alAnotar`. Si la ficha se quedara con el día anterior,
+ * al guardarla lo reenviaría y el servidor lo anotaría otra vez, porque
+ * ya no es el último evento.
+ *
+ * Un día que ya tiene esta misma campaña no se ofrece. El servidor solo
+ * descarta la repetición del ÚLTIMO evento (para que un doble clic no
+ * deje dos líneas), y agendando varias seguidas se podría colar el
+ * duplicado de una anterior.
  */
 function BotonDeAnotarEnElCalendario({
   idDeLaMarca,
   campanaId,
+  nombreDeLaCampana,
   fecha,
+  historial,
+  alAnotar,
 }: {
   idDeLaMarca: string;
   campanaId: string;
+  nombreDeLaCampana: string;
   fecha: string;
+  historial: AccionDeCampanaEnElHistorial[];
+  /** Copia al formulario la acción que el servidor deja vigente. */
+  alAnotar: (campanaId: string, fecha: string) => void;
 }) {
   const anotarAccion = useAnotarAccionDeCampana();
 
-  /** Lo último que se anotó, para confirmarlo en el propio botón. */
-  const [loAnotado, establecerLoAnotado] = useState<string | null>(null);
+  /**
+   * Lo anotado desde que se abrió la ficha. El historial se vuelve a pedir
+   * después de cada anotación y tarda un momento en llegar: con esto la
+   * ventanita cuenta bien sin esperarlo.
+   */
+  const [anotadasAhora, establecerAnotadasAhora] = useState<
+    { campanaId: string; fecha: string }[]
+  >([]);
+  const [preguntaAbierta, establecerPreguntaAbierta] = useState(false);
+  const [otroDia, establecerOtroDia] = useState("");
+
+  /** Los días que ya tienen esta campaña, sin repetir y en orden. */
+  const diasConEstaCampana = useMemo(() => {
+    const dias = [...historial, ...anotadasAhora]
+      .filter((accion) => accion.campanaId === campanaId)
+      .map((accion) => accion.fecha);
+
+    return [...new Set(dias)].sort();
+  }, [historial, anotadasAhora, campanaId]);
 
   const faltaElDia = fecha === "";
-  const yaEstaAnotadoEsto = loAnotado === `${campanaId}|${fecha}`;
+  const yaEstaAnotadoEsto = !faltaElDia && diasConEstaCampana.includes(fecha);
+  const elOtroDiaYaEsta = otroDia !== "" && diasConEstaCampana.includes(otroDia);
 
-  function anotar() {
+  function anotar(dia: string, alTerminar: () => void) {
     anotarAccion.mutate(
-      { idDeLaMarca, campanaId, fecha },
+      { idDeLaMarca, campanaId, fecha: dia },
       {
-        onSuccess: () => {
-          establecerLoAnotado(`${campanaId}|${fecha}`);
-          avisarDeExito("Anotado en el calendario");
+        onSuccess: (marcaActualizada) => {
+          establecerAnotadasAhora((anteriores) => [...anteriores, { campanaId, fecha: dia }]);
+          alAnotar(marcaActualizada.campanaId ?? campanaId, marcaActualizada.fechaCampana ?? dia);
+          alTerminar();
         },
         onError: (error) => avisarDeError(error, "No se pudo anotar la acción"),
       },
     );
   }
 
+  function abrirLaPregunta() {
+    establecerOtroDia("");
+    establecerPreguntaAbierta(true);
+  }
+
+  // Se enseñan como mucho las tres últimas: una marca con veinte visitas
+  // no necesita leerlas todas para decidir si agenda otra.
+  const ultimosDias = diasConEstaCampana
+    .slice(-3)
+    .map((dia) => `el ${formatearDiaConSuNombre(dia)}`);
+  const cuantas = diasConEstaCampana.length;
+
   return (
     <div className="flex flex-wrap items-center gap-3">
       <Button
-        color={yaEstaAnotadoEsto ? "success" : "primary"}
-        isDisabled={faltaElDia || yaEstaAnotadoEsto}
-        isLoading={anotarAccion.isPending}
+        color="primary"
+        isDisabled={faltaElDia}
+        isLoading={anotarAccion.isPending && !preguntaAbierta}
         radius="full"
         size="sm"
-        startContent={
-          yaEstaAnotadoEsto ? (
-            <Check className="size-4" />
-          ) : (
-            <CalendarPlus className="size-4" />
-          )
-        }
+        startContent={<CalendarPlus className="size-4" />}
         variant={yaEstaAnotadoEsto ? "flat" : "solid"}
-        onPress={anotar}
+        onPress={() => (yaEstaAnotadoEsto ? abrirLaPregunta() : anotar(fecha, abrirLaPregunta))}
       >
-        {yaEstaAnotadoEsto ? "Anotado en el calendario" : "Anotar en el calendario"}
+        {yaEstaAnotadoEsto ? "Agendar otra" : "Anotar en el calendario"}
       </Button>
 
       <p className="text-[11px] leading-snug text-default-400">
         {faltaElDia
           ? "Elige primero el día."
           : yaEstaAnotadoEsto
-            ? "Ya aparece en el calendario del panel."
+            ? "Esta acción ya está en el calendario."
             : "Lo apunta ahora mismo, sin guardar el resto de la ficha."}
       </p>
+
+      <Modal
+        isOpen={preguntaAbierta}
+        radius="lg"
+        size="sm"
+        onOpenChange={establecerPreguntaAbierta}
+      >
+        <ModalContent>
+          {(cerrar) => (
+            <>
+              <ModalHeader className="flex items-center gap-2 text-base">
+                <CalendarCheck className="size-5 text-success" />
+                Anotado en el calendario
+              </ModalHeader>
+
+              <ModalBody className="gap-4">
+                <p className="text-sm leading-relaxed text-default-600">
+                  {cuantas <= 3
+                    ? `Ya registraste ${cuantas} «${nombreDeLaCampana}» para ${enumerarEnEspanol(ultimosDias)}.`
+                    : `Ya registraste ${cuantas} «${nombreDeLaCampana}». Las últimas, ${enumerarEnEspanol(ultimosDias)}.`}{" "}
+                  <span className="font-semibold text-foreground">¿Quieres agendar otra?</span>
+                </p>
+
+                <Input
+                  errorMessage="Ese día ya tiene esta acción en el calendario."
+                  isInvalid={elOtroDiaYaEsta}
+                  label="¿Qué día?"
+                  labelPlacement="outside"
+                  radius="lg"
+                  startContent={<CalendarDays className="size-4 text-default-400" />}
+                  type="date"
+                  value={otroDia}
+                  variant="bordered"
+                  onValueChange={establecerOtroDia}
+                />
+              </ModalBody>
+
+              <ModalFooter>
+                <Button radius="lg" variant="light" onPress={cerrar}>
+                  No, listo
+                </Button>
+
+                <Button
+                  color="primary"
+                  isDisabled={otroDia === "" || elOtroDiaYaEsta}
+                  isLoading={anotarAccion.isPending}
+                  radius="lg"
+                  startContent={
+                    anotarAccion.isPending ? null : <CalendarPlus className="size-4" />
+                  }
+                  onPress={() =>
+                    anotar(otroDia, () => {
+                      avisarDeExito(`Anotada para el ${formatearDiaConSuNombre(otroDia)}`);
+                      establecerOtroDia("");
+                    })
+                  }
+                >
+                  Agendar otra
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
     </div>
   );
 }
@@ -1140,9 +1261,20 @@ function PasoLaMarca({
       */}
       {esUnaMarcaGuardada && esEditable && formulario.campanaId !== "" && (
         <BotonDeAnotarEnElCalendario
+          alAnotar={(campanaAnotada, diaAnotado) => {
+            cambiarCampo("campanaId", campanaAnotada);
+            cambiarCampo("fechaCampana", diaAnotado);
+          }}
           campanaId={formulario.campanaId}
           fecha={formulario.fechaCampana}
+          historial={historialDeCampanas}
           idDeLaMarca={idDeLaMarca}
+          nombreDeLaCampana={
+            campanas.find((campana) => campana.id === formulario.campanaId)?.nombre ??
+            historialDeCampanas.find((accion) => accion.campanaId === formulario.campanaId)
+              ?.campanaNombre ??
+            "esta acción"
+          }
         />
       )}
 

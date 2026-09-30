@@ -176,6 +176,29 @@ export function formatearFecha(fechaIso: string | null | undefined): string {
   });
 }
 
+/**
+ * Un día dicho con su nombre: "viernes 3 de octubre". El año solo sale
+ * si no es el actual, que al agendar es lo raro.
+ */
+export function formatearDiaConSuNombre(fechaIso: string | null | undefined): string {
+  const fecha = comoFechaLocal(fechaIso);
+
+  if (fecha === null) return "—";
+
+  const esDeEsteAnio = fecha.getFullYear() === new Date().getFullYear();
+
+  // Por separado porque, pedidos juntos, el nombre del día sale con una
+  // coma detrás ("viernes, 3 de octubre").
+  const nombreDelDia = fecha.toLocaleDateString("es", { weekday: "long" });
+  const diaYMes = fecha.toLocaleDateString("es", {
+    day: "numeric",
+    month: "long",
+    ...(esDeEsteAnio ? {} : { year: "numeric" }),
+  });
+
+  return `${nombreDelDia} ${diaYMes}`;
+}
+
 /** Fecha y hora: "24 ago, 14:05". */
 export function formatearFechaYHora(fechaIso: string | null | undefined): string {
   const fecha = comoFechaLocal(fechaIso);
