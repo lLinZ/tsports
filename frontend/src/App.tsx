@@ -30,9 +30,10 @@
  *   /panel …     → el CRM, protegido
  * ---------------------------------------------------------------------
  */
-import { HeroUIProvider, ToastProvider } from "@heroui/react";
+import { HeroUIProvider } from "@heroui/react";
 import { BrowserRouter, Navigate, Route, Routes, useHref, useNavigate } from "react-router-dom";
 import type { ReactNode } from "react";
+import { AvisosFlotantes } from "@/componentes/comunes/AvisosFlotantes";
 import { PantallaDeArranque } from "@/componentes/comunes/EstadosDePantalla";
 import { LayoutDelPanel } from "@/componentes/layout/LayoutDelPanel";
 import { ProveedorAplicacion } from "@/providers/ProveedorAplicacion";
@@ -81,8 +82,8 @@ function ProveedoresDeLaAplicacion({ children }: { children: ReactNode }) {
 
   return (
     <HeroUIProvider navigate={navegar} useHref={useHref}>
-      {/* Los avisos flotantes se apilan arriba a la derecha. */}
-      <ToastProvider placement="top-right" toastProps={{ radius: "lg" }} />
+      {/* Los avisos flotantes, con su botón de cerrarlos todos. */}
+      <AvisosFlotantes />
 
       <ProveedorTema>
         <ProveedorConsultas>
