@@ -39,6 +39,7 @@ import {
   formatearFecha,
   formatearFechaYHora,
   formatearPeriodo,
+  formatearTamanoDeFichero,
   inicialesDe,
 } from "@/utilidades/formato";
 
@@ -62,6 +63,7 @@ const ANCHOS = [
   { width: 70 }, // Texto
   { width: 26 }, // Etiquetados
   { width: 12 }, // Reacciones
+  { width: 34 }, // Adjuntos
   { width: 24 }, // Estado
 ];
 
@@ -118,6 +120,7 @@ async function escribirLaHoja(
     "Texto",
     "Etiquetados",
     "Reacciones",
+    "Adjuntos",
     "Estado",
   ].map((titulo): CeldaDeExcel => ({
     value: titulo,
@@ -136,6 +139,8 @@ async function escribirLaHoja(
     { value: entrada.eliminado ? "" : entrada.cuerpo, color: TINTA, wrap: true },
     { value: entrada.mencionados.join(", "), color: TINTA_SUAVE },
     { value: entrada.totalReacciones, type: Number, align: "center" as const },
+    // Los nombres y nada más: los enlaces caducan, y una hoja se guarda.
+    { value: entrada.adjuntos.map((adjunto) => adjunto.nombre).join(", "), color: TINTA_SUAVE, wrap: true },
     { value: estadoDeLaEntrada(entrada), color: TINTA_TENUE },
   ]);
 
@@ -294,6 +299,7 @@ function documentoImprimible(historico: HistoricoDeBitacora): string {
   .eliminada .texto { color: ${TINTA_TENUE}; font-style: italic; }
 
   .etiquetados { color: ${TINTA_SUAVE}; font-size: 9pt; margin-top: 4px; }
+  .adjuntos { color: ${TINTA_SUAVE}; font-size: 9pt; margin-top: 4px; }
 
   .sin-entradas { color: ${TINTA_TENUE}; font-style: italic; }
 
@@ -345,12 +351,28 @@ function entradaImprimible(
     ${alcance === "completa" ? `<span class="de-la-marca">· ${escapar(entrada.marcaNombre)}</span>` : ""}
   </div>
   <p class="texto">${texto}</p>
+  ${adjuntosImprimibles(entrada)}
   ${
     entrada.mencionados.length > 0
       ? `<div class="etiquetados">Etiquetados: ${escapar(entrada.mencionados.join(", "))}</div>`
       : ""
   }
 </article>`;
+}
+
+/**
+ * Lo que se envió con la entrada, por su nombre. Sin enlaces: caducan en
+ * uno o dos días, y este documento se archiva para años. Para abrirlos
+ * está la ficha de la marca.
+ */
+function adjuntosImprimibles(entrada: EntradaDelHistorico): string {
+  if (entrada.adjuntos.length === 0) return "";
+
+  const lista = entrada.adjuntos
+    .map((adjunto) => `${escapar(adjunto.nombre)} (${escapar(formatearTamanoDeFichero(adjunto.tamanoBytes))})`)
+    .join(" · ");
+
+  return `<div class="adjuntos">Adjuntos: ${lista}</div>`;
 }
 
 /* ==================================================================== */
@@ -441,6 +463,7 @@ function reporteImprimible(reporte: ReporteDeBitacora): string {
   .texto { white-space: pre-wrap; word-break: break-word; margin: 2px 0 0; }
   .eliminada .texto { color: ${TINTA_TENUE}; font-style: italic; }
   .etiquetados { color: ${TINTA_SUAVE}; font-size: 8.5pt; margin-top: 3px; }
+  .adjuntos { color: ${TINTA_SUAVE}; font-size: 8.5pt; margin-top: 3px; }
 
   .sin-entradas { color: ${TINTA_SUAVE}; font-style: italic; padding: 30px 0; text-align: center; }
 
@@ -578,6 +601,7 @@ function entradaDelReporteImprimible(entrada: EntradaDelReporte): string {
     </div>
     ${contexto}
     <p class="texto">${texto}</p>
+    ${adjuntosImprimibles(entrada)}
     ${
       entrada.mencionados.length > 0
         ? `<div class="etiquetados">Etiquetados: ${escapar(entrada.mencionados.join(", "))}</div>`

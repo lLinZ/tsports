@@ -22,12 +22,18 @@
  * Una propiedad que no está asignada a quien edita se enseña igualmente,
  * pero apagada: sirve para saber que existe sin poder colocarla en una
  * ficha que no le toca. El servidor rechaza el intento de todos modos.
+ *
+ * EL MATERIAL DE VENTA SE ABRE AQUÍ. Es el momento en que hace falta: el
+ * vendedor está delante del cliente, le añade la propiedad y le enseña
+ * el recinto sin cambiar de pantalla. Cada línea con material lleva su
+ * botón, y al marcarla aparecen además las primeras fotos.
  * ---------------------------------------------------------------------
  */
 import { Checkbox, Chip, NumberInput, Tooltip } from "@heroui/react";
-import { Lock, Package } from "lucide-react";
-import { useMemo } from "react";
+import { Images, Lock, Package } from "lucide-react";
+import { useMemo, useState } from "react";
 import { BarraDeProporcion } from "@/componentes/comunes/BarraDeProporcion";
+import { VisorDeGaleria } from "@/componentes/comunes/VisorDeGaleria";
 import { usePropiedadesOfrecibles } from "@/hooks/usePropiedades";
 import {
   formatearDinero,
@@ -35,11 +41,16 @@ import {
   formatearPorcentaje,
   inicialesDe,
 } from "@/utilidades/formato";
+import { elementosDeUnaGaleria } from "@/utilidades/galeria";
 import type {
+  ArchivoDeGaleria,
   LineaDeChecklistDePropiedad,
   LineaDeChecklistParaGuardar,
   Propiedad,
 } from "@/tipos/modelos";
+
+/** Cuántas fotos asoman bajo una propiedad marcada antes del «+N». */
+const FOTOS_QUE_ASOMAN = 4;
 
 /**
  * Una propiedad lista para pintar: mezcla del catálogo con lo que la
@@ -56,6 +67,8 @@ interface PropiedadDelChecklist {
   forecastDeVentaUsd: number;
   laPuedoOfrecer: boolean;
   estaRetirada: boolean;
+  /** Sus fotos y documentos. Vacía en las retiradas: ya no están en el catálogo. */
+  galeria: ArchivoDeGaleria[];
 }
 
 interface PropiedadesDelChecklist {
@@ -93,6 +106,7 @@ export function ChecklistDePropiedades({
         forecastDeVentaUsd: propiedad.forecastDeVentaUsd,
         laPuedoOfrecer: propiedad.laPuedoOfrecer,
         estaRetirada: false,
+        galeria: propiedad.galeria ?? [],
       }),
     );
 
@@ -111,6 +125,7 @@ export function ChecklistDePropiedades({
           // Se puede desmarcar, pero no volver a añadir una vez fuera.
           laPuedoOfrecer: true,
           estaRetirada: true,
+          galeria: [],
         }),
       );
 
@@ -124,6 +139,12 @@ export function ChecklistDePropiedades({
   );
 
   const pronosticoTotal = lineas.reduce((suma, linea) => suma + linea.ovpUsd, 0);
+
+  /** Qué material se está enseñando en el visor, y desde qué pieza. */
+  const [enElVisor, establecerEnElVisor] = useState<{
+    propiedad: PropiedadDelChecklist;
+    posicion: number;
+  } | null>(null);
 
   /** Marca o desmarca una propiedad del checklist. */
   function alternarLaPropiedad(idDeLaPropiedad: string, quedaMarcada: boolean) {
@@ -246,7 +267,31 @@ export function ChecklistDePropiedades({
                   )}
                 </p>
               </div>
+
+              {/* El material, para enseñarlo aquí mismo. Lo puede abrir
+                  cualquiera que vea la ficha, aunque no pueda editarla. */}
+              {propiedad.galeria.length > 0 && (
+                <Tooltip content="Fotos, planos y dossier">
+                  <button
+                    aria-label={`Ver el material de ${propiedad.nombre}`}
+                    className="flex shrink-0 items-center gap-1 rounded-full bg-default-100 px-2 py-1 text-[11px] font-semibold text-default-600 transition hover:bg-primary-50 hover:text-primary"
+                    type="button"
+                    onClick={() => establecerEnElVisor({ propiedad, posicion: 0 })}
+                  >
+                    <Images className="size-3.5" />
+                    {propiedad.galeria.length}
+                  </button>
+                </Tooltip>
+              )}
             </div>
+
+            {/* Al marcarla asoman las primeras fotos: es cuando se enseñan. */}
+            {estaMarcada && (
+              <FotosQueAsoman
+                galeria={propiedad.galeria}
+                alAbrir={(posicion) => establecerEnElVisor({ propiedad, posicion })}
+              />
+            )}
 
             {/* El pronóstico y su proporción, solo si está marcada. */}
             {estaMarcada && lineaDeEstaPropiedad && (
@@ -291,6 +336,67 @@ export function ChecklistDePropiedades({
           </span>
         </div>
       )}
+
+      <VisorDeGaleria
+        elementos={elementosDeUnaGaleria(enElVisor?.propiedad.galeria ?? [])}
+        estaAbierto={enElVisor !== null}
+        posicionInicial={enElVisor?.posicion ?? 0}
+        titulo={enElVisor?.propiedad.nombre}
+        alCerrar={() => establecerEnElVisor(null)}
+      />
+    </div>
+  );
+}
+
+/**
+ * Las primeras fotos de una propiedad marcada, en pequeño, y un «+N» con
+ * el resto. Cada una abre el visor en ella. Solo fotos: un PDF en una
+ * miniatura no se reconoce, y ya está en el botón del material.
+ */
+function FotosQueAsoman({
+  galeria,
+  alAbrir,
+}: {
+  galeria: ArchivoDeGaleria[];
+  alAbrir: (posicionEnLaGaleria: number) => void;
+}) {
+  const fotos = galeria
+    .map((pieza, posicionEnLaGaleria) => ({ pieza, posicionEnLaGaleria }))
+    .filter(({ pieza }) => pieza.tipo === "imagen");
+
+  if (fotos.length === 0) return null;
+
+  const visibles = fotos.slice(0, FOTOS_QUE_ASOMAN);
+  const restantes = fotos.length - visibles.length;
+
+  return (
+    <div className="mt-2 flex gap-1.5 pl-9">
+      {visibles.map(({ pieza, posicionEnLaGaleria }, indice) => {
+        const esLaUltimaVisible = indice === visibles.length - 1;
+
+        return (
+          <button
+            key={pieza.id}
+            aria-label={`Ver ${pieza.titulo ?? pieza.nombre}`}
+            className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-default-100 transition hover:opacity-80"
+            type="button"
+            onClick={() => alAbrir(posicionEnLaGaleria)}
+          >
+            <img
+              alt=""
+              className="size-full object-cover"
+              loading="lazy"
+              src={pieza.urlMiniatura ?? pieza.url}
+            />
+
+            {esLaUltimaVisible && restantes > 0 && (
+              <span className="absolute inset-0 flex items-center justify-center bg-black/55 text-xs font-bold text-white">
+                +{restantes}
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }

@@ -17,13 +17,29 @@
  *     que se vuelve sólida, cifras que suben, secciones que aparecen,
  *     parallax en la franja central y marquesina de aliados. Viven en
  *     hooks/useEfectosDeScroll.ts.
+ *
+ * LA SECCIÓN DE PROPIEDADES no sale del CMS sino del catálogo del CRM:
+ * las activas que el equipo publicó desde la ficha de cada una, con sus
+ * fotos para la web. Del CMS salen solo los textos que la rodean. Su
+ * botón «Me interesa» manda el formulario de siempre con la propiedad
+ * dentro, y el lead entra en el CRM con ella ya en su checklist. Sin
+ * propiedades publicadas, la sección y su enlace del menú no salen.
  * ---------------------------------------------------------------------
  */
-import { Button, Input, Textarea } from "@heroui/react";
+import {
+  Button,
+  Input,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalHeader,
+  Textarea,
+} from "@heroui/react";
 import {
   ArrowRight,
   ChevronLeft,
   ChevronRight,
+  Images,
   Mail,
   Menu,
   MessageCircle,
@@ -36,6 +52,7 @@ import {
 } from "@/componentes/comunes/IconosDeMarca";
 import {
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -44,8 +61,13 @@ import {
 } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { enviarMensajeDeContacto, obtenerContenidoPublico } from "@/api/sitio";
+import {
+  enviarMensajeDeContacto,
+  obtenerContenidoPublico,
+  obtenerPropiedadesDeLaWeb,
+} from "@/api/sitio";
 import { PantallaDeArranque } from "@/componentes/comunes/EstadosDePantalla";
+import { VisorDeGaleria } from "@/componentes/comunes/VisorDeGaleria";
 import { mensajeDeError } from "@/api/clienteHttp";
 import {
   useCabeceraSolida,
@@ -53,8 +75,13 @@ import {
   useParallax,
   useRevelarAlEntrar,
 } from "@/hooks/useEfectosDeScroll";
-import { enlaceDeWhatsapp } from "@/utilidades/formato";
-import type { ContenidoDeLaWeb, IdiomaDeLaWeb } from "@/tipos/modelos";
+import { enlaceDeWhatsapp, inicialesDe } from "@/utilidades/formato";
+import { elementosDeUnaPropiedadEnLaWeb } from "@/utilidades/galeria";
+import type {
+  ContenidoDeLaWeb,
+  IdiomaDeLaWeb,
+  PropiedadEnLaWeb,
+} from "@/tipos/modelos";
 
 /** Clave con la que se recuerda el idioma elegido por el visitante. */
 const CLAVE_DEL_IDIOMA = "tsports:idioma-web";
@@ -87,9 +114,22 @@ export function PaginaWebPublica() {
     staleTime: 5 * 60 * 1000,
   });
 
+  // Va aparte del contenido: si falla, la web sale igual sin la sección.
+  const consultaDePropiedades = useQuery({
+    queryKey: ["contenido-web", "propiedades"],
+    queryFn: obtenerPropiedadesDeLaWeb,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const propiedadesPublicadas = consultaDePropiedades.data ?? [];
+
   const [idioma, establecerIdioma] = useState<IdiomaDeLaWeb>(detectarIdiomaInicial);
 
   const [elMenuMovilEstaAbierto, establecerMenuMovilAbierto] = useState(false);
+
+  /** La propiedad cuyas fotos se están viendo, y la del formulario «Me interesa». */
+  const [propiedadEnElVisor, establecerPropiedadEnElVisor] = useState<PropiedadEnLaWeb | null>(null);
+  const [propiedadDeInteres, establecerPropiedadDeInteres] = useState<PropiedadEnLaWeb | null>(null);
 
   // Efectos de desplazamiento (ver hooks/useEfectosDeScroll.ts).
   const laCabeceraEsSolida = useCabeceraSolida();
@@ -108,6 +148,14 @@ export function PaginaWebPublica() {
 
   // La web pública tiene su propia identidad: se fuerza el tema claro
   // para que no herede el modo oscuro del panel.
+  //
+  // Esto SOLO no basta. ProveedorTema envuelve la página y sus efectos
+  // corren después de los de esta, así que con el tema «sistema» y un
+  // ordenador en oscuro vuelve a poner `dark` en <html>. Por eso la raíz
+  // de la página y sus ventanas llevan además la clase `light`, que fija
+  // los colores de HeroUI en claro para todo lo que hay dentro, diga lo
+  // que diga <html>: sin ella, la ventana de «Me interesa» salía oscura
+  // y con el título invisible.
   useEffect(() => {
     const laRaizTeniaModoOscuro = document.documentElement.classList.contains("dark");
 
@@ -131,6 +179,30 @@ export function PaginaWebPublica() {
     return (clave: string): string => contenido?.textos?.[idioma]?.[clave] ?? "";
   }, [contenido, idioma]);
 
+  /*
+   * Quien llega con un ancla (tsports.tech/#propiedades, el enlace de
+   * «Ver cómo se ve en la web» del panel) no aterrizaba en la sección: el
+   * navegador la busca al cargar, y todavía no existe, porque se pinta
+   * cuando llega el contenido. Se hace el salto a mano, una sola vez,
+   * cuando ya está.
+   */
+  const yaSeSaltoAlAncla = useRef(false);
+
+  useEffect(() => {
+    if (yaSeSaltoAlAncla.current || !contenido || consultaDePropiedades.isLoading) return;
+
+    const ancla = window.location.hash.slice(1);
+
+    if (ancla === "") return;
+
+    const seccion = document.getElementById(ancla);
+
+    if (seccion !== null) {
+      yaSeSaltoAlAncla.current = true;
+      seccion.scrollIntoView();
+    }
+  }, [contenido, consultaDePropiedades.isLoading]);
+
   if (consultaDelContenido.isLoading || !contenido) {
     return <PantallaDeArranque />;
   }
@@ -150,13 +222,18 @@ export function PaginaWebPublica() {
     { ancla: "#nosotros", etiqueta: texto("nav.nosotros") },
     { ancla: "#equipo", etiqueta: texto("nav.equipo") },
     { ancla: "#servicios", etiqueta: texto("nav.servicios") },
+    // Solo si hay algo que enseñar: un enlace a una sección que no sale
+    // llevaría a ningún sitio.
+    ...(propiedadesPublicadas.length > 0
+      ? [{ ancla: "#propiedades", etiqueta: texto("nav.propiedades") }]
+      : []),
     { ancla: "#proyectos", etiqueta: texto("nav.proyectos") },
     { ancla: "#aliados", etiqueta: texto("nav.aliados") },
     { ancla: "#contacto", etiqueta: texto("nav.contacto") },
   ];
 
   return (
-    <div className="min-h-screen bg-white text-slate-900" style={variablesDeColor}>
+    <div className="light min-h-screen bg-white text-slate-900" style={variablesDeColor}>
       {/* ============================= Cabecera ============================= */}
       {/* Sobre la portada va translúcida para no tapar el vídeo; en
           cuanto se baja se vuelve sólida, o el menú quedaría ilegible
@@ -465,6 +542,41 @@ export function PaginaWebPublica() {
         </div>
       </SeccionDeLaWeb>
 
+      {/* ============================ Propiedades ========================== */}
+      {/* Del catálogo del CRM, no del CMS: las activas que el equipo
+          publicó desde la ficha de cada una. Sobre el fondo alterno para
+          que no se funda con los servicios de justo encima. */}
+      {propiedadesPublicadas.length > 0 && (
+        <SeccionDeLaWeb fondo="alterno" id="propiedades">
+          <CabeceraDeSeccion
+            antetitulo={texto("propiedades.antetitulo")}
+            titulo={texto("propiedades.titulo")}
+          />
+
+          {texto("propiedades.parrafo") && (
+            <p className="mx-auto mt-4 max-w-2xl text-center leading-relaxed text-slate-600">
+              {texto("propiedades.parrafo")}
+            </p>
+          )}
+
+          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {propiedadesPublicadas.map((propiedad, posicion) => (
+              <TarjetaDePropiedadEnLaWeb
+                key={propiedad.id}
+                idioma={idioma}
+                posicion={posicion}
+                propiedad={propiedad}
+                referenciaParaRevelar={revelar}
+                textoDelBotonDeFotos={texto("propiedades.botonFotos")}
+                textoDelBotonDeInteres={texto("propiedades.botonInteres")}
+                alPedirInformacion={() => establecerPropiedadDeInteres(propiedad)}
+                alVerFotos={() => establecerPropiedadEnElVisor(propiedad)}
+              />
+            ))}
+          </div>
+        </SeccionDeLaWeb>
+      )}
+
       {/* ====================== Franja de llamada a acción ================== */}
       {/* El fondo se desplaza más despacio que la página (parallax): da
           sensación de profundidad al cruzar esta franja. */}
@@ -748,7 +860,183 @@ export function PaginaWebPublica() {
           <IconoWhatsapp className="size-7" />
         </a>
       )}
+
+      {/* ================ Las fotos y el «Me interesa» del catálogo ============ */}
+      <VisorDeGaleria
+        elementos={propiedadEnElVisor ? elementosDeUnaPropiedadEnLaWeb(propiedadEnElVisor) : []}
+        estaAbierto={propiedadEnElVisor !== null}
+        posicionInicial={0}
+        textos={
+          idioma === "en"
+            ? { de: "of", descargar: "Download", abrir: "Open" }
+            : { de: "de", descargar: "Descargar", abrir: "Abrir" }
+        }
+        titulo={propiedadEnElVisor?.nombre}
+        alCerrar={() => establecerPropiedadEnElVisor(null)}
+      />
+
+      <Modal
+        // Se pinta fuera de la raíz de la página (en <body>): necesita su
+        // propia clase `light` y el color de texto de ese tema.
+        classNames={{ base: "light text-foreground" }}
+        isOpen={propiedadDeInteres !== null}
+        placement="center"
+        radius="lg"
+        scrollBehavior="inside"
+        size="lg"
+        onOpenChange={(abierto) => {
+          if (!abierto) establecerPropiedadDeInteres(null);
+        }}
+      >
+        <ModalContent>
+          <ModalHeader className="flex flex-col gap-1">
+            <span className="text-lg font-bold tracking-tight text-slate-900">
+              {propiedadDeInteres?.nombre}
+            </span>
+            <span className="text-xs font-normal text-slate-500">
+              {texto("propiedades.formularioTexto")}
+            </span>
+          </ModalHeader>
+
+          <ModalBody className="pb-6">
+            {propiedadDeInteres !== null && (
+              <FormularioDeContacto
+                contenido={contenido}
+                idioma={idioma}
+                propiedadDeInteres={propiedadDeInteres}
+                sinMarco
+              />
+            )}
+          </ModalBody>
+        </ModalContent>
+      </Modal>
     </div>
+  );
+}
+
+/**
+ * Una propiedad del catálogo en la web: su portada, su nombre, su texto y
+ * los dos caminos, ver las fotos o pedir la propuesta.
+ *
+ * Sin foto de portada se pinta un degradado con los colores de la web y
+ * el logo encima: una tarjeta vacía se leería como un fallo.
+ */
+function TarjetaDePropiedadEnLaWeb({
+  propiedad,
+  idioma,
+  posicion,
+  referenciaParaRevelar,
+  textoDelBotonDeFotos,
+  textoDelBotonDeInteres,
+  alVerFotos,
+  alPedirInformacion,
+}: {
+  propiedad: PropiedadEnLaWeb;
+  idioma: IdiomaDeLaWeb;
+  posicion: number;
+  referenciaParaRevelar: (elemento: HTMLElement | null) => void;
+  textoDelBotonDeFotos: string;
+  textoDelBotonDeInteres: string;
+  alVerFotos: () => void;
+  alPedirInformacion: () => void;
+}) {
+  const tieneFotos = propiedad.fotos.length > 0;
+  const textoDeLaPropiedad = propiedad.texto[idioma];
+
+  return (
+    <article
+      ref={referenciaParaRevelar}
+      className="revelar flex flex-col overflow-hidden rounded-3xl bg-white shadow-md transition hover:shadow-xl"
+      style={{ transitionDelay: `${posicion * 90}ms` }}
+    >
+      <button
+        aria-label={`${textoDelBotonDeFotos}: ${propiedad.nombre}`}
+        className="group relative block aspect-4/3 w-full overflow-hidden"
+        disabled={!tieneFotos}
+        type="button"
+        onClick={alVerFotos}
+      >
+        {propiedad.portadaUrl ? (
+          <img
+            alt={propiedad.nombre}
+            className="size-full object-cover transition duration-500 group-hover:scale-105"
+            loading="lazy"
+            src={propiedad.portadaUrl}
+          />
+        ) : (
+          <span
+            className="flex size-full items-center justify-center"
+            style={{ background: "linear-gradient(135deg, var(--web-azul), var(--web-acento))" }}
+          >
+            {propiedad.logoUrl ? (
+              <img
+                alt={propiedad.nombre}
+                className="max-h-24 max-w-[60%] object-contain"
+                loading="lazy"
+                src={propiedad.logoUrl}
+              />
+            ) : (
+              <span className="text-4xl font-extrabold text-white/90">
+                {inicialesDe(propiedad.nombre)}
+              </span>
+            )}
+          </span>
+        )}
+
+        {propiedad.fotos.length > 1 && (
+          <span className="absolute bottom-3 right-3 flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-semibold text-white">
+            <Images className="size-3.5" />
+            {propiedad.fotos.length}
+          </span>
+        )}
+      </button>
+
+      <div className="flex flex-1 flex-col p-5">
+        <div className="flex items-center gap-3">
+          {propiedad.logoUrl && propiedad.portadaUrl && (
+            <img
+              alt=""
+              className="size-10 shrink-0 rounded-xl bg-white object-contain ring-1 ring-slate-200"
+              loading="lazy"
+              src={propiedad.logoUrl}
+            />
+          )}
+
+          <h3 className="text-base font-bold leading-snug text-slate-900">{propiedad.nombre}</h3>
+        </div>
+
+        {textoDeLaPropiedad && (
+          <p className="mt-2 line-clamp-4 whitespace-pre-line text-sm leading-relaxed text-slate-600">
+            {textoDeLaPropiedad}
+          </p>
+        )}
+
+        <div className="mt-auto flex flex-wrap gap-2 pt-5">
+          {tieneFotos && (
+            <Button
+              className="border-slate-300 font-semibold text-slate-700"
+              radius="full"
+              size="sm"
+              startContent={<Images className="size-4" />}
+              variant="bordered"
+              onPress={alVerFotos}
+            >
+              {textoDelBotonDeFotos}
+            </Button>
+          )}
+
+          <Button
+            className="font-semibold text-white"
+            radius="full"
+            size="sm"
+            style={{ backgroundColor: "var(--web-acento)" }}
+            onPress={alPedirInformacion}
+          >
+            {textoDelBotonDeInteres}
+          </Button>
+        </div>
+      </div>
+    </article>
   );
 }
 
@@ -1280,24 +1568,40 @@ function PalabrasRotativas({
  * El orden es deliberado: primero se guarda y solo después se abre
  * WhatsApp. Si se abriese antes, el navegador cambiaría de pestaña y en
  * algunos móviles la petición al servidor se quedaría a medias.
+ *
+ * Desde la tarjeta de una propiedad es el MISMO formulario con la
+ * propiedad dentro: el lead nace con ella en su checklist y el mensaje de
+ * WhatsApp la nombra. Ahí va dentro de una ventana, y por eso puede
+ * pintarse sin su marco (`sinMarco`): una caja dentro de otra caja.
  */
 function FormularioDeContacto({
   contenido,
   idioma,
+  propiedadDeInteres,
+  sinMarco = false,
 }: {
   contenido: ContenidoDeLaWeb;
   idioma: IdiomaDeLaWeb;
+  propiedadDeInteres?: PropiedadEnLaWeb;
+  sinMarco?: boolean;
 }) {
   const texto = (clave: string): string => contenido.textos[idioma]?.[clave] ?? "";
+
+  /** Desde una propiedad, el mensaje viene empezado: es lo que querría decir. */
+  const mensajeDePartida = propiedadDeInteres ? texto("propiedades.mensajeInicial") : "";
 
   const [nombre, establecerNombre] = useState("");
   const [email, establecerEmail] = useState("");
   const [empresa, establecerEmpresa] = useState("");
   const [telefono, establecerTelefono] = useState("");
-  const [mensaje, establecerMensaje] = useState("");
+  const [mensaje, establecerMensaje] = useState(mensajeDePartida);
 
-  // Trampa para robots: oculta por CSS, una persona nunca la rellena.
+  // Trampa para robots: oculta por CSS, una persona nunca la rellena. El
+  // id es único porque el formulario puede estar dos veces en la página
+  // (el de contacto y el de «Me interesa»); el nombre, que es lo que lee
+  // un robot, sigue siendo `sitioWeb`.
   const [campoTrampa, establecerCampoTrampa] = useState("");
+  const idDeLaTrampa = useId();
 
   const [mensajeDeFallo, establecerMensajeDeFallo] = useState<string | null>(null);
   const [seEnvioCorrectamente, establecerSeEnvioCorrectamente] = useState(false);
@@ -1310,6 +1614,7 @@ function FormularioDeContacto({
         empresa,
         telefono,
         mensaje,
+        propiedadId: propiedadDeInteres?.id,
         sitioWeb: campoTrampa,
       }),
 
@@ -1325,7 +1630,7 @@ function FormularioDeContacto({
       establecerEmail("");
       establecerEmpresa("");
       establecerTelefono("");
-      establecerMensaje("");
+      establecerMensaje(mensajeDePartida);
     },
 
     onError: (error) => establecerMensajeDeFallo(mensajeDeError(error)),
@@ -1348,6 +1653,7 @@ function FormularioDeContacto({
     // Los campos opcionales solo aparecen si se rellenaron; el resto de
     // la estructura del mensaje es fija.
     const datosDelContacto = [
+      propiedadDeInteres && `${enIngles ? "Property" : "Propiedad"}: ${propiedadDeInteres.nombre}`,
       `${enIngles ? "Name" : "Nombre"}: ${nombre}`,
       `${enIngles ? "Email" : "Correo"}: ${email}`,
       empresa && `${enIngles ? "Company" : "Empresa"}: ${empresa}`,
@@ -1377,7 +1683,12 @@ function FormularioDeContacto({
 
   if (seEnvioCorrectamente) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-3xl border border-slate-200 p-10 text-center">
+      <div
+        className={[
+          "flex flex-col items-center justify-center text-center",
+          sinMarco ? "py-6" : "rounded-3xl border border-slate-200 p-10",
+        ].join(" ")}
+      >
         <span
           className="mb-4 flex size-12 items-center justify-center rounded-2xl text-white"
           style={{ backgroundColor: "var(--web-acento-verde)" }}
@@ -1404,7 +1715,10 @@ function FormularioDeContacto({
 
   return (
     <form
-      className="space-y-4 rounded-3xl border border-slate-200 p-6 shadow-sm"
+      className={[
+        "space-y-4",
+        sinMarco ? "" : "rounded-3xl border border-slate-200 p-6 shadow-sm",
+      ].join(" ")}
       onSubmit={alEnviar}
     >
       <div className="grid gap-4 sm:grid-cols-2">
@@ -1464,10 +1778,10 @@ function FormularioDeContacto({
       {/* Trampa para robots. Oculta a la vista y a los lectores de
           pantalla, pero rellenable por un programa automático. */}
       <div aria-hidden className="absolute -left-[9999px]">
-        <label htmlFor="sitioWeb">No rellenar</label>
+        <label htmlFor={idDeLaTrampa}>No rellenar</label>
         <input
           autoComplete="off"
-          id="sitioWeb"
+          id={idDeLaTrampa}
           name="sitioWeb"
           tabIndex={-1}
           type="text"

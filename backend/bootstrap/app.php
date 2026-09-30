@@ -122,6 +122,7 @@ return Application::configure(basePath: dirname(__DIR__))
         Route::pattern('usuario', '[0-9a-fA-F-]{36}');
         Route::pattern('comentario', '[0-9a-fA-F-]{36}');
         Route::pattern('archivo', '[0-9a-fA-F-]{36}');
+        Route::pattern('archivoDePropiedad', '[0-9a-fA-F-]{36}');
         Route::pattern('evento', '[0-9a-fA-F-]{36}');
     })
     ->create();

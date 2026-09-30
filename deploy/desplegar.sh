@@ -195,6 +195,20 @@ paso "Reiniciando PHP-FPM y nginx"
 SERVICIO_PHP_FPM="$(systemctl list-units --type=service --all --no-legend 'php*-fpm.service' 2>/dev/null | awk '!encontrado{servicio=$1; encontrado=1} END{print servicio}' || true)"
 
 if [[ -n "${SERVICIO_PHP_FPM}" ]]; then
+  # Los límites de subida viajan en el repositorio (deploy/php-tsports.ini)
+  # porque tienen que ir a la par con los de Laravel y nginx. Se copian
+  # al conf.d de ESTE PHP-FPM solo si cambiaron; la recarga de justo
+  # debajo los aplica. De php8.4-fpm.service sale la carpeta /etc/php/8.4.
+  VERSION_DE_PHP_FPM="${SERVICIO_PHP_FPM#php}"
+  VERSION_DE_PHP_FPM="${VERSION_DE_PHP_FPM%%-fpm*}"
+  LIMITES_DE_PHP="/etc/php/${VERSION_DE_PHP_FPM}/fpm/conf.d/99-tsports.ini"
+
+  if [[ -d "$(dirname "${LIMITES_DE_PHP}")" ]] \
+    && ! cmp -s "${CARPETA_DEL_PROYECTO}/deploy/php-tsports.ini" "${LIMITES_DE_PHP}"; then
+    ${COMO_ROOT} cp "${CARPETA_DEL_PROYECTO}/deploy/php-tsports.ini" "${LIMITES_DE_PHP}" \
+      && echo "  límites de subida de PHP al día (${LIMITES_DE_PHP})"
+  fi
+
   ${COMO_ROOT} systemctl reload "${SERVICIO_PHP_FPM}" && echo "  recargado ${SERVICIO_PHP_FPM}"
 else
   aviso "No encontré ningún servicio php*-fpm. Recárgalo a mano."

@@ -91,6 +91,7 @@ final class ContenidoWebPorDefecto
             'nav.nosotros' => 'Nosotros',
             'nav.equipo' => 'Equipo',
             'nav.servicios' => 'Servicios',
+            'nav.propiedades' => 'Propiedades',
             'nav.proyectos' => 'Proyectos',
             'nav.aliados' => 'Aliados',
             'nav.contacto' => 'Contacto',
@@ -133,6 +134,16 @@ final class ContenidoWebPorDefecto
 
             'servicios.antetitulo' => 'NUESTROS SERVICIOS',
             'servicios.titulo' => 'Soluciones integrales para el negocio del deporte',
+
+            // La sección del catálogo. Las propiedades y sus textos salen
+            // del CRM; aquí solo lo que rodea a las tarjetas.
+            'propiedades.antetitulo' => 'PROPIEDADES',
+            'propiedades.titulo' => 'Dónde puede estar tu marca',
+            'propiedades.parrafo' => 'Eventos, equipos y competencias que representamos. Mira el material y pídenos la propuesta.',
+            'propiedades.botonFotos' => 'Ver fotos',
+            'propiedades.botonInteres' => 'Me interesa',
+            'propiedades.formularioTexto' => 'Déjanos tus datos y te enviamos la propuesta.',
+            'propiedades.mensajeInicial' => 'Hola, me interesa patrocinar esta propiedad. ¿Me envían la propuesta?',
 
             'franja.titulo' => 'Convertimos la pasión por el deporte en resultados de negocio',
             'franja.texto' => 'Estrategia, creatividad y ejecución para marcas que quieren jugar en las grandes ligas.',
@@ -177,6 +188,7 @@ final class ContenidoWebPorDefecto
             'nav.nosotros' => 'About',
             'nav.equipo' => 'Team',
             'nav.servicios' => 'Services',
+            'nav.propiedades' => 'Properties',
             'nav.proyectos' => 'Projects',
             'nav.aliados' => 'Partners',
             'nav.contacto' => 'Contact',
@@ -219,6 +231,14 @@ final class ContenidoWebPorDefecto
 
             'servicios.antetitulo' => 'OUR SERVICES',
             'servicios.titulo' => 'End-to-end solutions for the business of sport',
+
+            'propiedades.antetitulo' => 'PROPERTIES',
+            'propiedades.titulo' => 'Where your brand can be',
+            'propiedades.parrafo' => 'Events, teams and competitions we represent. Browse the material and ask us for a proposal.',
+            'propiedades.botonFotos' => 'See photos',
+            'propiedades.botonInteres' => "I'm interested",
+            'propiedades.formularioTexto' => "Leave us your details and we'll send you the proposal.",
+            'propiedades.mensajeInicial' => "Hi, I'm interested in sponsoring this property. Could you send me the proposal?",
 
             'franja.titulo' => 'We turn passion for sport into business results',
             'franja.texto' => 'Strategy, creativity and execution for brands that want to play in the big leagues.',

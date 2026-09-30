@@ -79,6 +79,11 @@ final class CatalogosDelCrm
             // que el formulario de un producto IOP no lo lleve escrito a
             // mano y pueda cambiarse desde el modelo Propiedad.
             'porcentajeForecastPorDefecto' => Propiedad::PORCENTAJE_FORECAST_POR_DEFECTO,
+            // Cuánto puede pesar una foto o un PDF de la galería o de la
+            // bitácora. La interfaz lo usa para avisar ANTES de subir 40
+            // megas y que el servidor los rechace; quien manda es el
+            // servidor (GuardadoDeArchivos).
+            'tamanoMaximoDeArchivoMb' => intdiv(GuardadoDeArchivos::TAMANO_MAXIMO_DE_DOCUMENTO_KB, 1024),
             // Salen de la tabla, no de la constante: son los que el
             // equipo tenga hoy, incluidos los que haya añadido.
             'sectores' => Sector::nombresActivos(),

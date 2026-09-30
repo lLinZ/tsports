@@ -10,10 +10,18 @@
  *   · `listarPropiedades({ conTotales: true })`  → lo que necesita la
  *     pantalla del catálogo: añade cuántas marcas llevan cada propiedad
  *     y cuánto suman sus pronósticos.
+ *
+ * Las dos traen la galería de cada propiedad. La galería se toca con sus
+ * propias llamadas (abajo), fichero a fichero: no viaja con el
+ * formulario de la propiedad.
  * ---------------------------------------------------------------------
  */
-import { clienteHttp } from "@/api/clienteHttp";
-import type { DatosDePropiedadParaGuardar, Propiedad } from "@/tipos/modelos";
+import { clienteHttp, TIEMPO_MAXIMO_DE_UNA_SUBIDA_MS } from "@/api/clienteHttp";
+import type {
+  ArchivoDeGaleria,
+  DatosDePropiedadParaGuardar,
+  Propiedad,
+} from "@/tipos/modelos";
 
 export async function listarPropiedades(opciones?: {
   soloActivas?: boolean;
@@ -83,4 +91,98 @@ export async function cambiarActivaDePropiedad(
  */
 export async function eliminarPropiedad(idDeLaPropiedad: string): Promise<void> {
   await clienteHttp.delete(`/propiedades/${idDeLaPropiedad}`);
+}
+
+/* ==================================================================== */
+/* Galería                                                              */
+/* ==================================================================== */
+
+/**
+ * Sube UNA foto o PDF a la galería. Para varias se llama una vez por
+ * fichero: cada uno lleva su barra, y si uno falla no arrastra al resto.
+ *
+ * Se envía como multipart y se deja que el navegador ponga el
+ * Content-Type con su propio boundary.
+ */
+export async function subirAGaleria(
+  idDeLaPropiedad: string,
+  archivo: File,
+  opciones: {
+    miniatura?: Blob | null;
+    alProgresar?: (fraccion: number) => void;
+  } = {},
+): Promise<ArchivoDeGaleria> {
+  const formulario = new FormData();
+  formulario.append("archivo", archivo);
+
+  if (opciones.miniatura) {
+    formulario.append("miniatura", opciones.miniatura, "miniatura.jpg");
+  }
+
+  const { data } = await clienteHttp.post<{ data: ArchivoDeGaleria }>(
+    `/propiedades/${idDeLaPropiedad}/galeria`,
+    formulario,
+    {
+      headers: { "Content-Type": undefined },
+      timeout: TIEMPO_MAXIMO_DE_UNA_SUBIDA_MS,
+      onUploadProgress: (evento) => {
+        if (evento.total) opciones.alProgresar?.(evento.loaded / evento.total);
+      },
+    },
+  );
+
+  return data.data;
+}
+
+/** El título, la descripción o si sale en la web. Solo lo que se mande. */
+export async function actualizarPiezaDeGaleria(
+  idDeLaPropiedad: string,
+  idDeLaPieza: string,
+  cambios: { titulo?: string | null; descripcion?: string | null; enLaWeb?: boolean },
+): Promise<ArchivoDeGaleria> {
+  const { data } = await clienteHttp.patch<{ data: ArchivoDeGaleria }>(
+    `/propiedades/${idDeLaPropiedad}/galeria/${idDeLaPieza}`,
+    cambios,
+  );
+
+  return data.data;
+}
+
+/**
+ * El orden nuevo de TODA la galería. Si mientras tanto alguien subió o
+ * borró algo, el servidor lo rechaza en vez de dejar piezas fuera.
+ */
+export async function reordenarGaleria(
+  idDeLaPropiedad: string,
+  idsEnOrden: string[],
+): Promise<ArchivoDeGaleria[]> {
+  const { data } = await clienteHttp.put<{ data: ArchivoDeGaleria[] }>(
+    `/propiedades/${idDeLaPropiedad}/galeria/orden`,
+    { ids: idsEnOrden },
+  );
+
+  return data.data;
+}
+
+export async function elegirPortadaDeGaleria(
+  idDeLaPropiedad: string,
+  idDeLaPieza: string,
+): Promise<ArchivoDeGaleria[]> {
+  const { data } = await clienteHttp.put<{ data: ArchivoDeGaleria[] }>(
+    `/propiedades/${idDeLaPropiedad}/galeria/${idDeLaPieza}/portada`,
+  );
+
+  return data.data;
+}
+
+/** Borra la pieza y su fichero. Devuelve la galería como queda. */
+export async function eliminarDeGaleria(
+  idDeLaPropiedad: string,
+  idDeLaPieza: string,
+): Promise<ArchivoDeGaleria[]> {
+  const { data } = await clienteHttp.delete<{ data: ArchivoDeGaleria[] }>(
+    `/propiedades/${idDeLaPropiedad}/galeria/${idDeLaPieza}`,
+  );
+
+  return data.data;
 }

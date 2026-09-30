@@ -61,6 +61,12 @@ class RecursoComentarioMarca extends JsonResource
             'reacciones' => $this->reaccionesAgrupadas($usuarioQueConsulta),
             'mencionados' => $this->personasMencionadas(),
 
+            // Con sus enlaces firmados: quien recibe esta respuesta ya
+            // puede ver la marca, y eso es lo que el enlace necesita.
+            'adjuntos' => $this->resource->relationLoaded('adjuntos')
+                ? RecursoAdjunto::collection($this->adjuntos)
+                : [],
+
             // Solo las entradas raíz traen respuestas; las respuestas no
             // anidan (un solo nivel, ver la migración).
             'respuestas' => $this->esUnaRespuesta()

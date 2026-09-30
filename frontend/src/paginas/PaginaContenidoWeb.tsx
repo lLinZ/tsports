@@ -80,6 +80,9 @@ const SECCIONES_DE_TEXTO: Array<{ prefijo: string; titulo: string }> = [
   { prefijo: "nosotros.", titulo: "Quiénes somos" },
   { prefijo: "equipo.", titulo: "Equipo" },
   { prefijo: "servicios.", titulo: "Servicios" },
+  // Lo que rodea a las tarjetas del catálogo. Las propiedades y su texto
+  // salen del CRM: se publican desde la ficha de cada una.
+  { prefijo: "propiedades.", titulo: "Propiedades (catálogo)" },
   { prefijo: "franja.", titulo: "Franja de llamada a la acción" },
   { prefijo: "proyectos.", titulo: "Proyectos" },
   { prefijo: "aliados.", titulo: "Aliados" },

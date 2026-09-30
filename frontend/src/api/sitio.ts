@@ -14,6 +14,7 @@ import { clienteHttp } from "@/api/clienteHttp";
 import type {
   ContenidoDeLaWeb,
   MensajeDeContacto,
+  PropiedadEnLaWeb,
   VersionDeContenido,
 } from "@/tipos/modelos";
 
@@ -28,6 +29,18 @@ export async function obtenerContenidoPublico(): Promise<ContenidoDeLaWeb> {
   );
 
   return data.contenido;
+}
+
+/**
+ * El catálogo de propiedades de la web: las activas que el equipo marcó
+ * como publicadas, con sus fotos para la web. Sin montos ni documentos.
+ */
+export async function obtenerPropiedadesDeLaWeb(): Promise<PropiedadEnLaWeb[]> {
+  const { data } = await clienteHttp.get<{ data: PropiedadEnLaWeb[] }>(
+    "/propiedades-en-la-web",
+  );
+
+  return data.data;
 }
 
 /** Envía el formulario de contacto; crea un lead en el CRM. */

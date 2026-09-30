@@ -70,6 +70,20 @@ export function formatearPorcentaje(valor: number | null | undefined): string {
   return `${porcentaje.toLocaleString("es", { maximumFractionDigits: 1 })} %`;
 }
 
+/**
+ * Lo que pesa un fichero, como se dice en voz alta: "850 KB", "2,3 MB".
+ * Un decimal solo en megas, que es donde ayuda a comparar.
+ */
+export function formatearTamanoDeFichero(bytes: number | null | undefined): string {
+  const tamano = Number(bytes) || 0;
+
+  if (tamano >= 1024 * 1024) {
+    return `${(tamano / (1024 * 1024)).toLocaleString("es", { maximumFractionDigits: 1 })} MB`;
+  }
+
+  return `${Math.max(1, Math.round(tamano / 1024)).toLocaleString("es")} KB`;
+}
+
 /* ==================================================================== */
 /* Fechas                                                              */
 /* ==================================================================== */

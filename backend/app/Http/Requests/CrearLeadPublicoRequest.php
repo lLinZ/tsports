@@ -37,6 +37,12 @@ class CrearLeadPublicoRequest extends FormRequest
             'telefono' => ['nullable', 'string', 'max:60'],
             'mensaje' => ['required', 'string', 'max:3000'],
 
+            // La propiedad por la que pregunta, si escribió desde su
+            // tarjeta del catálogo. Solo el formato: que exista y siga
+            // publicada lo mira el controlador, y si no, el mensaje entra
+            // igual como un lead normal.
+            'propiedadId' => ['nullable', 'uuid'],
+
             // Trampa para robots: debe llegar siempre vacío.
             'sitioWeb' => ['nullable', 'string', 'max:255'],
         ];

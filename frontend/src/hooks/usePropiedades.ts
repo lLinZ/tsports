@@ -16,6 +16,11 @@
  * Tras cualquier escritura se invalidan además las marcas y el resumen:
  * cambiar el monto total de una propiedad mueve los porcentajes de todas
  * las fichas que la ofrecen y la meta del tablero.
+ *
+ * La GALERÍA va aparte (`useGaleriaDePropiedad`): se lee de la propiedad
+ * suelta y cada cambio se escribe en esa caché al momento, sin recargar.
+ * El catálogo y el checklist, que también la llevan dentro, solo se
+ * marcan como viejos.
  * ---------------------------------------------------------------------
  */
 import {
@@ -25,20 +30,31 @@ import {
   type UseMutationResult,
 } from "@tanstack/react-query";
 import {
+  actualizarPiezaDeGaleria,
   actualizarPropiedad,
   cambiarActivaDePropiedad,
   crearPropiedad,
+  elegirPortadaDeGaleria,
+  eliminarDeGaleria,
   eliminarPropiedad,
   listarPropiedades,
+  obtenerPropiedad,
+  reordenarGaleria,
+  subirAGaleria,
 } from "@/api/propiedades";
 import { clavesDeMarcas } from "@/hooks/useMarcas";
-import type { DatosDePropiedadParaGuardar, Propiedad } from "@/tipos/modelos";
+import type {
+  ArchivoDeGaleria,
+  DatosDePropiedadParaGuardar,
+  Propiedad,
+} from "@/tipos/modelos";
 import { errorSoloSiNoHayNadaQueEnsenar } from "@/utilidades/consultas";
 
 export const clavesDePropiedades = {
   todas: ["propiedades"] as const,
   catalogo: ["propiedades", "catalogo"] as const,
   ofrecibles: ["propiedades", "ofrecibles"] as const,
+  detalle: (idDeLaPropiedad: string) => ["propiedades", "detalle", idDeLaPropiedad] as const,
 };
 
 /** El catálogo completo, con cuántas marcas y cuánto OVP lleva cada una. */
@@ -139,4 +155,111 @@ export function useEliminarPropiedad(): UseMutationResult<void, unknown, string>
     mutationFn: eliminarPropiedad,
     onSuccess: invalidarPropiedades,
   });
+}
+
+/* ==================================================================== */
+/* Galería                                                              */
+/* ==================================================================== */
+
+/**
+ * La galería de una propiedad y lo que se puede hacer con ella.
+ *
+ * Se lee de la propiedad suelta (no del catálogo) para tenerla siempre
+ * al día mientras se trabaja en ella; `propiedadInicial` la pinta al
+ * instante mientras llega. Cada escritura deja la galería que devuelve el
+ * servidor en esa caché, y el catálogo y el checklist se marcan como
+ * viejos para que la traigan de nuevo cuando se vuelvan a ver.
+ *
+ * Reordenar es la única que se adelanta al servidor: al soltar una foto
+ * en su sitio nuevo tiene que quedarse ahí, no volver atrás medio segundo.
+ * Si el servidor lo rechaza, se deshace.
+ */
+export function useGaleriaDePropiedad(idDeLaPropiedad: string, propiedadInicial?: Propiedad) {
+  const clienteDeConsultas = useQueryClient();
+  const claveDeLaPropiedad = clavesDePropiedades.detalle(idDeLaPropiedad);
+
+  const consulta = useQuery<Propiedad>({
+    queryKey: claveDeLaPropiedad,
+    queryFn: () => obtenerPropiedad(idDeLaPropiedad),
+    // Como dato de partida y no como relleno: así las escrituras de abajo
+    // tienen sobre qué escribir aunque se suba algo antes de que llegue
+    // la respuesta. La fecha a cero hace que se pida igualmente al abrir.
+    initialData: propiedadInicial,
+    initialDataUpdatedAt: 0,
+  });
+
+  function escribirLaGaleria(cambiar: (galeria: ArchivoDeGaleria[]) => ArchivoDeGaleria[]) {
+    clienteDeConsultas.setQueryData<Propiedad>(claveDeLaPropiedad, (propiedad) =>
+      propiedad === undefined ? propiedad : { ...propiedad, galeria: cambiar(propiedad.galeria ?? []) },
+    );
+  }
+
+  function marcarLasListasComoViejas() {
+    void clienteDeConsultas.invalidateQueries({ queryKey: clavesDePropiedades.catalogo });
+    void clienteDeConsultas.invalidateQueries({ queryKey: clavesDePropiedades.ofrecibles });
+  }
+
+  return {
+    galeria: consulta.data?.galeria ?? [],
+    estaCargando: consulta.isLoading,
+
+    async subir(
+      fichero: File,
+      miniatura: Blob | null,
+      alProgresar: (fraccion: number) => void,
+    ): Promise<ArchivoDeGaleria> {
+      const pieza = await subirAGaleria(idDeLaPropiedad, fichero, { miniatura, alProgresar });
+
+      escribirLaGaleria((galeria) => [...galeria.filter((otra) => otra.id !== pieza.id), pieza]);
+      marcarLasListasComoViejas();
+
+      return pieza;
+    },
+
+    async actualizar(
+      idDeLaPieza: string,
+      cambios: { titulo?: string | null; descripcion?: string | null; enLaWeb?: boolean },
+    ): Promise<void> {
+      const pieza = await actualizarPiezaDeGaleria(idDeLaPropiedad, idDeLaPieza, cambios);
+
+      escribirLaGaleria((galeria) => galeria.map((otra) => (otra.id === pieza.id ? pieza : otra)));
+      marcarLasListasComoViejas();
+    },
+
+    async reordenar(idsEnOrden: string[]): Promise<void> {
+      const galeriaAnterior =
+        clienteDeConsultas.getQueryData<Propiedad>(claveDeLaPropiedad)?.galeria ?? [];
+
+      escribirLaGaleria((galeria) =>
+        idsEnOrden
+          .map((id) => galeria.find((pieza) => pieza.id === id))
+          .filter((pieza): pieza is ArchivoDeGaleria => pieza !== undefined),
+      );
+
+      try {
+        const galeriaNueva = await reordenarGaleria(idDeLaPropiedad, idsEnOrden);
+
+        escribirLaGaleria(() => galeriaNueva);
+        marcarLasListasComoViejas();
+      } catch (error) {
+        escribirLaGaleria(() => galeriaAnterior);
+
+        throw error;
+      }
+    },
+
+    async elegirPortada(idDeLaPieza: string): Promise<void> {
+      const galeriaNueva = await elegirPortadaDeGaleria(idDeLaPropiedad, idDeLaPieza);
+
+      escribirLaGaleria(() => galeriaNueva);
+      marcarLasListasComoViejas();
+    },
+
+    async eliminar(idDeLaPieza: string): Promise<void> {
+      const galeriaNueva = await eliminarDeGaleria(idDeLaPropiedad, idDeLaPieza);
+
+      escribirLaGaleria(() => galeriaNueva);
+      marcarLasListasComoViejas();
+    },
+  };
 }

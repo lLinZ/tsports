@@ -8,6 +8,7 @@ use App\Events\NotificacionNueva;
 use App\Jobs\EnviarAvisoPush;
 use App\Models\Marca;
 use App\Models\Notificacion;
+use App\Models\Propiedad;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -49,17 +50,25 @@ class Notificador
      * que es quien reparte. El agente no: desde septiembre no ve los
      * leads sin asignar, y un aviso que lleva a una ficha que no puede
      * abrir solo confunde (y le filtraría el nombre de la empresa).
+     *
+     * Si escribió desde la tarjeta de una propiedad del catálogo de la
+     * web, el aviso lo dice: es lo primero que quiere saber quien reparte,
+     * porque decide a quién se le da.
      */
-    public function avisarDeUnLeadNuevo(Marca $marca): void
+    public function avisarDeUnLeadNuevo(Marca $marca, ?Propiedad $propiedadDeInteres = null): void
     {
         $quienReparte = User::query()
             ->where('activo', true)
             ->get()
             ->filter(fn (User $persona): bool => $persona->rol->veTodasLasMarcas());
 
-        $cuerpo = $marca->persona_contacto !== null && $marca->persona_contacto !== $marca->nombre_marca
-            ? sprintf('%s escribió desde la web por %s. Está sin asignar.', $marca->persona_contacto, $marca->nombre_marca)
-            : sprintf('%s escribió desde la web. Está sin asignar.', $marca->nombre_marca);
+        $quienEscribio = $marca->persona_contacto !== null && $marca->persona_contacto !== $marca->nombre_marca
+            ? sprintf('%s escribió desde la web por %s.', $marca->persona_contacto, $marca->nombre_marca)
+            : sprintf('%s escribió desde la web.', $marca->nombre_marca);
+
+        $cuerpo = $propiedadDeInteres === null
+            ? $quienEscribio.' Está sin asignar.'
+            : sprintf('%s Pregunta por %s. Está sin asignar.', $quienEscribio, $propiedadDeInteres->nombre);
 
         $this->crearYEmpujar(
             $quienReparte,

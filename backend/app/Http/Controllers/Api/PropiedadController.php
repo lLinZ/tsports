@@ -26,9 +26,17 @@ use Illuminate\Support\Facades\DB;
  * cuánto vale una propiedad aunque la lleve otra persona; lo EDITA solo
  * quien gestiona el catálogo comercial. Esa asimetría es la misma que ya
  * había con las marcas y la resuelve PropiedadPolicy.
+ *
+ * Cada propiedad viaja SIEMPRE con su galería: el checklist de la ficha
+ * de una marca la necesita para enseñar las fotos delante del cliente, y
+ * pedirla aparte serían siete peticiones más cada vez que se abre una
+ * ficha. La galería se gestiona en GaleriaDePropiedadController.
  */
 class PropiedadController extends Controller
 {
+    /** Lo que se carga con cada propiedad, en todas las respuestas. */
+    private const LO_QUE_ACOMPANA = ['prospectores', 'galeria.archivo'];
+
     /**
      * GET /api/propiedades
      *
@@ -45,7 +53,7 @@ class PropiedadController extends Controller
         $this->authorize('viewAny', Propiedad::class);
 
         $consulta = Propiedad::query()
-            ->with('prospectores')
+            ->with(self::LO_QUE_ACOMPANA)
             ->enOrdenDeCatalogo();
 
         if ($peticion->boolean('soloActivas')) {
@@ -78,7 +86,7 @@ class PropiedadController extends Controller
     {
         $this->authorize('view', $propiedad);
 
-        $propiedad->load('prospectores')->loadCount('marcasQueLaOfrecen');
+        $propiedad->load(self::LO_QUE_ACOMPANA)->loadCount('marcasQueLaOfrecen');
 
         return new RecursoPropiedad($propiedad);
     }
@@ -106,7 +114,7 @@ class PropiedadController extends Controller
             'Creó la propiedad '.$propiedad->nombre,
         );
 
-        return (new RecursoPropiedad($propiedad->load('prospectores')))
+        return (new RecursoPropiedad($propiedad->load(self::LO_QUE_ACOMPANA)))
             ->response()
             ->setStatusCode(201);
     }
@@ -122,8 +130,11 @@ class PropiedadController extends Controller
     {
         $this->authorize('update', $propiedad);
 
+        // Publicar en la web va en la auditoría como un cambio más: que una
+        // propiedad salga a la portada es algo que alguien decidió.
         $valoresAnteriores = $propiedad->only([
             'nombre', 'monto_total_usd', 'porcentaje_forecast', 'asignada_a_todos', 'activa',
+            'publicada_en_la_web',
         ]);
 
         $propiedad->fill($peticion->datosParaElModelo());
@@ -143,7 +154,7 @@ class PropiedadController extends Controller
             ],
         );
 
-        return new RecursoPropiedad($propiedad->fresh()->load('prospectores'));
+        return new RecursoPropiedad($propiedad->fresh()->load(self::LO_QUE_ACOMPANA));
     }
 
     /**
@@ -180,7 +191,7 @@ class PropiedadController extends Controller
             );
         }
 
-        return new RecursoPropiedad($propiedad->load('prospectores')->loadCount('marcasQueLaOfrecen'));
+        return new RecursoPropiedad($propiedad->load(self::LO_QUE_ACOMPANA)->loadCount('marcasQueLaOfrecen'));
     }
 
     /**
@@ -189,6 +200,8 @@ class PropiedadController extends Controller
      * Borra la propiedad y, en cascada, sus líneas del checklist en todas
      * las marcas. La interfaz avisa de cuántas se van a perder y ofrece
      * antes desactivarla, que es lo que se quiere casi siempre.
+     *
+     * Se lleva también su galería, ficheros incluidos.
      */
     public function destroy(Request $peticion, Propiedad $propiedad): JsonResponse
     {
@@ -196,7 +209,7 @@ class PropiedadController extends Controller
 
         $nombreDeLaPropiedadBorrada = $propiedad->nombre;
 
-        $propiedad->delete();
+        $propiedad->eliminarConSuGaleria();
 
         RegistroActividad::anotar(
             $peticion->user(),

@@ -14,6 +14,12 @@
  *   3. Quién la vende → todo el equipo, o las personas concretas que se
  *      elijan. Sin nadie asignado la propiedad desaparecería del
  *      checklist de todos, así que el servidor lo rechaza.
+ *   4. Su material  → fotos, planos y dossier (GaleriaDePropiedad). Solo
+ *      al editar: los ficheros cuelgan de una propiedad que ya existe.
+ *      Por eso, al crear una, la ventana no se cierra: se queda abierta
+ *      sobre la recién creada para subirle el material.
+ *   5. La web       → si sale en el catálogo de la web pública y con qué
+ *      texto, en los dos idiomas. Nace sin publicar.
  *
  * Borrar una propiedad se lleva por delante su línea en el checklist de
  * cada marca, así que la botonera avisa de cuántas se van a perder y, en
@@ -36,12 +42,13 @@ import {
   Switch,
   Textarea,
 } from "@heroui/react";
-import { Archive, Package, Save, Trash2, Users } from "lucide-react";
+import { Archive, ExternalLink, Globe, Package, Save, Trash2, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { listarUsuarios } from "@/api/usuarios";
 import { BarraDeScrollDibujada } from "@/componentes/comunes/BarraDeScrollDibujada";
 import { CampoDeImagen } from "@/componentes/comunes/CampoDeImagen";
+import { GaleriaDePropiedad } from "@/componentes/crm/GaleriaDePropiedad";
 import { useCatalogos } from "@/hooks/useCatalogos";
 import {
   useActualizarPropiedad,
@@ -67,6 +74,9 @@ interface FormularioDePropiedad {
   prospectoresIds: string[];
   orden: number;
   activa: boolean;
+  publicadaEnLaWeb: boolean;
+  textoWebEs: string;
+  textoWebEn: string;
 }
 
 interface PropiedadesDelModalDePropiedad {
@@ -74,12 +84,33 @@ interface PropiedadesDelModalDePropiedad {
   /** La propiedad a editar, o null para dar de alta una nueva. */
   propiedadEnEdicion: Propiedad | null;
   alCerrar: () => void;
+  /**
+   * Al crear una propiedad. Quien abre la ventana la pasa a editar la
+   * recién creada, para subirle el material sin cerrar y volver a abrir.
+   * Sin él, la ventana se cierra como antes.
+   */
+  alCrear?: (propiedadCreada: Propiedad) => void;
 }
+
+const FORMULARIO_VACIO: Omit<FormularioDePropiedad, "porcentajeForecast"> = {
+  nombre: "",
+  descripcion: "",
+  logoUrl: "",
+  montoTotalUsd: 0,
+  asignadaATodos: true,
+  prospectoresIds: [],
+  orden: 0,
+  activa: true,
+  publicadaEnLaWeb: false,
+  textoWebEs: "",
+  textoWebEn: "",
+};
 
 export function ModalDePropiedad({
   estaAbierto,
   propiedadEnEdicion,
   alCerrar,
+  alCrear,
 }: PropiedadesDelModalDePropiedad) {
   const { catalogos } = useCatalogos();
 
@@ -94,15 +125,8 @@ export function ModalDePropiedad({
   const porcentajePorDefecto = catalogos?.porcentajeForecastPorDefecto ?? 20;
 
   const [formulario, establecerFormulario] = useState<FormularioDePropiedad>({
-    nombre: "",
-    descripcion: "",
-    logoUrl: "",
-    montoTotalUsd: 0,
+    ...FORMULARIO_VACIO,
     porcentajeForecast: porcentajePorDefecto,
-    asignadaATodos: true,
-    prospectoresIds: [],
-    orden: 0,
-    activa: true,
   });
 
   const [errorDelNombre, establecerErrorDelNombre] = useState("");
@@ -134,18 +158,14 @@ export function ModalDePropiedad({
         ),
         orden: propiedadEnEdicion.orden,
         activa: propiedadEnEdicion.activa,
+        publicadaEnLaWeb: propiedadEnEdicion.publicadaEnLaWeb,
+        textoWebEs: propiedadEnEdicion.textoWebEs ?? "",
+        textoWebEn: propiedadEnEdicion.textoWebEn ?? "",
       });
     } else {
       establecerFormulario({
-        nombre: "",
-        descripcion: "",
-        logoUrl: "",
-        montoTotalUsd: 0,
+        ...FORMULARIO_VACIO,
         porcentajeForecast: porcentajePorDefecto,
-        asignadaATodos: true,
-        prospectoresIds: [],
-        orden: 0,
-        activa: true,
       });
     }
 
@@ -184,6 +204,9 @@ export function ModalDePropiedad({
       prospectoresIds: formulario.asignadaATodos ? [] : formulario.prospectoresIds,
       orden: formulario.orden,
       activa: formulario.activa,
+      publicadaEnLaWeb: formulario.publicadaEnLaWeb,
+      textoWebEs: formulario.textoWebEs.trim() || null,
+      textoWebEn: formulario.textoWebEn.trim() || null,
     };
 
     try {
@@ -194,13 +217,21 @@ export function ModalDePropiedad({
         });
 
         avisarDeExito("Propiedad actualizada");
+        alCerrar();
       } else {
-        await crearPropiedad.mutateAsync(datosParaEnviar);
+        const propiedadCreada = await crearPropiedad.mutateAsync(datosParaEnviar);
 
-        avisarDeExito("Propiedad creada");
+        if (alCrear) {
+          avisarDeInformacion(
+            "Propiedad creada",
+            "Ya puedes subirle las fotos, los planos y el dossier.",
+          );
+          alCrear(propiedadCreada);
+        } else {
+          avisarDeExito("Propiedad creada");
+          alCerrar();
+        }
       }
-
-      alCerrar();
     } catch (error) {
       avisarDeError(error, "No se pudo guardar la propiedad");
     }
@@ -297,6 +328,7 @@ export function ModalDePropiedad({
           />
 
           <Textarea
+            description="Para el equipo. No sale en la web: allí va el texto de «Publicar en la web»."
             label="Descripción"
             labelPlacement="outside"
             minRows={2}
@@ -306,6 +338,19 @@ export function ModalDePropiedad({
             variant="bordered"
             onValueChange={(valor) => cambiarCampo("descripcion", valor)}
           />
+
+          {/* --- Su material de venta --- */}
+          {estamosEditando ? (
+            <GaleriaDePropiedad
+              propiedad={propiedadEnEdicion}
+              seVaAPublicar={formulario.publicadaEnLaWeb}
+            />
+          ) : (
+            <p className="rounded-2xl border border-dashed border-default-200 px-4 py-3 text-[11px] leading-relaxed text-default-500">
+              Las fotos, los planos y el dossier se suben en cuanto la propiedad
+              exista: al crearla, esta ventana se queda abierta para hacerlo.
+            </p>
+          )}
 
           {/* --- Cuánto vale --- */}
           <div className="rounded-2xl border border-default-200 p-4">
@@ -409,6 +454,75 @@ export function ModalDePropiedad({
                     </SelectItem>
                   ))}
                 </Select>
+              </div>
+            )}
+          </div>
+
+          {/* --- La web pública --- */}
+          <div className="rounded-2xl border border-default-200 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <Globe className="size-4 text-default-400" />
+                  Publicar en la web
+                </span>
+                <p className="mt-0.5 text-[11px] text-default-500">
+                  Sale en la sección de propiedades de la web de la agencia, con su
+                  portada y sus fotos. Nunca con montos ni documentos.
+                </p>
+              </div>
+
+              <Switch
+                isSelected={formulario.publicadaEnLaWeb}
+                size="sm"
+                onValueChange={(activada) => cambiarCampo("publicadaEnLaWeb", activada)}
+              />
+            </div>
+
+            {formulario.publicadaEnLaWeb && (
+              <div className="mt-4 space-y-4">
+                <Textarea
+                  description="Lo que lee un patrocinador: qué es, a quién reúne, qué ofrece."
+                  label="Texto para la web"
+                  labelPlacement="outside"
+                  maxLength={2000}
+                  minRows={3}
+                  placeholder="Ej. La competencia de artes marciales más vista del país…"
+                  radius="lg"
+                  value={formulario.textoWebEs}
+                  variant="bordered"
+                  onValueChange={(valor) => cambiarCampo("textoWebEs", valor)}
+                />
+
+                <Textarea
+                  description="Si se deja vacío, la web en inglés enseña el de español."
+                  label="El mismo texto, en inglés"
+                  labelPlacement="outside"
+                  maxLength={2000}
+                  minRows={3}
+                  radius="lg"
+                  value={formulario.textoWebEn}
+                  variant="bordered"
+                  onValueChange={(valor) => cambiarCampo("textoWebEn", valor)}
+                />
+
+                {!formulario.activa && (
+                  <p className="rounded-xl bg-warning-50 px-3 py-2 text-[11px] text-warning-700 dark:bg-warning-100/10 dark:text-warning">
+                    Está desactivada: no saldrá en la web hasta que vuelva a estar en venta.
+                  </p>
+                )}
+
+                {estamosEditando && propiedadEnEdicion.publicadaEnLaWeb && propiedadEnEdicion.activa && (
+                  <a
+                    className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-primary hover:underline"
+                    href="/#propiedades"
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    <ExternalLink className="size-3.5" />
+                    Ver cómo se ve en la web
+                  </a>
+                )}
               </div>
             )}
           </div>

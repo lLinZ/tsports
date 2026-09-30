@@ -284,7 +284,8 @@ tsports/
 │   │   ├── Models/             User, Marca, ComentarioMarca,
 │   │   │                       Propiedad, PropiedadDeMarca, Campana…
 │   │   ├── Policies/           quién puede hacer qué
-│   │   └── Support/            catálogos y contenido de fábrica
+│   │   └── Support/            catálogos, contenido de fábrica y
+│   │                           GuardadoDeArchivos (la puerta de los ficheros)
 │   ├── database/migrations/
 │   ├── database/seeders/       DatabaseSeeder, PropiedadesIopSeeder
 │   ├── tests/Feature/          reglas de negocio y permisos
@@ -299,9 +300,10 @@ tsports/
 │       ├── componentes/
 │       │   ├── chat/      ← burbuja y ventana flotante, charla, emoji,
 │       │   │                grupos (la página es paginas/PaginaChat)
-│       │   ├── comunes/   ← TarjetaBento, CampoDeImagen, BarraDeProporcion…
+│       │   ├── comunes/   ← TarjetaBento, CampoDeImagen, BarraDeProporcion,
+│       │   │                VisorDeGaleria…
 │       │   ├── crm/       ← tarjeta de marca, ficha, bitácora,
-│       │   │                checklist de propiedades
+│       │   │                checklist y galería de propiedades
 │       │   └── layout/    ← barra lateral y superior
 │       ├── hooks/         ← useMarcas, usePropiedades, useCampanas,
 │       │                    useCatalogos, useEfectosDeScroll
@@ -310,7 +312,7 @@ tsports/
 │       ├── theme/         ← conversión del color de acento
 │       ├── tipos/         ← los tipos de la API, en un solo fichero
 │       └── utilidades/    ← formato de dinero y fechas, avisos
-└── deploy/                ← nginx y guion de despliegue del VPS
+└── deploy/                ← nginx, topes de PHP y guion de despliegue del VPS
 ```
 
 ---
@@ -578,6 +580,38 @@ Salieron del cliente y están implementadas a propósito así:
       (`meta: { sinCopiaLocal: true }`, ver regla 18): se refresca cada
       pocos segundos y reescribiría la copia entera en cada vuelta.
 
+21. **Los ficheros entran por una sola puerta, y lo de la bitácora no es
+    público.** Desde el 2026-09-29, con la galería de propiedades y los
+    adjuntos.
+
+    - **Todo fichero lo guarda `App\Support\GuardadoDeArchivos`**, que
+      decide por propósito el disco, los formatos y el tope, y mira el
+      tipo en el **contenido** del fichero (`finfo`); el nombre y lo que
+      diga el navegador no cuentan. Galería y bitácora admiten fotos y PDF hasta
+      20 MB, **sin SVG** (lleva código dentro y esto se enseña a
+      clientes); logos, fotos de la web y avatares siguen en 5 MB.
+    - **Los adjuntos de la bitácora van en el disco privado** y se abren
+      con un enlace firmado que caduca en uno o dos días
+      (`ArchivoMedia::enlaceFirmado`). La bitácora es la relación
+      comercial con una marca: servida por `/storage`, cualquiera con la
+      dirección la vería para siempre. El fichero sube antes que la
+      entrada (para enseñar el progreso) y lo que nadie publica se borra
+      solo a las 48 h. Lo adjuntado no se cambia al editar: si sobra, se
+      elimina la entrada, que deja el hueco de la regla 19.
+    - **La web pública solo enseña lo que se publicó**: propiedad activa
+      **y** con «Publicar en la web», y de ella solo las fotos que no se
+      dejaron «solo para el equipo». Nunca un PDF ni un monto: el recurso
+      público (`RecursoPropiedadEnLaWeb`) nombra uno a uno los campos que
+      salen, así que un campo nuevo en la propiedad no se publica solo.
+    - **Un lead que pregunta por una propiedad entra con ella en su
+      checklist** (OVP a 0) y el aviso de la regla 17 dice cuál es.
+    - **La miniatura la hace el navegador** y sube con el original; si
+      llega rota se descarta y se enseña el original.
+    - **Tres topes que se mueven juntos**: Laravel (20 MB), PHP
+      (`deploy/php-tsports.ini`) y nginx (`client_max_body_size`). Si se
+      sube uno solo, el que se queda corto corta la petición sin mensaje
+      y parece un fallo del sistema.
+
 ---
 
 ## 7. Errores: una sola forma
@@ -672,3 +706,7 @@ VPS usa **MySQL**: la plantilla es `backend/.env.example`.
   pantalla: se usa `errorSoloSiNoHayNadaQueEnsenar` (regla 18).
 - Registrar el service worker en desarrollo: una caché por delante de
   Vite esconde los cambios recién guardados.
+- Guardar un fichero sin pasar por `GuardadoDeArchivos`, o servir un
+  adjunto de la bitácora desde `/storage` (regla 21).
+- Subir el tope de subida en un solo sitio: Laravel, PHP y nginx van
+  juntos (regla 21).

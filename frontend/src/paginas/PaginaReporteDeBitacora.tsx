@@ -28,6 +28,7 @@ import {
   CornerDownRight,
   Download,
   FileText,
+  Image as ImageIcon,
   MessagesSquare,
   NotebookPen,
   Users,
@@ -58,6 +59,7 @@ import {
   formatearFechaYHora,
   formatearNumero,
   formatearPeriodo,
+  formatearTamanoDeFichero,
   inicialesDe,
 } from "@/utilidades/formato";
 import type {
@@ -479,9 +481,37 @@ function EntradaEnElReporte({ entrada }: { entrada: EntradaDelReporte }) {
             Entrada eliminada por {entrada.eliminadoPorNombre ?? "alguien"}.
           </p>
         ) : (
-          <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-default-700">
-            {entrada.cuerpo}
-          </p>
+          entrada.cuerpo !== "" && (
+            <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-default-700">
+              {entrada.cuerpo}
+            </p>
+          )
+        )}
+
+        {/* Lo que se envió. Los enlaces son firmados y caducan: sirven
+            para abrirlo desde aquí, no para copiarlos. */}
+        {entrada.adjuntos.length > 0 && (
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {entrada.adjuntos.map((adjunto, posicion) => (
+              <a
+                key={`${adjunto.nombre}-${posicion}`}
+                className="flex max-w-full items-center gap-1.5 rounded-lg bg-default-100 px-2 py-1 text-[11px] text-default-700 transition hover:bg-primary-50 hover:text-primary"
+                href={adjunto.url ?? undefined}
+                rel="noreferrer"
+                target="_blank"
+              >
+                {adjunto.tipo === "imagen" ? (
+                  <ImageIcon className="size-3.5 shrink-0" />
+                ) : (
+                  <FileText className="size-3.5 shrink-0" />
+                )}
+                <span className="truncate">{adjunto.nombre}</span>
+                <span className="shrink-0 text-default-400">
+                  {formatearTamanoDeFichero(adjunto.tamanoBytes)}
+                </span>
+              </a>
+            ))}
+          </div>
         )}
 
         {entrada.mencionados.length > 0 && (

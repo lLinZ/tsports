@@ -76,6 +76,29 @@ export interface ProspectorAsignado {
 }
 
 /**
+ * Una pieza de la galería de una propiedad: una foto, un plano o el
+ * dossier en PDF.
+ *
+ * `urlMiniatura` es la versión pequeña de una foto, para las rejillas;
+ * null si no la hay (los documentos nunca), y entonces se usa `url`.
+ */
+export interface ArchivoDeGaleria {
+  id: string;
+  tipo: "imagen" | "documento";
+  nombre: string;
+  tamanoBytes: number;
+  url: string;
+  urlMiniatura: string | null;
+  titulo: string | null;
+  descripcion: string | null;
+  orden: number;
+  esPortada: boolean;
+  /** Si sale en la web cuando la propiedad está publicada. Un PDF, nunca. */
+  enLaWeb: boolean;
+  subidoEn: string | null;
+}
+
+/**
  * Un producto IOP del catálogo: lo que la agencia vende.
  *
  * Los tres montos del producto, y de dónde sale cada uno:
@@ -105,6 +128,20 @@ export interface Propiedad {
   orden: number;
   activa: boolean;
 
+  /**
+   * Si sale en la web pública. Solo sale si además está activa: una
+   * desactivada deja de verse fuera aunque siga marcada.
+   */
+  publicadaEnLaWeb: boolean;
+  /** Lo que lee el visitante. Aparte de `descripcion`, que es la nota interna. */
+  textoWebEs: string | null;
+  textoWebEn: string | null;
+
+  /** Sus fotos, planos y dossier, en orden. Viaja siempre con la propiedad. */
+  galeria?: ArchivoDeGaleria[];
+  /** La foto pequeña de la portada, lista para una tarjeta. */
+  portadaUrl?: string | null;
+
   /** Solo llegan cuando se pide el catálogo con totales. */
   totalMarcas?: number;
   ovpAcumuladoUsd?: number;
@@ -129,6 +166,9 @@ export interface DatosDePropiedadParaGuardar {
   prospectoresIds: string[];
   orden: number;
   activa: boolean;
+  publicadaEnLaWeb: boolean;
+  textoWebEs: string | null;
+  textoWebEn: string | null;
 }
 
 /**
@@ -455,6 +495,25 @@ export interface PersonaMencionable {
   rolEtiqueta: string;
 }
 
+/**
+ * Un fichero adjunto a una entrada de la bitácora.
+ *
+ * Las tres direcciones vienen FIRMADAS por el servidor y caducan en uno o
+ * dos días: los adjuntos viven en el disco privado, porque son de una
+ * marca y una marca no la ve todo el equipo. No se guardan ni se copian a
+ * mano; se piden otra vez con la bitácora.
+ */
+export interface AdjuntoDeComentario {
+  id: string;
+  tipo: "imagen" | "documento";
+  nombre: string;
+  tamanoBytes: number;
+  url: string;
+  /** Null si no hay versión pequeña: se usa `url`. */
+  urlMiniatura: string | null;
+  urlDescarga: string;
+}
+
 export interface ComentarioDeMarca {
   id: string;
   marcaId: string;
@@ -479,6 +538,8 @@ export interface ComentarioDeMarca {
 
   reacciones: ReaccionDeComentario[];
   mencionados: PersonaEtiquetada[];
+  /** Lo que se envió con la entrada. Se cuelga al publicar y no cambia. */
+  adjuntos: AdjuntoDeComentario[];
 
   /** Solo las entradas raíz las traen; las respuestas no anidan. */
   respuestas: ComentarioDeMarca[];
@@ -495,6 +556,20 @@ export interface DatosDeComentario {
   menciones: string[];
   /** Solo al responder: de qué entrada cuelga. */
   comentarioPadreId?: string | null;
+  /**
+   * Solo al publicar: los ficheros ya subidos que lleva. Al corregir no
+   * se mandan, porque los adjuntos no cambian una vez publicados.
+   */
+  adjuntos?: string[];
+}
+
+/** Un adjunto tal como sale en el histórico y en el reporte. */
+export interface AdjuntoDelHistorico {
+  nombre: string;
+  tipo: "imagen" | "documento";
+  tamanoBytes: number;
+  /** Firmado y con caducidad: para abrirlo desde el reporte en pantalla. */
+  url: string | null;
 }
 
 /** Una entrada tal como sale en el histórico que se descarga. */
@@ -510,6 +585,7 @@ export interface EntradaDelHistorico {
   eliminadoPorNombre: string | null;
   mencionados: string[];
   totalReacciones: number;
+  adjuntos: AdjuntoDelHistorico[];
 }
 
 /** El histórico completo de una marca, o de toda la agencia. */
@@ -909,6 +985,11 @@ export interface CatalogosDelSistema {
   zonas: string[];
   /** Reparto por defecto sobre el MTP al crear una propiedad (20 %). */
   porcentajeForecastPorDefecto: number;
+  /**
+   * Lo que puede pesar una foto o un PDF de la galería o de la bitácora.
+   * Sirve para avisar antes de subir; quien manda es el servidor.
+   */
+  tamanoMaximoDeArchivoMb: number;
   sectores: string[];
   viasDeProspeccion: string[];
   viasDeAproximacion: string[];
@@ -1006,8 +1087,32 @@ export interface MensajeDeContacto {
   empresa: string;
   telefono: string;
   mensaje: string;
+  /**
+   * La propiedad por la que se pregunta, si se escribe desde su tarjeta
+   * del catálogo. El lead nace con ella en su checklist.
+   */
+  propiedadId?: string;
   /** Trampa para robots: debe viajar siempre vacío. */
   sitioWeb: string;
+}
+
+/**
+ * Una propiedad del catálogo tal como la ve un visitante de la web.
+ * Sin montos ni documentos: solo lo que se decidió enseñar fuera.
+ */
+export interface PropiedadEnLaWeb {
+  id: string;
+  nombre: string;
+  logoUrl: string | null;
+  texto: Record<IdiomaDeLaWeb, string>;
+  portadaUrl: string | null;
+  fotos: Array<{
+    id: string;
+    url: string;
+    urlMiniatura: string | null;
+    titulo: string | null;
+    descripcion: string | null;
+  }>;
 }
 
 /* ==================================================================== */

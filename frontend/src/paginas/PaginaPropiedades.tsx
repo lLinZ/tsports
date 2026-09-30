@@ -23,10 +23,16 @@
  * que toca con una propiedad que ya pasó y volverá (un evento del año):
  * se hace desde la tarjeta y no se pierde nada de lo hablado con cada
  * marca, al revés que borrarla.
+ *
+ * Cada tarjeta lleva arriba la portada de su galería, y abajo el acceso
+ * al material (fotos, planos, dossier) para TODO el equipo: consultarlo
+ * no es editar la propiedad, y quien vende también lo necesita.
  * ---------------------------------------------------------------------
  */
 import { Button, Chip, Tooltip } from "@heroui/react";
 import {
+  Globe,
+  Images,
   Package,
   Pencil,
   Plus,
@@ -47,6 +53,7 @@ import {
   EstadoVacio,
 } from "@/componentes/comunes/EstadosDePantalla";
 import { SeccionDeDesactivadas } from "@/componentes/comunes/SeccionDeDesactivadas";
+import { VisorDeGaleria } from "@/componentes/comunes/VisorDeGaleria";
 import { ModalDePropiedad } from "@/componentes/crm/ModalDePropiedad";
 import {
   useCambiarActivaDePropiedad,
@@ -63,6 +70,7 @@ import {
   formatearPorcentaje,
   inicialesDe,
 } from "@/utilidades/formato";
+import { elementosDeUnaGaleria } from "@/utilidades/galeria";
 import type { Propiedad } from "@/tipos/modelos";
 
 export function PaginaPropiedades() {
@@ -71,6 +79,15 @@ export function PaginaPropiedades() {
 
   const [elModalEstaAbierto, establecerModalAbierto] = useState(false);
   const [propiedadEnEdicion, establecerPropiedadEnEdicion] =
+    useState<Propiedad | null>(null);
+
+  /**
+   * De qué propiedad se está viendo el material. Un solo visor para toda
+   * la página, y fuera de las tarjetas: sus clics suben por el árbol de
+   * React aunque se pinte en otra capa, y dentro de una tarjeta cada
+   * flecha abriría además la edición de la propiedad.
+   */
+  const [propiedadEnElVisor, establecerPropiedadEnElVisor] =
     useState<Propiedad | null>(null);
 
   function abrirModalDeAlta() {
@@ -209,6 +226,7 @@ export function PaginaPropiedades() {
                 key={propiedad.id}
                 propiedad={propiedad}
                 alEditar={abrirModalDeEdicion}
+                alVerMaterial={establecerPropiedadEnElVisor}
               />
             ))}
           </div>
@@ -223,6 +241,7 @@ export function PaginaPropiedades() {
                   key={propiedad.id}
                   propiedad={propiedad}
                   alEditar={abrirModalDeEdicion}
+                  alVerMaterial={establecerPropiedadEnElVisor}
                 />
               ))}
             </SeccionDeDesactivadas>
@@ -232,8 +251,19 @@ export function PaginaPropiedades() {
 
       <ModalDePropiedad
         alCerrar={() => establecerModalAbierto(false)}
+        // Recién creada, la ventana sigue abierta sobre ella para subirle
+        // las fotos y el dossier sin tener que buscarla y volver a entrar.
+        alCrear={(propiedadCreada) => establecerPropiedadEnEdicion(propiedadCreada)}
         estaAbierto={elModalEstaAbierto}
         propiedadEnEdicion={propiedadEnEdicion}
+      />
+
+      <VisorDeGaleria
+        elementos={elementosDeUnaGaleria(propiedadEnElVisor?.galeria ?? [])}
+        estaAbierto={propiedadEnElVisor !== null}
+        posicionInicial={0}
+        titulo={propiedadEnElVisor?.nombre}
+        alCerrar={() => establecerPropiedadEnElVisor(null)}
       />
     </div>
   );
@@ -300,13 +330,17 @@ function TotalDelCatalogo({
 function TarjetaDePropiedad({
   propiedad,
   alEditar,
+  alVerMaterial,
 }: {
   propiedad: Propiedad;
   alEditar: (propiedad: Propiedad) => void;
+  alVerMaterial: (propiedad: Propiedad) => void;
 }) {
   const pronosticado = propiedad.ovpAcumuladoUsd ?? 0;
   const marcasQueLaOfrecen = propiedad.totalMarcas ?? 0;
   const cambiarActiva = useCambiarActivaDePropiedad();
+
+  const material = propiedad.galeria ?? [];
 
   async function activarODesactivar() {
     try {
@@ -342,6 +376,18 @@ function TarjetaDePropiedad({
         if (propiedad.puedoEditarla && evento.key === "Enter") alEditar(propiedad);
       }}
     >
+      {/* La portada de su galería, de borde a borde de la caja. */}
+      {propiedad.portadaUrl && (
+        <div className="-mx-4 -mt-4 aspect-[16/7] overflow-hidden rounded-t-[inherit] bg-default-100">
+          <img
+            alt=""
+            className="size-full object-cover"
+            loading="lazy"
+            src={propiedad.portadaUrl}
+          />
+        </div>
+      )}
+
       {/* Logo, nombre y distintivos */}
       <div className="flex items-start gap-3">
         <div className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-default-100">
@@ -367,6 +413,18 @@ function TarjetaDePropiedad({
             {!propiedad.activa && (
               <Chip color="warning" radius="lg" size="sm" variant="flat">
                 Desactivada
+              </Chip>
+            )}
+
+            {propiedad.activa && propiedad.publicadaEnLaWeb && (
+              <Chip
+                color="success"
+                radius="lg"
+                size="sm"
+                startContent={<Globe className="ml-1 size-3" />}
+                variant="flat"
+              >
+                En la web
               </Chip>
             )}
 
@@ -434,6 +492,22 @@ function TarjetaDePropiedad({
         </span>
 
         <div className="flex items-center gap-3">
+          {material.length > 0 && (
+            <button
+              className="flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+              type="button"
+              onClick={(evento) => {
+                // La caja entera abre la edición; esto abre solo el visor.
+                evento.stopPropagation();
+                alVerMaterial(propiedad);
+              }}
+              onKeyDown={(evento) => evento.stopPropagation()}
+            >
+              <Images className="size-3.5" />
+              Material · {material.length}
+            </button>
+          )}
+
           {marcasQueLaOfrecen > 0 && (
             <Link
               className="text-[11px] font-semibold text-primary hover:underline"

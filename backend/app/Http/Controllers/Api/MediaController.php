@@ -7,34 +7,39 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ArchivoMedia;
 use App\Models\User;
+use App\Support\GuardadoDeArchivos;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 /**
- * MediaController — subida de imágenes al servidor.
+ * MediaController — subida de imágenes sueltas: logos, web y avatares.
  * ---------------------------------------------------------------------
- * Sustituye al bucket "media" de Supabase Storage. Los ficheros van al
- * disco público del propio VPS (storage/app/public, enlazado desde
- * public/storage con `php artisan storage:link`).
+ * Sustituye al bucket "media" de Supabase Storage. Es la subida de lo que
+ * después se guarda como una URL en otro sitio: el logo de una marca o de
+ * una propiedad, una foto de la web, un avatar.
  *
- * Sobre seguridad: el nombre original del fichero NUNCA se usa como
- * nombre en disco. Se genera uno aleatorio y la extensión se deduce del
- * tipo MIME real detectado por PHP, no de lo que diga el nombre. Así un
- * "logo.php.png" no puede acabar siendo ejecutable en el servidor.
+ * La galería de las propiedades y los adjuntos de la bitácora NO pasan
+ * por aquí: tienen sus propias rutas, porque cada fichero queda colgado
+ * de algo con permisos propios (la propiedad, la marca). Las reglas de
+ * cómo se guarda un fichero son las mismas para todos y viven en
+ * App\Support\GuardadoDeArchivos.
  */
 class MediaController extends Controller
 {
-    /** Tamaño máximo por imagen, en kilobytes (5 MB). */
-    private const TAMANO_MAXIMO_KB = 5120;
+    /** Los propósitos que se suben por esta ruta. */
+    private const PROPOSITOS_DE_ESTA_RUTA = [
+        ArchivoMedia::PROPOSITO_LOGO_MARCA,
+        ArchivoMedia::PROPOSITO_CONTENIDO_WEB,
+        ArchivoMedia::PROPOSITO_AVATAR,
+    ];
 
     /**
      * POST /api/media
      * Sube una imagen y devuelve la URL pública para guardarla en la
      * ficha de la marca o en el contenido de la web.
      */
-    public function subir(Request $peticion): JsonResponse
+    public function subir(Request $peticion, GuardadoDeArchivos $guardado): JsonResponse
     {
         $datos = $peticion->validate([
             'archivo' => [
@@ -42,16 +47,9 @@ class MediaController extends Controller
                 'file',
                 'image',
                 'mimes:jpg,jpeg,png,webp,gif,svg',
-                'max:'.self::TAMANO_MAXIMO_KB,
+                'max:'.GuardadoDeArchivos::TAMANO_MAXIMO_DE_IMAGEN_KB,
             ],
-            'proposito' => [
-                'nullable',
-                Rule::in([
-                    ArchivoMedia::PROPOSITO_LOGO_MARCA,
-                    ArchivoMedia::PROPOSITO_CONTENIDO_WEB,
-                    ArchivoMedia::PROPOSITO_AVATAR,
-                ]),
-            ],
+            'proposito' => ['nullable', Rule::in(self::PROPOSITOS_DE_ESTA_RUTA)],
         ], [
             'archivo.required' => 'Elige una imagen para subir.',
             'archivo.image' => 'El fichero debe ser una imagen.',
@@ -59,32 +57,14 @@ class MediaController extends Controller
             'archivo.max' => 'La imagen no puede pesar más de 5 MB.',
         ]);
 
-        /** @var \Illuminate\Http\UploadedFile $imagenSubida */
-        $imagenSubida = $datos['archivo'];
-
-        $propositoDeLaImagen = $datos['proposito'] ?? ArchivoMedia::PROPOSITO_CONTENIDO_WEB;
-
-        // Nombre aleatorio + extensión deducida del contenido real.
-        $extensionSegura = $imagenSubida->extension() ?: 'png';
-        $nombreEnDisco = Str::uuid()->toString().'.'.$extensionSegura;
-
-        // Carpeta por propósito y por mes: mantiene el disco ordenado y
-        // evita directorios con decenas de miles de ficheros.
-        $carpetaDestino = $propositoDeLaImagen.'/'.now()->format('Y-m');
-
-        $rutaRelativa = $imagenSubida->storeAs($carpetaDestino, $nombreEnDisco, 'public');
-
         /** @var User $usuarioQueSube */
         $usuarioQueSube = $peticion->user();
 
-        $registroDelArchivo = ArchivoMedia::create([
-            'ruta_relativa' => $rutaRelativa,
-            'nombre_original' => mb_substr($imagenSubida->getClientOriginalName(), 0, 200),
-            'tipo_mime' => (string) $imagenSubida->getClientMimeType(),
-            'tamano_bytes' => (int) $imagenSubida->getSize(),
-            'proposito' => $propositoDeLaImagen,
-            'subido_por_id' => $usuarioQueSube->id,
-        ]);
+        $registroDelArchivo = $guardado->guardar(
+            $datos['archivo'],
+            $datos['proposito'] ?? ArchivoMedia::PROPOSITO_CONTENIDO_WEB,
+            $usuarioQueSube,
+        );
 
         return response()->json([
             'id' => $registroDelArchivo->id,
@@ -100,9 +80,21 @@ class MediaController extends Controller
      *
      * Solo la puede borrar quien la subió o un administrador: así nadie
      * deja sin logo la marca de otro por error.
+     *
+     * Y solo lo que se subió por esta misma ruta. Una foto de la galería
+     * se borra desde su propiedad y un adjunto no se borra suelto nunca
+     * (se va con su entrada): si esta ruta los aceptara, serviría para
+     * saltarse los permisos de las dos y para vaciar una entrada de la
+     * bitácora sin dejar rastro.
      */
     public function destroy(Request $peticion, ArchivoMedia $archivo): JsonResponse
     {
+        if (! in_array($archivo->proposito, self::PROPOSITOS_DE_ESTA_RUTA, true)) {
+            return response()->json([
+                'mensaje' => 'Ese fichero se gestiona desde la galería o la bitácora a la que pertenece.',
+            ], 403);
+        }
+
         /** @var User $usuarioQueActua */
         $usuarioQueActua = $peticion->user();
 

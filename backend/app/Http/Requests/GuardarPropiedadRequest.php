@@ -21,6 +21,9 @@ use Illuminate\Validation\Validator;
  *   · Si la propiedad NO es para todo el equipo hay que decir quién la
  *     trabaja: si no, se quedaría sin nadie que la pueda ofrecer y
  *     desaparecería del checklist de todos.
+ *
+ * La galería no viaja aquí: tiene sus propias rutas, porque se sube
+ * fichero a fichero (ver GaleriaDePropiedadController).
  */
 class GuardarPropiedadRequest extends FormRequest
 {
@@ -59,6 +62,11 @@ class GuardarPropiedadRequest extends FormRequest
 
             'orden' => ['nullable', 'integer', 'min:0', 'max:9999'],
             'activa' => ['boolean'],
+
+            // La web pública: si sale y con qué texto, en los dos idiomas.
+            'publicadaEnLaWeb' => ['sometimes', 'boolean'],
+            'textoWebEs' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'textoWebEn' => ['sometimes', 'nullable', 'string', 'max:2000'],
         ];
     }
 
@@ -99,7 +107,7 @@ class GuardarPropiedadRequest extends FormRequest
     {
         $datosValidados = $this->validated();
 
-        return [
+        $datos = [
             'nombre' => trim((string) $datosValidados['nombre']),
             'descripcion' => $datosValidados['descripcion'] ?? null,
             'logo_url' => $datosValidados['logoUrl'] ?? null,
@@ -114,6 +122,23 @@ class GuardarPropiedadRequest extends FormRequest
             // contrario: es lo que se espera al acabar de crearla.
             'activa' => $this->has('activa') ? $this->boolean('activa') : true,
         ];
+
+        // Lo de la web solo se toca si viene. Una pestaña abierta con la
+        // versión anterior del panel guarda la propiedad sin estos campos,
+        // y si faltar se leyera como «no», la despublicaría sin que nadie
+        // lo pidiera.
+        if ($this->has('publicadaEnLaWeb')) {
+            $datos['publicada_en_la_web'] = $this->boolean('publicadaEnLaWeb');
+        }
+
+        foreach (['textoWebEs' => 'texto_web_es', 'textoWebEn' => 'texto_web_en'] as $campo => $columna) {
+            if ($this->has($campo)) {
+                $texto = trim((string) ($datosValidados[$campo] ?? ''));
+                $datos[$columna] = $texto === '' ? null : $texto;
+            }
+        }
+
+        return $datos;
     }
 
     /**

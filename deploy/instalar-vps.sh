@@ -429,6 +429,18 @@ ${COMO_ROOT} chown "${USUARIO_ACTUAL}":www-data "${CARPETA_DEL_PROYECTO}/backend
 ${COMO_ROOT} chmod 640 "${CARPETA_DEL_PROYECTO}/backend/.env"
 
 # ---------------------------------------------------------------------
+# 5b) Límites de subida de PHP
+# ---------------------------------------------------------------------
+# Debian trae 2 MB por fichero, y la galería y la bitácora admiten 20.
+# Los tres límites (Laravel, PHP y nginx) van juntos: ver la cabecera de
+# deploy/php-tsports.ini. desplegar.sh lo mantiene al día después.
+paso "Ajustando los límites de subida de PHP"
+
+${COMO_ROOT} cp "${CARPETA_DEL_PROYECTO}/deploy/php-tsports.ini" \
+  "/etc/php/${VERSION_DE_PHP}/fpm/conf.d/99-tsports.ini"
+${COMO_ROOT} systemctl restart "php${VERSION_DE_PHP}-fpm"
+
+# ---------------------------------------------------------------------
 # 6) nginx
 # ---------------------------------------------------------------------
 paso "Configurando nginx"

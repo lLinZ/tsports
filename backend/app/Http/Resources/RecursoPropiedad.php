@@ -22,6 +22,11 @@ use Illuminate\Http\Resources\Json\JsonResource;
  *     bandera, sin comparar roles ni mirar la lista de asignados.
  *   · `puedoEditarla` / `puedoEliminarla` → los botones del catálogo.
  *
+ * La galería viaja con la propiedad cuando el controlador la cargó, que
+ * es siempre: el checklist de la ficha la necesita para enseñar las fotos
+ * delante del cliente sin otra petición. `portadaUrl` es la foto pequeña
+ * de la portada, lista para una tarjeta.
+ *
  * @mixin Propiedad
  */
 class RecursoPropiedad extends JsonResource
@@ -60,6 +65,22 @@ class RecursoPropiedad extends JsonResource
 
             'orden' => $this->orden,
             'activa' => $this->activa,
+
+            // --- La web pública ---
+            'publicadaEnLaWeb' => $this->publicada_en_la_web,
+            'textoWebEs' => $this->texto_web_es,
+            'textoWebEn' => $this->texto_web_en,
+
+            // --- Galería ---
+            'galeria' => RecursoArchivoDePropiedad::collection($this->whenLoaded('galeria')),
+            'portadaUrl' => $this->when(
+                $this->resource->relationLoaded('galeria'),
+                function (): ?string {
+                    $archivoDeLaPortada = $this->portada()?->archivo;
+
+                    return $archivoDeLaPortada?->urlDeLaMiniatura() ?? $archivoDeLaPortada?->url_publica;
+                },
+            ),
 
             // Cuántas marcas la llevan en su checklist y cuánto suman sus
             // pronósticos. Solo viajan si el controlador los pidió, para

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ArchivoMedia;
 use App\Models\ComentarioMarca;
 use App\Models\Marca;
 use App\Models\RegistroActividad;
@@ -195,6 +196,7 @@ class ExportacionDeBitacoraController extends Controller
                 'marca:id,nombre_marca,logo_url,sector,zona,vendedor_asignado_nombre',
                 'mencionados:id,name,email',
                 'reacciones',
+                'adjuntos',
                 'padre:id,autor_nombre,cuerpo,created_at,eliminado_en',
             ])
             ->whereBetween('created_at', [$inicio->utc(), $fin->utc()])
@@ -354,7 +356,7 @@ class ExportacionDeBitacoraController extends Controller
     private function entradasDe($consulta): array
     {
         $comentarios = $consulta
-            ->with(['marca:id,nombre_marca', 'mencionados:id,name', 'reacciones'])
+            ->with(['marca:id,nombre_marca', 'mencionados:id,name', 'reacciones', 'adjuntos'])
             ->orderBy('marca_id')
             ->orderBy('created_at')
             ->get();
@@ -398,6 +400,18 @@ class ExportacionDeBitacoraController extends Controller
             // Un recuento, no la lista de quién puso qué: en un documento
             // que se archiva, saber que hubo tres reacciones basta.
             'totalReacciones' => $entrada->reacciones->count(),
+            // Qué se envió con cada entrada. El enlace es firmado y
+            // caduca: sirve para abrirlo desde el reporte en pantalla,
+            // y el documento impreso lista solo los nombres.
+            'adjuntos' => $entrada->adjuntos
+                ->map(fn (ArchivoMedia $adjunto): array => [
+                    'nombre' => $adjunto->nombre_original,
+                    'tipo' => $adjunto->tipo(),
+                    'tamanoBytes' => $adjunto->tamano_bytes,
+                    'url' => $adjunto->enlaceFirmado(),
+                ])
+                ->values()
+                ->all(),
         ];
     }
 }

@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\RecursoComentarioMarca;
 use App\Http\Resources\RecursoPersonaMencionable;
+use App\Models\ArchivoMedia;
 use App\Models\ComentarioMarca;
 use App\Models\Marca;
 use App\Models\RegistroActividad;
@@ -16,7 +17,9 @@ use App\Support\QuienPuedeVerLaMarca;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * ComentarioMarcaController — la bitácora de cada marca.
@@ -42,9 +45,17 @@ use Illuminate\Support\Facades\DB;
  *   2. UN SOLO NIVEL DE RESPUESTAS. Una respuesta cuelga siempre de una
  *      entrada raíz de la misma marca; responder a una respuesta se
  *      rechaza.
+ *
+ * Y los ADJUNTOS: se suben antes, por AdjuntoController, y aquí la
+ * entrada solo dice cuáles lleva. Solo puede colgar ficheros que subió
+ * la misma persona y que no estén ya en otra entrada; si no, bastaría
+ * con saber el id de un fichero ajeno para pegarlo en un hilo propio.
  */
 class ComentarioMarcaController extends Controller
 {
+    /** Con más de diez ficheros la entrada deja de leerse de corrido. */
+    private const MAXIMO_DE_ADJUNTOS_POR_ENTRADA = 10;
+
     /**
      * GET /api/marcas/{marca}/comentarios
      *
@@ -89,18 +100,31 @@ class ComentarioMarcaController extends Controller
         $this->authorize('comentar', $marca);
 
         $datos = $peticion->validate([
-            'cuerpo' => ['required', 'string', 'max:4000'],
+            'cuerpo' => ['nullable', 'string', 'max:4000'],
             'comentarioPadreId' => ['nullable', 'uuid'],
             'menciones' => ['nullable', 'array', 'max:20'],
             'menciones.*' => ['uuid'],
+            'adjuntos' => ['nullable', 'array', 'max:'.self::MAXIMO_DE_ADJUNTOS_POR_ENTRADA],
+            'adjuntos.*' => ['uuid', 'distinct'],
         ], [
-            'cuerpo.required' => 'Escribe algo antes de comentar.',
             'cuerpo.max' => 'El comentario es demasiado largo (máximo 4000 caracteres).',
             'menciones.max' => 'No se puede etiquetar a más de 20 personas en una entrada.',
+            'adjuntos.max' => 'Una entrada lleva como mucho '.self::MAXIMO_DE_ADJUNTOS_POR_ENTRADA.' adjuntos.',
         ]);
 
         /** @var User $autor */
         $autor = $peticion->user();
+
+        $texto = trim((string) ($datos['cuerpo'] ?? ''));
+        $adjuntos = $this->adjuntosQuePuedeColgar($autor, $datos['adjuntos'] ?? []);
+
+        // Un fichero solo, sin texto, también es una entrada: «el dossier
+        // que se mandó» se entiende por sí mismo. Lo que no vale es nada.
+        if ($texto === '' && $adjuntos->isEmpty()) {
+            throw ValidationException::withMessages([
+                'cuerpo' => 'Escribe algo antes de comentar.',
+            ]);
+        }
 
         $padre = null;
 
@@ -123,16 +147,24 @@ class ComentarioMarcaController extends Controller
 
         $mencionados = QuienPuedeVerLaMarca::filtrar($marca, $datos['menciones'] ?? []);
 
-        $comentario = DB::transaction(function () use ($marca, $autor, $datos, $padre, $mencionados): ComentarioMarca {
+        $comentario = DB::transaction(function () use ($marca, $autor, $texto, $padre, $mencionados, $adjuntos): ComentarioMarca {
             $nuevo = $marca->comentarios()->create([
                 'comentario_padre_id' => $padre?->id,
                 'autor_id' => $autor->id,
                 'autor_nombre' => $autor->nombreParaMostrar(),
-                'cuerpo' => trim($datos['cuerpo']),
+                'cuerpo' => $texto,
             ]);
 
             if ($mencionados->isNotEmpty()) {
                 $nuevo->mencionados()->sync($mencionados->pluck('id')->all());
+            }
+
+            if ($adjuntos->isNotEmpty()) {
+                $nuevo->adjuntos()->attach(
+                    $adjuntos->values()->mapWithKeys(
+                        fn (ArchivoMedia $adjunto, int $posicion): array => [$adjunto->id => ['orden' => $posicion]],
+                    )->all(),
+                );
             }
 
             return $nuevo;
@@ -143,7 +175,12 @@ class ComentarioMarcaController extends Controller
             RegistroActividad::ACCION_COMENTO,
             'marca',
             $marca->id,
-            ($padre === null ? 'Comentó en ' : 'Respondió en ').$marca->nombre_marca,
+            ($padre === null ? 'Comentó en ' : 'Respondió en ').$marca->nombre_marca
+                .match ($adjuntos->count()) {
+                    0 => '',
+                    1 => ' con un adjunto',
+                    default => ' con '.$adjuntos->count().' adjuntos',
+                },
         );
 
         if ($mencionados->isNotEmpty()) {
@@ -151,7 +188,7 @@ class ComentarioMarcaController extends Controller
                 $mencionados,
                 $marca,
                 $autor,
-                $comentario->cuerpo,
+                $this->textoParaElAviso($comentario->cuerpo, $adjuntos),
             );
         }
 
@@ -191,20 +228,29 @@ class ComentarioMarcaController extends Controller
         }
 
         $datos = $peticion->validate([
-            'cuerpo' => ['required', 'string', 'max:4000'],
+            'cuerpo' => ['nullable', 'string', 'max:4000'],
             'menciones' => ['nullable', 'array', 'max:20'],
             'menciones.*' => ['uuid'],
         ], [
-            'cuerpo.required' => 'El comentario no puede quedarse vacío.',
             'cuerpo.max' => 'El comentario es demasiado largo (máximo 4000 caracteres).',
         ]);
+
+        $texto = trim((string) ($datos['cuerpo'] ?? ''));
+
+        // Una entrada que lleva un fichero puede quedarse sin texto; una
+        // que no lleva nada más que texto, no.
+        if ($texto === '' && ! $comentario->adjuntos()->exists()) {
+            throw ValidationException::withMessages([
+                'cuerpo' => 'El comentario no puede quedarse vacío.',
+            ]);
+        }
 
         $yaEstabanMencionados = $comentario->mencionados()->pluck('users.id')->all();
         $mencionados = QuienPuedeVerLaMarca::filtrar($marca, $datos['menciones'] ?? []);
 
-        DB::transaction(function () use ($comentario, $datos, $mencionados): void {
+        DB::transaction(function () use ($comentario, $texto, $mencionados): void {
             $comentario->update([
-                'cuerpo' => trim($datos['cuerpo']),
+                'cuerpo' => $texto,
                 'editado_en' => now(),
             ]);
 
@@ -220,7 +266,7 @@ class ComentarioMarcaController extends Controller
                 $losQueNoEstaban,
                 $marca,
                 $quienEdita,
-                $comentario->cuerpo,
+                $this->textoParaElAviso($comentario->cuerpo, $comentario->adjuntos()->get()),
             );
         }
 
@@ -329,9 +375,62 @@ class ComentarioMarcaController extends Controller
         return [
             'reacciones.usuario',
             'mencionados',
+            'adjuntos',
             'respuestas.reacciones.usuario',
             'respuestas.mencionados',
+            'respuestas.adjuntos',
         ];
+    }
+
+    /**
+     * Los ficheros que esta persona puede colgar de su entrada, en el
+     * orden en que los adjuntó.
+     *
+     * Solo sirven los que subió ELLA y que no están en otra entrada. Si
+     * alguno no cumple, se rechaza la entrada entera en vez de publicarla
+     * sin él: quien escribe cree que el fichero va dentro, y publicarla
+     * incompleta sería peor que avisar.
+     *
+     * @param  list<string>  $idsPedidos
+     * @return Collection<int,ArchivoMedia>
+     */
+    private function adjuntosQuePuedeColgar(User $autor, array $idsPedidos): Collection
+    {
+        if ($idsPedidos === []) {
+            return collect();
+        }
+
+        $disponibles = ArchivoMedia::query()
+            ->adjuntosSueltosDe($autor)
+            ->whereIn('id', $idsPedidos)
+            ->get()
+            ->keyBy('id');
+
+        if ($disponibles->count() !== count($idsPedidos)) {
+            throw ValidationException::withMessages([
+                'adjuntos' => 'Alguno de los archivos ya no está disponible. Quítalo y vuelve a adjuntarlo.',
+            ]);
+        }
+
+        return collect($idsPedidos)->map(fn (string $id): ArchivoMedia => $disponibles->get($id));
+    }
+
+    /**
+     * Lo que dice el aviso de una mención. Con texto, el adelanto del
+     * texto; con solo un fichero, qué fichero es: un aviso que dijera
+     * «Ana: «»» no le serviría a nadie.
+     *
+     * @param  Collection<int,ArchivoMedia>  $adjuntos
+     */
+    private function textoParaElAviso(string $texto, Collection $adjuntos): string
+    {
+        if (trim($texto) !== '' || $adjuntos->isEmpty()) {
+            return $texto;
+        }
+
+        return $adjuntos->count() === 1
+            ? 'Adjuntó '.$adjuntos->first()->nombre_original
+            : 'Adjuntó '.$adjuntos->count().' archivos';
     }
 
     /**

@@ -37,6 +37,13 @@ export const clienteHttp = axios.create({
   timeout: 20_000,
 });
 
+/**
+ * Lo que se espera a que termine la subida de una foto o un PDF de la
+ * galería o de la bitácora. Veinte megas por la red de un móvil tardan
+ * minutos, no los 20 segundos de una petición normal.
+ */
+export const TIEMPO_MAXIMO_DE_UNA_SUBIDA_MS = 5 * 60 * 1000;
+
 /* ==================================================================== */
 /* Gestión del token                                                    */
 /* ==================================================================== */
@@ -194,6 +201,12 @@ function elegirMensajeDeError(
 
   if (error.code === "ECONNABORTED") {
     return "El servidor tardó demasiado en responder. Comprueba tu conexión e inténtalo otra vez.";
+  }
+
+  // Un 413 sin mensaje propio lo manda nginx, que corta una subida
+  // demasiado grande antes de que Laravel la vea.
+  if (codigoHttp === 413) {
+    return "El fichero es demasiado grande para subirlo. Redúcelo e inténtalo otra vez.";
   }
 
   // Sin respuesta: el servidor no está en marcha o no hay red. Si el

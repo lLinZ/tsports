@@ -8,9 +8,10 @@
  * `alternarFaseDeMarca(id, "propuesta", true)`.
  * ---------------------------------------------------------------------
  */
-import { clienteHttp } from "@/api/clienteHttp";
+import { clienteHttp, TIEMPO_MAXIMO_DE_UNA_SUBIDA_MS } from "@/api/clienteHttp";
 import type {
   AccionDeCampanaEnElHistorial,
+  AdjuntoDeComentario,
   AgenteConMarcas,
   ComentarioDeMarca,
   DatosDeComentario,
@@ -260,6 +261,43 @@ export async function reaccionarAComentario(
   const { data } = await clienteHttp.put<{ data: ComentarioDeMarca }>(
     `/marcas/${idDeLaMarca}/comentarios/${idDelComentario}/reacciones`,
     { emoji },
+  );
+
+  return data.data;
+}
+
+/**
+ * Sube un fichero para una entrada que todavía se está escribiendo.
+ *
+ * Va ANTES que la entrada: cada adjunto sube por su cuenta con su barra
+ * de progreso, y al publicar la entrada solo dice qué ficheros lleva. Lo
+ * que se sube y no llega a publicarse lo barre el servidor.
+ */
+export async function subirAdjunto(
+  idDeLaMarca: string,
+  archivo: File,
+  opciones: {
+    miniatura?: Blob | null;
+    alProgresar?: (fraccion: number) => void;
+  } = {},
+): Promise<AdjuntoDeComentario> {
+  const formulario = new FormData();
+  formulario.append("archivo", archivo);
+
+  if (opciones.miniatura) {
+    formulario.append("miniatura", opciones.miniatura, "miniatura.jpg");
+  }
+
+  const { data } = await clienteHttp.post<{ data: AdjuntoDeComentario }>(
+    `/marcas/${idDeLaMarca}/adjuntos`,
+    formulario,
+    {
+      headers: { "Content-Type": undefined },
+      timeout: TIEMPO_MAXIMO_DE_UNA_SUBIDA_MS,
+      onUploadProgress: (evento) => {
+        if (evento.total) opciones.alProgresar?.(evento.loaded / evento.total);
+      },
+    },
   );
 
   return data.data;

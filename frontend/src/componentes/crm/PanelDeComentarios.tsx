@@ -26,6 +26,11 @@
  * Y UNA QUE SÍ: una entrada eliminada SE SIGUE VIENDO, sin texto y
  * diciendo quién la quitó. Es lo que hace que el histórico exportado
  * valga como registro.
+ *
+ * LOS ADJUNTOS suben mientras se escribe, cada uno con su barra (con el
+ * clip, soltándolos encima o pegando una captura), y la entrada solo dice
+ * al publicarse cuáles lleva. Una entrada puede ser solo un fichero. Al
+ * corregirla no se tocan: lo que se envió ese día no cambia.
  * ---------------------------------------------------------------------
  */
 import {
@@ -36,29 +41,35 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  Spinner,
   Textarea,
   Tooltip,
 } from "@heroui/react";
 import {
+  AlertTriangle,
   AtSign,
   CornerDownRight,
   Download,
   FileText,
   MessageSquarePlus,
+  Paperclip,
   Pencil,
+  RotateCw,
   Send,
   SmilePlus,
   Trash2,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent } from "react";
 import { mensajeDeError } from "@/api/clienteHttp";
-import { obtenerHistoricoDeMarca } from "@/api/marcas";
+import { obtenerHistoricoDeMarca, subirAdjunto } from "@/api/marcas";
 import { BarraDeScrollDibujada } from "@/componentes/comunes/BarraDeScrollDibujada";
 import {
   BloqueDeCarga,
   EstadoVacio,
 } from "@/componentes/comunes/EstadosDePantalla";
+import { VisorDeGaleria } from "@/componentes/comunes/VisorDeGaleria";
+import { useCatalogos } from "@/hooks/useCatalogos";
 import {
   useComentariosDeMarca,
   useCrearComentario,
@@ -72,8 +83,20 @@ import {
   descargarLaBitacoraEnExcel,
   imprimirLaBitacora,
 } from "@/utilidades/exportarBitacora";
-import { formatearTiempoRelativo, inicialesDe } from "@/utilidades/formato";
+import {
+  TIPOS_ADMITIDOS_EN_GALERIA_Y_BITACORA,
+  esImagen,
+  generarMiniatura,
+  motivoParaNoSubir,
+} from "@/utilidades/ficheros";
+import {
+  formatearTamanoDeFichero,
+  formatearTiempoRelativo,
+  inicialesDe,
+} from "@/utilidades/formato";
+import { elementosDeLosAdjuntos } from "@/utilidades/galeria";
 import type {
+  AdjuntoDeComentario,
   ComentarioDeMarca,
   DatosDeComentario,
   PersonaMencionable,
@@ -114,7 +137,11 @@ export function PanelDeComentarios({ idDeLaMarca }: { idDeLaMarca: string }) {
     referenciaAlFinalDelHilo.current?.scrollIntoView({ block: "end" });
   }, [hilo.length]);
 
-  async function publicar(datos: DatosDeComentario) {
+  /**
+   * Devuelven si se guardó. La caja solo se vacía cuando sí: si falla,
+   * lo escrito y los adjuntos ya subidos se quedan para reintentar.
+   */
+  async function publicar(datos: DatosDeComentario): Promise<boolean> {
     try {
       await crearComentario.mutateAsync({
         ...datos,
@@ -122,20 +149,28 @@ export function PanelDeComentarios({ idDeLaMarca }: { idDeLaMarca: string }) {
       });
 
       establecerRespondiendoA(null);
+
+      return true;
     } catch (error) {
       avisarDeError(error, "No se pudo publicar el comentario");
+
+      return false;
     }
   }
 
-  async function guardarLaCorreccion(datos: DatosDeComentario) {
-    if (editando === null) return;
+  async function guardarLaCorreccion(datos: DatosDeComentario): Promise<boolean> {
+    if (editando === null) return false;
 
     try {
       await editarComentario.mutateAsync({ id: editando.id, datos });
 
       establecerEditando(null);
+
+      return true;
     } catch (error) {
       avisarDeError(error, "No se pudo guardar el cambio");
+
+      return false;
     }
   }
 
@@ -236,6 +271,7 @@ export function PanelDeComentarios({ idDeLaMarca }: { idDeLaMarca: string }) {
 
           <CajaDeEscritura
             estaGuardando={crearComentario.isPending}
+            idDeLaMarcaParaAdjuntar={idDeLaMarca}
             mencionables={mencionables}
             textoDelBoton={respondiendoA === null ? "Comentar" : "Responder"}
             marcadorDePosicion={
@@ -281,12 +317,12 @@ function EntradaDeLaBitacora({
   onEditar: () => void;
   onBorrar: () => void;
   onReaccionar: (emoji: string) => void;
-  onGuardarEdicion: (datos: DatosDeComentario) => void | Promise<void>;
+  onGuardarEdicion: (datos: DatosDeComentario) => Promise<boolean>;
   onCancelarEdicion: () => void;
   onEditarRespuesta: (respuesta: ComentarioDeMarca) => void;
   onBorrarRespuesta: (id: string) => void;
   onReaccionarARespuesta: (id: string, emoji: string) => void;
-  onGuardarEdicionDeRespuesta: (datos: DatosDeComentario) => void | Promise<void>;
+  onGuardarEdicionDeRespuesta: (datos: DatosDeComentario) => Promise<boolean>;
 }) {
   return (
     <div className="space-y-2">
@@ -350,7 +386,7 @@ function CuerpoDeLaEntrada({
   onEditar: () => void;
   onBorrar: () => void;
   onReaccionar: (emoji: string) => void;
-  onGuardarEdicion: (datos: DatosDeComentario) => void | Promise<void>;
+  onGuardarEdicion: (datos: DatosDeComentario) => Promise<boolean>;
   onCancelarEdicion: () => void;
 }) {
   // Una entrada eliminada deja su hueco, sin texto y con el rastro de
@@ -378,6 +414,8 @@ function CuerpoDeLaEntrada({
           estaGuardando={false}
           mencionables={mencionables}
           marcadorDePosicion="Corrige lo que escribiste…"
+          // Una entrada que lleva un fichero se entiende sin texto.
+          permiteTextoVacio={entrada.adjuntos.length > 0}
           textoDelBoton="Guardar"
           textoInicial={entrada.cuerpo}
           mencionesIniciales={entrada.mencionados.map((persona) => persona.id)}
@@ -412,9 +450,13 @@ function CuerpoDeLaEntrada({
         </time>
       </header>
 
-      <p className="whitespace-pre-wrap break-words pl-8 text-xs leading-relaxed text-default-700">
-        {entrada.cuerpo}
-      </p>
+      {entrada.cuerpo !== "" && (
+        <p className="whitespace-pre-wrap break-words pl-8 text-xs leading-relaxed text-default-700">
+          {entrada.cuerpo}
+        </p>
+      )}
+
+      {entrada.adjuntos.length > 0 && <AdjuntosDeLaEntrada adjuntos={entrada.adjuntos} />}
 
       {entrada.mencionados.length > 0 && (
         <div className="mt-1.5 flex flex-wrap gap-1 pl-8">
@@ -472,6 +514,85 @@ function CuerpoDeLaEntrada({
         </div>
       </div>
     </article>
+  );
+}
+
+/**
+ * Lo que se envió con una entrada: las fotos en pequeño, que se abren en
+ * el visor, y los PDF como una línea que se abre en otra pestaña.
+ *
+ * Las direcciones vienen firmadas y caducan en uno o dos días; se
+ * renuevan solas cada vez que se vuelve a pedir la bitácora.
+ */
+function AdjuntosDeLaEntrada({ adjuntos }: { adjuntos: AdjuntoDeComentario[] }) {
+  const [posicionEnElVisor, establecerPosicionEnElVisor] = useState<number | null>(null);
+
+  const fotos = adjuntos
+    .map((adjunto, posicion) => ({ adjunto, posicion }))
+    .filter(({ adjunto }) => adjunto.tipo === "imagen");
+  const documentos = adjuntos.filter((adjunto) => adjunto.tipo === "documento");
+
+  return (
+    <div className="mt-2 space-y-1.5 pl-8">
+      {fotos.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {fotos.map(({ adjunto, posicion }) => (
+            <button
+              key={adjunto.id}
+              aria-label={`Ver ${adjunto.nombre}`}
+              className="size-20 overflow-hidden rounded-xl bg-default-100 transition hover:opacity-85"
+              type="button"
+              onClick={() => establecerPosicionEnElVisor(posicion)}
+            >
+              <img
+                alt={adjunto.nombre}
+                className="size-full object-cover"
+                loading="lazy"
+                src={adjunto.urlMiniatura ?? adjunto.url}
+              />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {documentos.map((adjunto) => (
+        <div
+          key={adjunto.id}
+          className="flex items-center gap-2 rounded-xl bg-default-100 px-2.5 py-1.5"
+        >
+          <FileText className="size-4 shrink-0 text-default-500" />
+
+          <a
+            className="min-w-0 flex-1 truncate text-[11px] font-semibold text-foreground hover:underline"
+            href={adjunto.url}
+            rel="noreferrer"
+            target="_blank"
+          >
+            {adjunto.nombre}
+          </a>
+
+          <span className="shrink-0 text-[10px] text-default-400">
+            {formatearTamanoDeFichero(adjunto.tamanoBytes)}
+          </span>
+
+          <a
+            aria-label={`Descargar ${adjunto.nombre}`}
+            className="shrink-0 rounded-lg p-0.5 text-default-400 transition hover:text-foreground"
+            download={adjunto.nombre}
+            href={adjunto.urlDescarga}
+          >
+            <Download className="size-3.5" />
+          </a>
+        </div>
+      ))}
+
+      <VisorDeGaleria
+        elementos={elementosDeLosAdjuntos(adjuntos)}
+        estaAbierto={posicionEnElVisor !== null}
+        posicionInicial={posicionEnElVisor ?? 0}
+        alCerrar={() => establecerPosicionEnElVisor(null)}
+      />
+    </div>
   );
 }
 
@@ -542,6 +663,18 @@ function SelectorDeReaccion({ onElegir }: { onElegir: (emoji: string) => void })
 /* Caja de escritura, con el selector de personas                       */
 /* ==================================================================== */
 
+/** Un fichero adjunto en la caja, antes de publicar la entrada. */
+interface AdjuntoEnLaCaja {
+  idLocal: string;
+  fichero: File;
+  /** Para enseñar la foto al momento, sin esperar a que suba. */
+  vistaPrevia: string | null;
+  progreso: number;
+  /** Lo que devolvió el servidor al subirlo; null mientras sube. */
+  subido: AdjuntoDeComentario | null;
+  fallo: string | null;
+}
+
 function CajaDeEscritura({
   mencionables,
   marcadorDePosicion,
@@ -549,6 +682,8 @@ function CajaDeEscritura({
   estaGuardando,
   textoInicial = "",
   mencionesIniciales = [],
+  idDeLaMarcaParaAdjuntar,
+  permiteTextoVacio = false,
   onEnviar,
   onCancelar,
 }: {
@@ -558,25 +693,160 @@ function CajaDeEscritura({
   estaGuardando: boolean;
   textoInicial?: string;
   mencionesIniciales?: string[];
-  onEnviar: (datos: DatosDeComentario) => void | Promise<void>;
+  /** Con ella se puede adjuntar. Al corregir no se pasa: los adjuntos no cambian. */
+  idDeLaMarcaParaAdjuntar?: string;
+  /** Al corregir una entrada que lleva ficheros, que se entiende sin texto. */
+  permiteTextoVacio?: boolean;
+  /** Devuelve si se guardó: si no, la caja conserva lo escrito y lo adjuntado. */
+  onEnviar: (datos: DatosDeComentario) => Promise<boolean>;
   onCancelar?: () => void;
 }) {
+  const { catalogos } = useCatalogos();
+
   const [texto, establecerTexto] = useState(textoInicial);
   const [etiquetados, establecerEtiquetados] = useState<string[]>(mencionesIniciales);
+  const [adjuntos, establecerAdjuntos] = useState<AdjuntoEnLaCaja[]>([]);
+  const [estaArrastrandoEncima, establecerArrastrandoEncima] = useState(false);
 
-  const puedeEnviar = texto.trim() !== "" && !estaGuardando;
+  const selectorDeFicheros = useRef<HTMLInputElement>(null);
+
+  // Las vistas previas ocupan memoria hasta que se sueltan: al cerrar la
+  // ficha se sueltan las que queden. El efecto de cierre no ve el estado
+  // último, así que lo lee de una referencia que va al día.
+  const adjuntosVivos = useRef<AdjuntoEnLaCaja[]>([]);
+
+  useEffect(() => {
+    adjuntosVivos.current = adjuntos;
+  }, [adjuntos]);
+
+  useEffect(
+    () => () => {
+      adjuntosVivos.current.forEach((adjunto) => {
+        if (adjunto.vistaPrevia) URL.revokeObjectURL(adjunto.vistaPrevia);
+      });
+    },
+    [],
+  );
+
+  const sePuedeAdjuntar = idDeLaMarcaParaAdjuntar !== undefined;
+  const adjuntosListos = adjuntos.filter((adjunto) => adjunto.subido !== null);
+  const quedaAlgunoSubiendo = adjuntos.some((adjunto) => adjunto.subido === null && adjunto.fallo === null);
+  const hayAlgunoQueFallo = adjuntos.some((adjunto) => adjunto.fallo !== null);
+
+  const tieneContenido = texto.trim() !== "" || adjuntosListos.length > 0 || permiteTextoVacio;
+  const puedeEnviar = tieneContenido && !estaGuardando && !quedaAlgunoSubiendo && !hayAlgunoQueFallo;
+
+  function cambiarAdjunto(idLocal: string, cambios: Partial<AdjuntoEnLaCaja>) {
+    establecerAdjuntos((actuales) =>
+      actuales.map((adjunto) => (adjunto.idLocal === idLocal ? { ...adjunto, ...cambios } : adjunto)),
+    );
+  }
+
+  async function subirUno(adjunto: AdjuntoEnLaCaja) {
+    if (idDeLaMarcaParaAdjuntar === undefined) return;
+
+    cambiarAdjunto(adjunto.idLocal, { fallo: null, progreso: 0 });
+
+    try {
+      const miniatura = await generarMiniatura(adjunto.fichero);
+      const subido = await subirAdjunto(idDeLaMarcaParaAdjuntar, adjunto.fichero, {
+        miniatura,
+        alProgresar: (fraccion) => cambiarAdjunto(adjunto.idLocal, { progreso: fraccion }),
+      });
+
+      cambiarAdjunto(adjunto.idLocal, { subido, progreso: 1 });
+    } catch (error) {
+      cambiarAdjunto(adjunto.idLocal, { fallo: mensajeDeError(error) });
+    }
+  }
+
+  function adjuntar(ficheros: File[]) {
+    if (!sePuedeAdjuntar) return;
+
+    const tamanoMaximoMb = catalogos?.tamanoMaximoDeArchivoMb ?? 20;
+
+    const nuevos = ficheros.flatMap((fichero): AdjuntoEnLaCaja[] => {
+      const motivo = motivoParaNoSubir(fichero, tamanoMaximoMb);
+
+      if (motivo !== null) {
+        avisarDeError(motivo, "No se puede adjuntar");
+
+        return [];
+      }
+
+      return [
+        {
+          idLocal: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          fichero,
+          vistaPrevia: esImagen(fichero) ? URL.createObjectURL(fichero) : null,
+          progreso: 0,
+          subido: null,
+          fallo: null,
+        },
+      ];
+    });
+
+    establecerAdjuntos((actuales) => [...actuales, ...nuevos]);
+    nuevos.forEach((adjunto) => void subirUno(adjunto));
+  }
+
+  function quitarAdjunto(idLocal: string) {
+    establecerAdjuntos((actuales) => {
+      const quitado = actuales.find((adjunto) => adjunto.idLocal === idLocal);
+
+      if (quitado?.vistaPrevia) URL.revokeObjectURL(quitado.vistaPrevia);
+
+      // El fichero ya subido se queda en el servidor sin entrada, y el
+      // servidor lo barre solo pasadas unas horas.
+      return actuales.filter((adjunto) => adjunto.idLocal !== idLocal);
+    });
+  }
 
   async function enviar() {
     if (!puedeEnviar) return;
 
-    await onEnviar({ cuerpo: texto.trim(), menciones: etiquetados });
+    const salioBien = await onEnviar({
+      cuerpo: texto.trim(),
+      menciones: etiquetados,
+      ...(sePuedeAdjuntar
+        ? { adjuntos: adjuntosListos.map((adjunto) => (adjunto.subido as AdjuntoDeComentario).id) }
+        : {}),
+    });
 
+    // Si no se guardó, lo escrito y lo adjuntado se quedan donde estaban.
     // Solo se limpia al crear: al corregir, el componente desaparece
     // porque la entrada vuelve a su forma normal.
-    if (onCancelar === undefined) {
-      establecerTexto("");
-      establecerEtiquetados([]);
+    if (!salioBien || onCancelar !== undefined) return;
+
+    adjuntos.forEach((adjunto) => {
+      if (adjunto.vistaPrevia) URL.revokeObjectURL(adjunto.vistaPrevia);
+    });
+
+    establecerTexto("");
+    establecerEtiquetados([]);
+    establecerAdjuntos([]);
+  }
+
+  /** Una captura pegada se adjunta, salvo que venga con texto: entonces se pega el texto. */
+  function alPegar(evento: ClipboardEvent) {
+    if (!sePuedeAdjuntar) return;
+
+    const ficherosPegados = Array.from(evento.clipboardData.files);
+
+    if (ficherosPegados.length === 0 || evento.clipboardData.getData("text/plain") !== "") {
+      return;
     }
+
+    evento.preventDefault();
+    adjuntar(ficherosPegados);
+  }
+
+  function alSoltar(evento: DragEvent) {
+    if (!sePuedeAdjuntar || !evento.dataTransfer.types.includes("Files")) return;
+
+    evento.preventDefault();
+    establecerArrastrandoEncima(false);
+    adjuntar(Array.from(evento.dataTransfer.files));
   }
 
   const personasEtiquetadas = mencionables.filter((persona) =>
@@ -584,7 +854,24 @@ function CajaDeEscritura({
   );
 
   return (
-    <div className="flex flex-col gap-2">
+    <div
+      className={[
+        "flex flex-col gap-2 rounded-2xl transition",
+        estaArrastrandoEncima ? "bg-primary-50 ring-2 ring-primary/40 dark:bg-primary-100/10" : "",
+      ].join(" ")}
+      onDragLeave={(evento) => {
+        if (!evento.currentTarget.contains(evento.relatedTarget as Node | null)) {
+          establecerArrastrandoEncima(false);
+        }
+      }}
+      onDragOver={(evento) => {
+        if (sePuedeAdjuntar && evento.dataTransfer.types.includes("Files")) {
+          evento.preventDefault();
+          establecerArrastrandoEncima(true);
+        }
+      }}
+      onDrop={alSoltar}
+    >
       <Textarea
         maxRows={5}
         minRows={2}
@@ -600,8 +887,22 @@ function CajaDeEscritura({
             void enviar();
           }
         }}
+        onPaste={alPegar}
         onValueChange={establecerTexto}
       />
+
+      {adjuntos.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {adjuntos.map((adjunto) => (
+            <AdjuntoPendiente
+              key={adjunto.idLocal}
+              adjunto={adjunto}
+              alQuitar={() => quitarAdjunto(adjunto.idLocal)}
+              alReintentar={() => void subirUno(adjunto)}
+            />
+          ))}
+        </div>
+      )}
 
       {personasEtiquetadas.length > 0 && (
         <div className="flex flex-wrap gap-1">
@@ -643,8 +944,27 @@ function CajaDeEscritura({
             }}
           />
 
+          {sePuedeAdjuntar && (
+            <Tooltip content="Adjuntar fotos o PDF" placement="top">
+              <Button
+                isIconOnly
+                aria-label="Adjuntar fotos o PDF"
+                radius="full"
+                size="sm"
+                variant="light"
+                onPress={() => selectorDeFicheros.current?.click()}
+              >
+                <Paperclip className="size-4" />
+              </Button>
+            </Tooltip>
+          )}
+
           <span className="hidden text-[10px] text-default-400 sm:inline">
-            Ctrl + Enter para enviar
+            {quedaAlgunoSubiendo
+              ? "Esperando a que terminen de subir…"
+              : hayAlgunoQueFallo
+                ? "Quita o reintenta el adjunto que falló"
+                : "Ctrl + Enter para enviar"}
           </span>
         </div>
 
@@ -668,6 +988,92 @@ function CajaDeEscritura({
           </Button>
         </div>
       </div>
+
+      {sePuedeAdjuntar && (
+        <input
+          ref={selectorDeFicheros}
+          multiple
+          accept={TIPOS_ADMITIDOS_EN_GALERIA_Y_BITACORA}
+          className="hidden"
+          type="file"
+          onChange={(evento) => {
+            const elegidos = Array.from(evento.target.files ?? []);
+
+            // Se limpia para que elegir otra vez el mismo vuelva a adjuntarlo.
+            evento.target.value = "";
+
+            if (elegidos.length > 0) adjuntar(elegidos);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Un adjunto en la caja: la foto en pequeño o el nombre del PDF, con su
+ * progreso mientras sube, y la cruz para quitarlo antes de publicar.
+ */
+function AdjuntoPendiente({
+  adjunto,
+  alQuitar,
+  alReintentar,
+}: {
+  adjunto: AdjuntoEnLaCaja;
+  alQuitar: () => void;
+  alReintentar: () => void;
+}) {
+  const estaSubiendo = adjunto.subido === null && adjunto.fallo === null;
+
+  return (
+    <div
+      className={[
+        "relative flex h-14 items-center overflow-hidden rounded-xl border",
+        adjunto.fallo !== null ? "border-danger-300 bg-danger-50 dark:bg-danger-100/10" : "border-default-200 bg-default-50",
+        // La foto ocupa la pieza entera; el PDF deja sitio a la cruz.
+        adjunto.vistaPrevia ? "w-14" : "max-w-56 gap-2 pl-2 pr-7",
+      ].join(" ")}
+      title={adjunto.fallo ?? adjunto.fichero.name}
+    >
+      {adjunto.vistaPrevia ? (
+        <img alt={adjunto.fichero.name} className="size-full object-cover" src={adjunto.vistaPrevia} />
+      ) : (
+        <>
+          <FileText className="size-4 shrink-0 text-default-500" />
+          <div className="min-w-0">
+            <p className="truncate text-[11px] font-semibold text-foreground">{adjunto.fichero.name}</p>
+            <p className="text-[10px] text-default-400">{formatearTamanoDeFichero(adjunto.fichero.size)}</p>
+          </div>
+        </>
+      )}
+
+      {/* Mientras sube: el velo con el porcentaje. Si falló: reintentar. */}
+      {estaSubiendo && (
+        <span className="absolute inset-0 flex items-center justify-center bg-black/45 text-[10px] font-bold text-white">
+          {adjunto.progreso > 0 ? `${Math.round(adjunto.progreso * 100)} %` : <Spinner color="white" size="sm" />}
+        </span>
+      )}
+
+      {adjunto.fallo !== null && (
+        <button
+          aria-label={`Reintentar ${adjunto.fichero.name}`}
+          className="absolute inset-0 flex items-center justify-center gap-1 bg-danger-500/80 text-[10px] font-bold text-white"
+          type="button"
+          onClick={alReintentar}
+        >
+          <AlertTriangle className="size-3.5" />
+          <RotateCw className="size-3.5" />
+        </button>
+      )}
+
+      <button
+        aria-label={`Quitar ${adjunto.fichero.name}`}
+        className="absolute right-0.5 top-0.5 z-10 rounded-full bg-black/55 p-0.5 text-white transition hover:bg-black/80"
+        type="button"
+        onClick={alQuitar}
+      >
+        <X className="size-3" />
+      </button>
     </div>
   );
 }

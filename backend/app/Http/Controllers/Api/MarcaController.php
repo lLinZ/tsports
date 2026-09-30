@@ -8,6 +8,7 @@ use App\Enums\OrigenMarca;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\GuardarMarcaRequest;
 use App\Http\Resources\RecursoMarca;
+use App\Models\ComentarioMarca;
 use App\Models\Marca;
 use App\Models\Propiedad;
 use App\Models\PropiedadDeMarca;
@@ -647,7 +648,14 @@ class MarcaController extends Controller
 
         $nombreDeLaMarcaBorrada = $marca->nombre_marca;
 
+        // Los adjuntos de su bitácora se apuntan ANTES de borrarla: las
+        // filas se van en cascada con la marca, pero los ficheros se
+        // quedarían en el disco sin nadie que supiera de quién eran.
+        $adjuntosDeSuBitacora = ComentarioMarca::adjuntosDeLaMarca($marca);
+
         $marca->delete();
+
+        $adjuntosDeSuBitacora->each->eliminarConSuFichero();
 
         RegistroActividad::anotar(
             $peticion->user(),

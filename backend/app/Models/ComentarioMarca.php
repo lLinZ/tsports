@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 
 /**
  * ComentarioMarca — una entrada de la bitácora de una marca.
@@ -34,6 +35,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * que la marca de borrado se lleva a mano y el texto se vacía al
  * borrar. Un registro del que se pueden quitar entradas sin rastro no
  * vale como registro, y este se exporta.
+ *
+ * LOS ADJUNTOS SON PARTE DE LA ENTRADA. Se cuelgan al publicarla y no se
+ * cambian después: corregir una errata no puede servir para quitar el
+ * PDF que se mandó ese día. Si el adjunto era otro, se elimina la entrada
+ * (queda el hueco) y se publica de nuevo. Y al eliminarla se borran sus
+ * ficheros del disco, por lo mismo que se vacía el texto.
  */
 class ComentarioMarca extends Model
 {
@@ -102,6 +109,20 @@ class ComentarioMarca extends Model
     {
         return $this->belongsToMany(User::class, 'menciones_de_comentario', 'comentario_id', 'usuario_id')
                     ->withTimestamps();
+    }
+
+    /**
+     * Los ficheros que lleva: el dossier que se mandó, la foto de la
+     * activación. Van en el disco privado (ver ArchivoMedia).
+     *
+     * @return BelongsToMany<ArchivoMedia,self>
+     */
+    public function adjuntos(): BelongsToMany
+    {
+        return $this->belongsToMany(ArchivoMedia::class, 'adjuntos_de_comentario', 'comentario_id', 'archivo_media_id')
+                    ->withPivot('orden')
+                    ->withTimestamps()
+                    ->orderByPivot('orden');
     }
 
     /* ================================================================ */
@@ -186,5 +207,24 @@ class ComentarioMarca extends Model
         // dice nada. Las reacciones también.
         $this->mencionados()->detach();
         $this->reacciones()->delete();
+
+        // Y los adjuntos, del disco también: eliminar tiene que eliminar
+        // lo que se envió igual que lo que se escribió.
+        $this->adjuntos()->get()->each->eliminarConSuFichero();
+    }
+
+    /**
+     * Los ficheros adjuntos a todas las entradas de una marca.
+     *
+     * Para borrarlos del disco cuando se borra la marca entera: las filas
+     * se van en cascada con ella, pero los ficheros se quedarían.
+     *
+     * @return Collection<int,ArchivoMedia>
+     */
+    public static function adjuntosDeLaMarca(Marca $marca): Collection
+    {
+        return ArchivoMedia::query()
+            ->whereHas('comentarios', fn (Builder $consulta) => $consulta->where('marca_id', $marca->id))
+            ->get();
     }
 }

@@ -32,6 +32,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * `prospectores`. La pregunta se hace siempre con `laPuedeOfrecer()`, y
  * nunca comparando roles sueltos por ahí.
  *
+ * SU GALERÍA Y LA WEB
+ * Cada propiedad lleva sus fotos, planos y dossier (`galeria`). Sale en
+ * la web pública solo si está activa Y alguien la marcó como publicada
+ * (`scopeEnLaWeb`): el catálogo de la web no es un volcado del catálogo
+ * del CRM, y lo que se publica se decide.
+ *
  * @property string $id
  */
 class Propiedad extends Model
@@ -50,6 +56,9 @@ class Propiedad extends Model
         'asignada_a_todos',
         'orden',
         'activa',
+        'publicada_en_la_web',
+        'texto_web_es',
+        'texto_web_en',
     ];
 
     /**
@@ -66,6 +75,7 @@ class Propiedad extends Model
             'porcentaje_forecast' => 'decimal:2',
             'asignada_a_todos' => 'boolean',
             'activa' => 'boolean',
+            'publicada_en_la_web' => 'boolean',
             'orden' => 'integer',
         ];
     }
@@ -89,6 +99,20 @@ class Propiedad extends Model
     public function marcasQueLaOfrecen(): HasMany
     {
         return $this->hasMany(PropiedadDeMarca::class, 'propiedad_id');
+    }
+
+    /**
+     * Sus fotos, planos y documentos, en el orden en que se enseñan. El
+     * `id` desempata, igual que en el tablero: dos piezas con el mismo
+     * orden no pueden bailar de sitio entre una carga y otra.
+     *
+     * @return HasMany<ArchivoDePropiedad,self>
+     */
+    public function galeria(): HasMany
+    {
+        return $this->hasMany(ArchivoDePropiedad::class, 'propiedad_id')
+            ->orderBy('orden')
+            ->orderBy('id');
     }
 
     /* ------------------------------------------------------------------
@@ -129,6 +153,40 @@ class Propiedad extends Model
         return $this->prospectores->contains('id', $usuario->id);
     }
 
+    /**
+     * La foto que la representa: la marcada como portada o, si no hay
+     * ninguna marcada, la primera foto de la galería. Null si no tiene
+     * fotos. Trabaja sobre la galería ya cargada.
+     */
+    public function portada(): ?ArchivoDePropiedad
+    {
+        $fotos = $this->galeria->filter(
+            fn (ArchivoDePropiedad $pieza): bool => $pieza->esImagen(),
+        );
+
+        return $fotos->first(fn (ArchivoDePropiedad $pieza): bool => $pieza->es_portada)
+            ?? $fotos->first();
+    }
+
+    /**
+     * Borra la propiedad y los ficheros de su galería.
+     *
+     * Las filas de la galería se van solas con la propiedad (clave
+     * foránea en cascada), pero el disco no sabe de claves foráneas: sin
+     * esto, las fotos de una propiedad borrada seguirían ocupando sitio y
+     * abriéndose por su URL para siempre.
+     */
+    public function eliminarConSuGaleria(): void
+    {
+        $ficheros = ArchivoMedia::query()
+            ->whereIn('id', $this->galeria()->pluck('archivo_media_id'))
+            ->get();
+
+        $this->delete();
+
+        $ficheros->each->eliminarConSuFichero();
+    }
+
     /* ------------------------------------------------------------------
      | Scopes
      |-----------------------------------------------------------------*/
@@ -136,6 +194,16 @@ class Propiedad extends Model
     public function scopeActivas(Builder $consulta): Builder
     {
         return $consulta->where('activa', true);
+    }
+
+    /**
+     * Lo que enseña la web pública: activas Y publicadas. Una propiedad
+     * desactivada deja de salir aunque siga marcada, y vuelve sola al
+     * reactivarla.
+     */
+    public function scopeEnLaWeb(Builder $consulta): Builder
+    {
+        return $consulta->where('activa', true)->where('publicada_en_la_web', true);
     }
 
     /**

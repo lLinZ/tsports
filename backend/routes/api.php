@@ -10,7 +10,9 @@ declare(strict_types=1);
  * Están agrupadas en tres bloques según quién puede llamarlas:
  *
  *   1. PÚBLICO      → sin sesión. Es lo que consume la web pública: el
- *                     contenido del sitio y el formulario de contacto.
+ *                     contenido del sitio, el catálogo de propiedades y
+ *                     el formulario de contacto. Y los adjuntos de la
+ *                     bitácora, que no piden sesión pero sí una firma.
  *                     Van con limitación de peticiones por IP.
  *
  *   2. AUTENTICADO  → cualquier persona del equipo con sesión iniciada.
@@ -22,6 +24,7 @@ declare(strict_types=1);
  *                     política; aquí solo se agrupan por claridad.
  */
 
+use App\Http\Controllers\Api\AdjuntoController;
 use App\Http\Controllers\Api\AuditoriaController;
 use App\Http\Controllers\Api\AutenticacionController;
 use App\Http\Controllers\Api\CalendarioController;
@@ -32,12 +35,14 @@ use App\Http\Controllers\Api\ComentarioMarcaController;
 use App\Http\Controllers\Api\ContenidoSitioController;
 use App\Http\Controllers\Api\LeadPublicoController;
 use App\Http\Controllers\Api\EventoDeCampanaController;
+use App\Http\Controllers\Api\GaleriaDePropiedadController;
 use App\Http\Controllers\Api\MarcaController;
 use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\MiPerfilController;
 use App\Http\Controllers\Api\NotificacionController;
 use App\Http\Controllers\Api\PanelController;
 use App\Http\Controllers\Api\PropiedadController;
+use App\Http\Controllers\Api\PropiedadesEnLaWebController;
 use App\Http\Controllers\Api\SectorController;
 use App\Http\Controllers\Api\ExportacionDeBitacoraController;
 use App\Http\Controllers\Api\SuscripcionPushController;
@@ -58,6 +63,20 @@ Route::get('/contenido-web', [ContenidoSitioController::class, 'mostrarPublico']
 // bastan de sobra para una persona y frenan a un robot.
 Route::post('/contacto', [LeadPublicoController::class, 'store'])
     ->middleware('throttle:5,1');
+
+// El catálogo de propiedades de la web: las activas que alguien marcó
+// como publicadas, sin montos ni documentos (RecursoPropiedadEnLaWeb).
+Route::get('/propiedades-en-la-web', [PropiedadesEnLaWebController::class, 'index'])
+    ->middleware('throttle:120,1');
+
+// Un adjunto de la bitácora. Sin sesión porque lo pide una etiqueta
+// <img> o un enlace, que no mandan el token: lo que da acceso es la
+// FIRMA, que solo pone el servidor en las respuestas de la bitácora a
+// quien puede ver la marca, y que caduca en uno o dos días. Relativa
+// para que valga igual detrás de nginx que detrás del proxy de Vite.
+Route::get('/adjuntos/{archivo}', [AdjuntoController::class, 'ver'])
+    ->name('adjuntos.ver')
+    ->middleware(['signed:relative', 'throttle:600,1']);
 
 // Inicio de sesión. El freno por fuerza bruta fino (por correo + IP) lo
 // aplica además el propio controlador.
@@ -154,6 +173,14 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::patch('/propiedades/{propiedad}/activa', [PropiedadController::class, 'activarODesactivar']);
     Route::delete('/propiedades/{propiedad}', [PropiedadController::class, 'destroy']);
 
+    // Su galería: fotos, planos y dossier. Verla es ver la propiedad
+    // (viaja con ella); tocarla es editarla, y eso lo decide la política.
+    Route::post('/propiedades/{propiedad}/galeria', [GaleriaDePropiedadController::class, 'subir']);
+    Route::put('/propiedades/{propiedad}/galeria/orden', [GaleriaDePropiedadController::class, 'reordenar']);
+    Route::patch('/propiedades/{propiedad}/galeria/{archivoDePropiedad}', [GaleriaDePropiedadController::class, 'actualizar']);
+    Route::put('/propiedades/{propiedad}/galeria/{archivoDePropiedad}/portada', [GaleriaDePropiedadController::class, 'elegirPortada']);
+    Route::delete('/propiedades/{propiedad}/galeria/{archivoDePropiedad}', [GaleriaDePropiedadController::class, 'eliminar']);
+
     /* ---------- Sectores (el rubro de cada marca) ----------
      | El catálogo lo consulta todo el equipo, porque hace falta para el
      | selector de la ficha; crearlos y retirarlos lo decide quien
@@ -181,6 +208,10 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // A quién se puede etiquetar en ESTA marca. Sale de los
     // permisos sobre ella, no de la lista del equipo (regla 6).
     Route::get('/marcas/{marca}/mencionables', [ComentarioMarcaController::class, 'mencionables']);
+
+    // Subir un adjunto mientras se escribe la entrada. La entrada solo
+    // dice después qué ficheros lleva (ver AdjuntoController).
+    Route::post('/marcas/{marca}/adjuntos', [AdjuntoController::class, 'subir']);
 
     // Sacar el histórico. Todas las salidas quedan anotadas en la
     // auditoría: exportar una bitácora es sacar del sistema toda la
