@@ -14,10 +14,14 @@
  * Las dos traen la galería de cada propiedad. La galería se toca con sus
  * propias llamadas (abajo), fichero a fichero: no viaja con el
  * formulario de la propiedad.
+ *
+ * Al final, el usuario y la contraseña de invitado con los que los
+ * clientes abren el catálogo de la web.
  * ---------------------------------------------------------------------
  */
 import { clienteHttp, TIEMPO_MAXIMO_DE_UNA_SUBIDA_MS } from "@/api/clienteHttp";
 import type {
+  AccesoDeInvitados,
   ArchivoDeGaleria,
   DatosDePropiedadParaGuardar,
   Propiedad,
@@ -182,6 +186,35 @@ export async function eliminarDeGaleria(
 ): Promise<ArchivoDeGaleria[]> {
   const { data } = await clienteHttp.delete<{ data: ArchivoDeGaleria[] }>(
     `/propiedades/${idDeLaPropiedad}/galeria/${idDeLaPieza}`,
+  );
+
+  return data.data;
+}
+
+/* ==================================================================== */
+/* El acceso de invitados al catálogo de la web                         */
+/* ==================================================================== */
+
+/** El usuario y la contraseña de invitado, o nulo si nadie los ha puesto. */
+export async function obtenerAccesoDeInvitados(): Promise<AccesoDeInvitados | null> {
+  const { data } = await clienteHttp.get<{ data: AccesoDeInvitados | null }>(
+    "/acceso-de-invitados",
+  );
+
+  return data.data;
+}
+
+/**
+ * Pone o cambia la pareja. Si cambia, los clientes que entraron con la
+ * anterior dejan de ver el catálogo hasta que entren con la nueva.
+ */
+export async function guardarAccesoDeInvitados(
+  usuario: string,
+  contrasena: string,
+): Promise<AccesoDeInvitados> {
+  const { data } = await clienteHttp.put<{ data: AccesoDeInvitados }>(
+    "/acceso-de-invitados",
+    { usuario, contrasena },
   );
 
   return data.data;

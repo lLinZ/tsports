@@ -27,12 +27,16 @@
  * Cada tarjeta lleva arriba la portada de su galería, y abajo el acceso
  * al material (fotos, planos, dossier) para TODO el equipo: consultarlo
  * no es editar la propiedad, y quien vende también lo necesita.
+ *
+ * «Acceso a la web» abre el usuario y la contraseña de invitado con los
+ * que los clientes ven el catálogo en la web (solo admin y comercial).
  * ---------------------------------------------------------------------
  */
 import { Button, Chip, Tooltip } from "@heroui/react";
 import {
   Globe,
   Images,
+  KeyRound,
   Package,
   Pencil,
   Plus,
@@ -54,6 +58,7 @@ import {
 } from "@/componentes/comunes/EstadosDePantalla";
 import { SeccionDeDesactivadas } from "@/componentes/comunes/SeccionDeDesactivadas";
 import { VisorDeGaleria } from "@/componentes/comunes/VisorDeGaleria";
+import { ModalDeAccesoDeInvitados } from "@/componentes/crm/ModalDeAccesoDeInvitados";
 import { ModalDePropiedad } from "@/componentes/crm/ModalDePropiedad";
 import {
   useCambiarActivaDePropiedad,
@@ -89,6 +94,9 @@ export function PaginaPropiedades() {
    */
   const [propiedadEnElVisor, establecerPropiedadEnElVisor] =
     useState<Propiedad | null>(null);
+
+  /** La ventana del usuario y la contraseña de invitado del catálogo de la web. */
+  const [elAccesoEstaAbierto, establecerAccesoAbierto] = useState(false);
 
   function abrirModalDeAlta() {
     establecerPropiedadEnEdicion(null);
@@ -149,6 +157,18 @@ export function PaginaPropiedades() {
           >
             {!catalogo.estaRefrescando && <RefreshCw className="size-4" />}
           </Button>
+
+          {usuario.permisos.gestionaElCatalogoComercial && (
+            <Button
+              radius="lg"
+              size="sm"
+              startContent={<KeyRound className="size-4" />}
+              variant="flat"
+              onPress={() => establecerAccesoAbierto(true)}
+            >
+              Acceso a la web
+            </Button>
+          )}
 
           {usuario.permisos.gestionaElCatalogoComercial && (
             <Button
@@ -248,6 +268,11 @@ export function PaginaPropiedades() {
           )}
         </>
       )}
+
+      <ModalDeAccesoDeInvitados
+        alCerrar={() => establecerAccesoAbierto(false)}
+        estaAbierto={elAccesoEstaAbierto}
+      />
 
       <ModalDePropiedad
         alCerrar={() => establecerModalAbierto(false)}

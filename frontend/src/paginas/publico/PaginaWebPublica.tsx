@@ -22,7 +22,11 @@
  * las activas que el equipo publicó desde la ficha de cada una, con sus
  * fotos para la web. Del CMS salen solo los textos que la rodean. Su
  * botón «Me interesa» manda el formulario de siempre con la propiedad
- * dentro, y el lead entra en el CRM con ella ya en su checklist. Sin
+ * dentro, y el lead entra en el CRM con ella ya en su checklist.
+ *
+ * Desde el 2026-09-30 el catálogo tiene PUERTA: se entra con el usuario
+ * y la contraseña de invitado que la agencia le da a cada cliente
+ * (PuertaDelCatalogo). Sin acceso de invitados configurado o sin
  * propiedades publicadas, la sección y su enlace del menú no salen.
  * ---------------------------------------------------------------------
  */
@@ -65,10 +69,13 @@ import {
   enviarMensajeDeContacto,
   obtenerContenidoPublico,
   obtenerPropiedadesDeLaWeb,
+  saberSiHayCatalogo,
 } from "@/api/sitio";
 import { PantallaDeArranque } from "@/componentes/comunes/EstadosDePantalla";
 import { VisorDeGaleria } from "@/componentes/comunes/VisorDeGaleria";
-import { mensajeDeError } from "@/api/clienteHttp";
+import { esErrorDeApi, mensajeDeError } from "@/api/clienteHttp";
+import { PuertaDelCatalogo } from "@/paginas/publico/PuertaDelCatalogo";
+import { leerLlaveDelCatalogo, olvidarLlaveDelCatalogo } from "@/utilidades/llaveDelCatalogo";
 import {
   useCabeceraSolida,
   useContadorAnimado,
@@ -114,14 +121,46 @@ export function PaginaWebPublica() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Va aparte del contenido: si falla, la web sale igual sin la sección.
-  const consultaDePropiedades = useQuery({
-    queryKey: ["contenido-web", "propiedades"],
-    queryFn: obtenerPropiedadesDeLaWeb,
+  // El catálogo va aparte del contenido: si falla, la web sale igual
+  // sin la sección. Primero se pregunta si hay catálogo que ofrecer (sin
+  // llave), y el catálogo en sí solo con la llave del invitado.
+  const consultaDelCatalogo = useQuery({
+    queryKey: ["contenido-web", "catalogo"],
+    queryFn: saberSiHayCatalogo,
     staleTime: 5 * 60 * 1000,
   });
 
-  const propiedadesPublicadas = consultaDePropiedades.data ?? [];
+  const hayCatalogo = consultaDelCatalogo.data === true;
+
+  const [llaveDelCatalogo, establecerLlaveDelCatalogo] = useState<string | null>(
+    leerLlaveDelCatalogo,
+  );
+
+  const consultaDePropiedades = useQuery({
+    queryKey: ["contenido-web", "propiedades", llaveDelCatalogo],
+    queryFn: () => obtenerPropiedadesDeLaWeb(llaveDelCatalogo ?? ""),
+    enabled: hayCatalogo && llaveDelCatalogo !== null,
+    staleTime: 5 * 60 * 1000,
+    // La llave no tiene que acabar en la copia sin conexión del panel.
+    meta: { sinCopiaLocal: true },
+  });
+
+  // Una llave que ya no abre (la agencia cambió la contraseña, o caducó):
+  // vuelve la puerta, diciendo por qué, y se borra del navegador.
+  const laLlaveDejoDeAbrir =
+    esErrorDeApi(consultaDePropiedades.error) && consultaDePropiedades.error.codigoHttp === 403;
+  const llaveQueAbre = laLlaveDejoDeAbrir ? null : llaveDelCatalogo;
+
+  useEffect(() => {
+    if (laLlaveDejoDeAbrir) olvidarLlaveDelCatalogo();
+  }, [laLlaveDejoDeAbrir]);
+
+  function salirDelCatalogo() {
+    olvidarLlaveDelCatalogo();
+    establecerLlaveDelCatalogo(null);
+  }
+
+  const propiedadesPublicadas = llaveQueAbre !== null ? (consultaDePropiedades.data ?? []) : [];
 
   const [idioma, establecerIdioma] = useState<IdiomaDeLaWeb>(detectarIdiomaInicial);
 
@@ -189,7 +228,7 @@ export function PaginaWebPublica() {
   const yaSeSaltoAlAncla = useRef(false);
 
   useEffect(() => {
-    if (yaSeSaltoAlAncla.current || !contenido || consultaDePropiedades.isLoading) return;
+    if (yaSeSaltoAlAncla.current || !contenido || consultaDelCatalogo.isLoading) return;
 
     const ancla = window.location.hash.slice(1);
 
@@ -201,7 +240,7 @@ export function PaginaWebPublica() {
       yaSeSaltoAlAncla.current = true;
       seccion.scrollIntoView();
     }
-  }, [contenido, consultaDePropiedades.isLoading]);
+  }, [contenido, consultaDelCatalogo.isLoading]);
 
   if (consultaDelContenido.isLoading || !contenido) {
     return <PantallaDeArranque />;
@@ -223,10 +262,8 @@ export function PaginaWebPublica() {
     { ancla: "#equipo", etiqueta: texto("nav.equipo") },
     { ancla: "#servicios", etiqueta: texto("nav.servicios") },
     // Solo si hay algo que enseñar: un enlace a una sección que no sale
-    // llevaría a ningún sitio.
-    ...(propiedadesPublicadas.length > 0
-      ? [{ ancla: "#propiedades", etiqueta: texto("nav.propiedades") }]
-      : []),
+    // llevaría a ningún sitio. Sin haber entrado sí sale: lleva a la puerta.
+    ...(hayCatalogo ? [{ ancla: "#propiedades", etiqueta: texto("nav.propiedades") }] : []),
     { ancla: "#proyectos", etiqueta: texto("nav.proyectos") },
     { ancla: "#aliados", etiqueta: texto("nav.aliados") },
     { ancla: "#contacto", etiqueta: texto("nav.contacto") },
@@ -546,7 +583,7 @@ export function PaginaWebPublica() {
       {/* Del catálogo del CRM, no del CMS: las activas que el equipo
           publicó desde la ficha de cada una. Sobre el fondo alterno para
           que no se funda con los servicios de justo encima. */}
-      {propiedadesPublicadas.length > 0 && (
+      {hayCatalogo && (
         <SeccionDeLaWeb fondo="alterno" id="propiedades">
           <CabeceraDeSeccion
             antetitulo={texto("propiedades.antetitulo")}
@@ -559,21 +596,43 @@ export function PaginaWebPublica() {
             </p>
           )}
 
-          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {propiedadesPublicadas.map((propiedad, posicion) => (
-              <TarjetaDePropiedadEnLaWeb
-                key={propiedad.id}
-                idioma={idioma}
-                posicion={posicion}
-                propiedad={propiedad}
-                referenciaParaRevelar={revelar}
-                textoDelBotonDeFotos={texto("propiedades.botonFotos")}
-                textoDelBotonDeInteres={texto("propiedades.botonInteres")}
-                alPedirInformacion={() => establecerPropiedadDeInteres(propiedad)}
-                alVerFotos={() => establecerPropiedadEnElVisor(propiedad)}
-              />
-            ))}
-          </div>
+          {llaveQueAbre === null ? (
+            <PuertaDelCatalogo
+              accesoCaducado={laLlaveDejoDeAbrir}
+              texto={texto}
+              alEntrar={establecerLlaveDelCatalogo}
+            />
+          ) : consultaDePropiedades.isLoading ? (
+            <p className="mt-10 text-center text-sm text-slate-400">…</p>
+          ) : (
+            <>
+              <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {propiedadesPublicadas.map((propiedad, posicion) => (
+                  <TarjetaDePropiedadEnLaWeb
+                    key={propiedad.id}
+                    idioma={idioma}
+                    posicion={posicion}
+                    propiedad={propiedad}
+                    referenciaParaRevelar={revelar}
+                    textoDelBotonDeFotos={texto("propiedades.botonFotos")}
+                    textoDelBotonDeInteres={texto("propiedades.botonInteres")}
+                    alPedirInformacion={() => establecerPropiedadDeInteres(propiedad)}
+                    alVerFotos={() => establecerPropiedadEnElVisor(propiedad)}
+                  />
+                ))}
+              </div>
+
+              <p className="mt-8 text-center">
+                <button
+                  className="text-xs font-semibold text-slate-400 transition hover:text-slate-700"
+                  type="button"
+                  onClick={salirDelCatalogo}
+                >
+                  {texto("propiedades.salir")}
+                </button>
+              </p>
+            </>
+          )}
         </SeccionDeLaWeb>
       )}
 
@@ -898,7 +957,11 @@ export function PaginaWebPublica() {
             </span>
           </ModalHeader>
 
-          <ModalBody className="pb-6">
+          {/* La ventana se pinta en <body>, fuera de la raíz de la página
+              que lleva las variables de color: sin volver a ponerlas aquí,
+              el botón de enviar (color de acento, texto blanco) salía
+              blanco sobre blanco. */}
+          <ModalBody className="pb-6" style={variablesDeColor}>
             {propiedadDeInteres !== null && (
               <FormularioDeContacto
                 contenido={contenido}

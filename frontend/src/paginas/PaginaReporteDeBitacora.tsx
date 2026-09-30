@@ -46,6 +46,7 @@ import {
   BloqueDeError,
   EstadoVacio,
 } from "@/componentes/comunes/EstadosDePantalla";
+import { PestanasDeReportes } from "@/componentes/comunes/PestanasDeReportes";
 import { RejillaBento, TarjetaBento } from "@/componentes/comunes/TarjetaBento";
 import { useUsuarioAutenticado } from "@/providers/ProveedorSesion";
 import { avisarDeError, avisarDeExito } from "@/utilidades/avisos";
@@ -129,6 +130,8 @@ export function PaginaReporteDeBitacora() {
 
   return (
     <div className="space-y-5">
+      <PestanasDeReportes />
+
       <div>
         <h2 className="text-xl font-bold tracking-tight text-foreground">
           Reporte de bitácora

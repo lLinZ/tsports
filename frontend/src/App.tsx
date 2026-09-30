@@ -56,6 +56,7 @@ import { PaginaPanel } from "@/paginas/PaginaPanel";
 import { PaginaPropiedades } from "@/paginas/PaginaPropiedades";
 import { PaginaSectores } from "@/paginas/PaginaSectores";
 import { PaginaPerfil } from "@/paginas/PaginaPerfil";
+import { PaginaBrochure } from "@/paginas/PaginaBrochure";
 import { PaginaReporteDeBitacora } from "@/paginas/PaginaReporteDeBitacora";
 import { PaginaTiempoReal } from "@/paginas/PaginaTiempoReal";
 import { PaginaUsuarios } from "@/paginas/PaginaUsuarios";
@@ -229,6 +230,18 @@ function RutasDeLaAplicacion() {
         }
         path="/reportes/bitacora"
       />
+
+      {/* El brochure de propiedades en PDF, para mandar a un patrocinador.
+          Lo saca todo el equipo: solo lleva lo que ya ve un cliente. */}
+      <Route
+        element={
+          <RutaProtegida>
+            <PaginaBrochure />
+          </RutaProtegida>
+        }
+        path="/reportes/brochure"
+      />
+      <Route element={<Navigate replace to="/reportes/bitacora" />} path="/reportes" />
 
       {/* Cada quien ve solo sus avisos: el corte lo hace el servidor. */}
       <Route

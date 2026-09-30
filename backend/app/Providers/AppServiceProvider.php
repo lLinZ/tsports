@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Models\AccesoDeInvitados;
 use App\Models\ArchivoDePropiedad;
 use App\Models\Campana;
 use App\Models\ComentarioMarca;
@@ -103,6 +104,7 @@ class AppServiceProvider extends ServiceProvider
             ReaccionDeComentario::class,
             Propiedad::class,
             ArchivoDePropiedad::class,
+            AccesoDeInvitados::class,
             Campana::class,
             Sector::class,
             User::class,

@@ -75,4 +75,14 @@ class PropiedadPolicy
     {
         return $usuario->activo && $propiedad->laPuedeOfrecer($usuario);
     }
+
+    /**
+     * ¿Puede ver y cambiar el usuario y la contraseña de invitado del
+     * catálogo de la web? Quien decide qué se publica decide también a
+     * quién se le abre.
+     */
+    public function gestionarElAccesoDeInvitados(User $usuario): bool
+    {
+        return $usuario->activo && $usuario->rol->puedeGestionarElCatalogoComercial();
+    }
 }

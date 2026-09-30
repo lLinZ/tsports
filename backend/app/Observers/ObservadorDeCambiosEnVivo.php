@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Observers;
 
+use App\Models\AccesoDeInvitados;
 use App\Models\ArchivoDePropiedad;
 use App\Models\Campana;
 use App\Models\ComentarioMarca;
@@ -70,7 +71,8 @@ final class ObservadorDeCambiosEnVivo
             $modelo instanceof ComentarioMarca => $this->cambios->enLaMarca($modelo->marca_id, CambiosEnVivo::BITACORA),
             $modelo instanceof ReaccionDeComentario => $this->cambios->enElComentario($modelo->comentario_id),
             $modelo instanceof Propiedad,
-            $modelo instanceof ArchivoDePropiedad => $this->cambios->paraTodoElEquipo(CambiosEnVivo::PROPIEDADES),
+            $modelo instanceof ArchivoDePropiedad,
+            $modelo instanceof AccesoDeInvitados => $this->cambios->paraTodoElEquipo(CambiosEnVivo::PROPIEDADES),
             $modelo instanceof Campana => $this->cambios->paraTodoElEquipo(CambiosEnVivo::CAMPANAS),
             $modelo instanceof Sector => $this->cambios->paraTodoElEquipo(CambiosEnVivo::SECTORES),
             $modelo instanceof User => $this->siSeVeDesdeFuera($modelo, $seBorro),

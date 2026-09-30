@@ -467,8 +467,9 @@ export function ModalDePropiedad({
                   Publicar en la web
                 </span>
                 <p className="mt-0.5 text-[11px] text-default-500">
-                  Sale en la sección de propiedades de la web de la agencia, con su
-                  portada y sus fotos. Nunca con montos ni documentos.
+                  Sale en el catálogo de la web de la agencia, con su portada y sus
+                  fotos, para los clientes que entran con el acceso de invitados.
+                  Nunca con montos ni documentos.
                 </p>
               </div>
 

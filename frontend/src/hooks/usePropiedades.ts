@@ -17,6 +17,11 @@
  * cambiar el monto total de una propiedad mueve los porcentajes de todas
  * las fichas que la ofrecen y la meta del tablero.
  *
+ * El ACCESO DE INVITADOS al catálogo de la web cuelga de la misma clave
+ * («propiedades»), así que el aviso en vivo de un cambio en el catálogo
+ * lo refresca también. Queda fuera de la copia sin conexión: es una
+ * contraseña, y no tiene que acabar escrita en el navegador.
+ *
  * La GALERÍA va aparte (`useGaleriaDePropiedad`): se lee de la propiedad
  * suelta y cada cambio se escribe en esa caché al momento, sin recargar.
  * El catálogo y el checklist, que también la llevan dentro, solo se
@@ -37,13 +42,16 @@ import {
   elegirPortadaDeGaleria,
   eliminarDeGaleria,
   eliminarPropiedad,
+  guardarAccesoDeInvitados,
   listarPropiedades,
+  obtenerAccesoDeInvitados,
   obtenerPropiedad,
   reordenarGaleria,
   subirAGaleria,
 } from "@/api/propiedades";
 import { clavesDeMarcas } from "@/hooks/useMarcas";
 import type {
+  AccesoDeInvitados,
   ArchivoDeGaleria,
   DatosDePropiedadParaGuardar,
   Propiedad,
@@ -55,6 +63,7 @@ export const clavesDePropiedades = {
   catalogo: ["propiedades", "catalogo"] as const,
   ofrecibles: ["propiedades", "ofrecibles"] as const,
   detalle: (idDeLaPropiedad: string) => ["propiedades", "detalle", idDeLaPropiedad] as const,
+  accesoDeInvitados: ["propiedades", "acceso-de-invitados"] as const,
 };
 
 /** El catálogo completo, con cuántas marcas y cuánto OVP lleva cada una. */
@@ -262,4 +271,33 @@ export function useGaleriaDePropiedad(idDeLaPropiedad: string, propiedadInicial?
       marcarLasListasComoViejas();
     },
   };
+}
+
+/* ==================================================================== */
+/* El acceso de invitados al catálogo de la web                         */
+/* ==================================================================== */
+
+/** El usuario y la contraseña de invitado. Solo para quien gestiona el catálogo. */
+export function useAccesoDeInvitados(habilitado: boolean) {
+  return useQuery<AccesoDeInvitados | null>({
+    queryKey: clavesDePropiedades.accesoDeInvitados,
+    queryFn: obtenerAccesoDeInvitados,
+    enabled: habilitado,
+    meta: { sinCopiaLocal: true },
+  });
+}
+
+export function useGuardarAccesoDeInvitados(): UseMutationResult<
+  AccesoDeInvitados,
+  unknown,
+  { usuario: string; contrasena: string }
+> {
+  const clienteDeConsultas = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ usuario, contrasena }) => guardarAccesoDeInvitados(usuario, contrasena),
+    onSuccess: (acceso) => {
+      clienteDeConsultas.setQueryData(clavesDePropiedades.accesoDeInvitados, acceso);
+    },
+  });
 }

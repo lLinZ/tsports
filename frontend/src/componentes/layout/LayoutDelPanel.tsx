@@ -117,9 +117,11 @@ const ENTRADAS_DEL_MENU: EntradaDeMenu[] = [
     laPuedeVer: () => true,
   },
   {
-    ruta: "/reportes/bitacora",
+    // Sin la página al final: así queda marcada en las dos pestañas de
+    // Reportes (bitácora y brochure).
+    ruta: "/reportes",
     etiqueta: "Reportes",
-    descripcion: "La bitácora por fechas",
+    descripcion: "Bitácora y brochure",
     icono: NotebookPen,
     // Todo el equipo: cada quien saca el de las marcas que ve.
     laPuedeVer: () => true,

@@ -6,6 +6,7 @@ namespace Database\Seeders;
 
 use App\Enums\InversionEnPatrocinios;
 use App\Enums\RolUsuario;
+use App\Models\AccesoDeInvitados;
 use App\Models\Campana;
 use App\Models\ComentarioMarca;
 use App\Models\ContenidoSitio;
@@ -268,7 +269,17 @@ class DatabaseSeeder extends Seeder
             ]);
         }
 
+        // El invitado del catálogo de la web. En producción no se siembra:
+        // lo pone el equipo desde Propiedades, y hasta entonces la web no
+        // enseña la sección.
+        AccesoDeInvitados::query()->firstOrCreate([], [
+            'usuario' => 'invitado',
+            'contrasena' => 'demo12345',
+            'version' => 1,
+        ]);
+
         $this->command?->info('✔ Datos de ejemplo sembrados (3 usuarios de prueba + 5 marcas)');
         $this->command?->warn('  Contraseña de los usuarios de prueba: demo12345');
+        $this->command?->warn('  Catálogo de la web: usuario «invitado», contraseña demo12345');
     }
 }

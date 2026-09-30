@@ -24,6 +24,7 @@ declare(strict_types=1);
  *                     política; aquí solo se agrupan por claridad.
  */
 
+use App\Http\Controllers\Api\AccesoDeInvitadosController;
 use App\Http\Controllers\Api\AdjuntoController;
 use App\Http\Controllers\Api\AuditoriaController;
 use App\Http\Controllers\Api\AutenticacionController;
@@ -66,6 +67,13 @@ Route::post('/contacto', [LeadPublicoController::class, 'store'])
 
 // El catálogo de propiedades de la web: las activas que alguien marcó
 // como publicadas, sin montos ni documentos (RecursoPropiedadEnLaWeb).
+// Desde el 2026-09-30 se entra con el usuario de invitado, que da una
+// llave (LlaveDelCatalogo); saber si hay catálogo no la necesita. Entrar
+// lleva un límite estrecho: frena a quien prueba contraseñas.
+Route::get('/propiedades-en-la-web/acceso', [PropiedadesEnLaWebController::class, 'acceso'])
+    ->middleware('throttle:120,1');
+Route::post('/propiedades-en-la-web/entrar', [PropiedadesEnLaWebController::class, 'entrar'])
+    ->middleware('throttle:10,1');
 Route::get('/propiedades-en-la-web', [PropiedadesEnLaWebController::class, 'index'])
     ->middleware('throttle:120,1');
 
@@ -172,6 +180,10 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // ya pasó y volverá, en vez de borrarla y perder sus marcas.
     Route::patch('/propiedades/{propiedad}/activa', [PropiedadController::class, 'activarODesactivar']);
     Route::delete('/propiedades/{propiedad}', [PropiedadController::class, 'destroy']);
+
+    // El usuario y la contraseña de invitado del catálogo de la web.
+    Route::get('/acceso-de-invitados', [AccesoDeInvitadosController::class, 'mostrar']);
+    Route::put('/acceso-de-invitados', [AccesoDeInvitadosController::class, 'guardar']);
 
     // Su galería: fotos, planos y dossier. Verla es ver la propiedad
     // (viaja con ella); tocarla es editarla, y eso lo decide la política.

@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\RolUsuario;
+use App\Models\AccesoDeInvitados;
 use App\Models\Marca;
 use App\Models\Notificacion;
 use App\Models\Propiedad;
 use App\Models\User;
+use App\Support\LlaveDelCatalogo;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -18,7 +20,9 @@ use Tests\TestCase;
 /**
  * El catálogo de propiedades en la web pública.
  * ---------------------------------------------------------------------
- * Es una ruta sin sesión, así que lo primero es lo que NO sale:
+ * Es una ruta sin sesión del panel (se entra con el usuario de
+ * invitado, que prueba AccesoDeInvitadosTest), así que lo primero es lo
+ * que NO sale:
  *
  *   1. **Solo las propiedades activas que alguien publicó.** El catálogo
  *      de la web no es un volcado del CRM.
@@ -46,7 +50,7 @@ class CatalogoEnLaWebTest extends TestCase
         $this->crearPropiedad('Publicada pero desactivada', publicada: true, activa: false);
 
         $nombres = array_column(
-            $this->getJson('/api/propiedades-en-la-web')->assertOk()->json('data'),
+            $this->pedirElCatalogo()->assertOk()->json('data'),
             'nombre',
         );
 
@@ -70,7 +74,7 @@ class CatalogoEnLaWebTest extends TestCase
         // Sin sesión: lo que ve cualquiera.
         $this->app['auth']->forgetGuards();
 
-        $respuesta = $this->getJson('/api/propiedades-en-la-web')->assertOk();
+        $respuesta = $this->pedirElCatalogo()->assertOk();
 
         $this->assertSame([$fotoPublica], array_column($respuesta->json('data.0.fotos'), 'id'));
 
@@ -86,7 +90,7 @@ class CatalogoEnLaWebTest extends TestCase
         $propiedad = $this->crearPropiedad('Kombat Challenge', publicada: true);
         $propiedad->update(['texto_web_es' => 'El torneo de artes marciales más visto del país.']);
 
-        $this->getJson('/api/propiedades-en-la-web')
+        $this->pedirElCatalogo()
             ->assertOk()
             ->assertJsonPath('data.0.texto.es', 'El torneo de artes marciales más visto del país.')
             ->assertJsonPath('data.0.texto.en', 'El torneo de artes marciales más visto del país.');
@@ -189,6 +193,17 @@ class CatalogoEnLaWebTest extends TestCase
     /* ------------------------------------------------------------------
      | Ayudantes
      |-----------------------------------------------------------------*/
+
+    /** El catálogo, como lo pide un invitado que ya entró. */
+    private function pedirElCatalogo(): TestResponse
+    {
+        $acceso = AccesoDeInvitados::elVigente()
+            ?? AccesoDeInvitados::create(['usuario' => 'invitado', 'contrasena' => 'clave-del-catalogo', 'version' => 1]);
+
+        return $this->getJson('/api/propiedades-en-la-web', [
+            LlaveDelCatalogo::CABECERA => LlaveDelCatalogo::emitir($acceso)['llave'],
+        ]);
+    }
 
     private function subir(User $quien, Propiedad $propiedad, UploadedFile $archivo): TestResponse
     {

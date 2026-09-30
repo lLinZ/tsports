@@ -21,7 +21,8 @@
  *
  * Se imprime desde un marco oculto y no desde una ventana nueva: una
  * ventana la bloquea el navegador si no le consta que la abrió una
- * persona, y ese fallo es silencioso.
+ * persona, y ese fallo es silencioso. El marco lo pone
+ * utilidades/imprimirDocumento.ts, que comparte con el brochure.
  *
  * DOS DOCUMENTOS: el histórico (de una marca o de todas) y el REPORTE
  * POR FECHAS, que agrupa por marca lo escrito en un periodo y abre con
@@ -42,6 +43,7 @@ import {
   formatearTamanoDeFichero,
   inicialesDe,
 } from "@/utilidades/formato";
+import { imprimirDocumento } from "@/utilidades/imprimirDocumento";
 
 /** La paleta de documento de TS Sports, la misma del reporte del calendario. */
 const TINTA = "#202124";
@@ -209,51 +211,12 @@ function estadoDeLaEntrada(entrada: EntradaDelHistorico): string {
  * donde se guarda como PDF.
  */
 export function imprimirLaBitacora(historico: HistoricoDeBitacora): void {
-  imprimirDocumento(documentoImprimible(historico));
+  void imprimirDocumento(documentoImprimible(historico));
 }
 
 /** El reporte por fechas como documento, listo para guardar en PDF. */
 export function imprimirElReporteDeBitacora(reporte: ReporteDeBitacora): void {
-  imprimirDocumento(reporteImprimible(reporte));
-}
-
-function imprimirDocumento(html: string): void {
-  const marco = document.createElement("iframe");
-
-  // Fuera de la vista pero DENTRO del documento: un iframe con
-  // `display: none` no imprime en algunos navegadores.
-  marco.setAttribute("aria-hidden", "true");
-  marco.style.position = "fixed";
-  marco.style.right = "0";
-  marco.style.bottom = "0";
-  marco.style.width = "0";
-  marco.style.height = "0";
-  marco.style.border = "0";
-
-  document.body.appendChild(marco);
-
-  const documentoDelMarco = marco.contentDocument;
-
-  if (documentoDelMarco === null) {
-    marco.remove();
-
-    return;
-  }
-
-  documentoDelMarco.open();
-  documentoDelMarco.write(html);
-  documentoDelMarco.close();
-
-  // Se espera a que el marco termine de montar su documento: llamar a
-  // print() antes deja una hoja en blanco.
-  marco.onload = () => {
-    marco.contentWindow?.focus();
-    marco.contentWindow?.print();
-
-    // Se quita después, no al instante: en Safari, quitar el marco
-    // mientras el diálogo está abierto cancela la impresión.
-    window.setTimeout(() => marco.remove(), 60_000);
-  };
+  void imprimirDocumento(reporteImprimible(reporte));
 }
 
 function documentoImprimible(historico: HistoricoDeBitacora): string {

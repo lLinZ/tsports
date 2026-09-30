@@ -313,7 +313,8 @@ tsports/
 │       │                    y cambios en vivo
 │       ├── theme/         ← conversión del color de acento
 │       ├── tipos/         ← los tipos de la API, en un solo fichero
-│       └── utilidades/    ← formato de dinero y fechas, avisos
+│       └── utilidades/    ← formato de dinero y fechas, avisos, los
+│                            documentos para imprimir (bitácora, brochure)
 └── deploy/                ← nginx, topes de PHP y guion de despliegue del VPS
 ```
 
@@ -658,6 +659,35 @@ Salieron del cliente y están implementadas a propósito así:
     versión nueva (cada 30 minutos) y la pantalla «Tiempo real» del
     administrador mientras está abierta.
 
+23. **El catálogo de la web tiene puerta, y lo que sale del catálogo
+    sale siempre con las reglas de la 21.** Desde el 2026-09-30.
+
+    - **Se entra con UN usuario y UNA contraseña de invitado**
+      (`AccesoDeInvitados`, una sola fila), que la agencia le pasa a cada
+      cliente. **No es una cuenta de `users`**: ahí saldría en el chat,
+      en las menciones y en los selectores de agente, y su token de
+      Sanctum abriría rutas del panel. La contraseña va cifrada con la
+      APP_KEY, no con hash: admin y comercial la ven en Propiedades →
+      «Acceso a la web» para mandársela al siguiente cliente.
+    - **Entrar da una llave, no una sesión** (`LlaveDelCatalogo`): texto
+      cifrado con el acceso, su versión y la caducidad (30 días), en la
+      cabecera `X-Llave-Del-Catalogo`. **Cambiar la contraseña sube la
+      versión y echa a todos** los que entraron con la anterior; guardar
+      la misma pareja no echa a nadie.
+    - **Sin llave el catálogo responde 403, nunca 401**: en este sistema
+      un 401 cierra la sesión del panel, y a alguien del equipo que mira
+      la web con el panel abierto lo sacaría.
+    - Sin acceso configurado o sin nada publicado, la web no enseña la
+      sección ni su enlace del menú (`/propiedades-en-la-web/acceso`).
+      Las fotos siguen en el disco público con nombre imposible de
+      adivinar: la puerta protege el listado, no cada fichero.
+    - **El brochure de propiedades** (Reportes → Brochure, PDF que hace
+      el navegador) lleva lo mismo que la web: el texto para clientes
+      (nunca `descripcion`), las fotos que salen en la web y ningún
+      monto. Las reglas viven en `utilidades/brochureDePropiedades.ts`.
+      Todas las fotos van en huecos 16:10: un hueco vertical se comía
+      medio plano o media hoja de dossier.
+
 ---
 
 ## 7. Errores: una sola forma
@@ -722,7 +752,8 @@ tuerce, se pone roja una prueba con nombre propio.
 **Datos de prueba** (solo fuera de producción, los siembra
 `php artisan db:seed`): `admin@tssports.com`, `comercial@tssports.com`,
 `vendedor.caracas@tssports.com`, `vendedor.oriente@tssports.com`.
-Contraseña de los tres últimos: `demo12345`.
+Contraseña de los tres últimos: `demo12345`. El catálogo de la web se
+abre con el invitado `invitado` / `demo12345` (regla 23).
 
 En local el backend usa **SQLite** por comodidad (`backend/.env`). En el
 VPS usa **MySQL**: la plantilla es `backend/.env.example`.
@@ -763,3 +794,8 @@ VPS usa **MySQL**: la plantilla es `backend/.env.example`.
 - Llamar a `Event::fake([...])` en una prueba sin `CambioEnLosDatos` en
   la lista: no falla, pero la prueba vuelve a esperar a Reverb (ver
   `tests/TestCase.php`).
+- Crear el acceso de invitados como una cuenta de `users`, o contestar
+  401 desde una ruta de la web pública: el 401 cierra la sesión del
+  panel (regla 23).
+- Sacar hacia fuera (web, brochure) la `descripcion` de una propiedad,
+  un monto o una foto «solo para el equipo» (reglas 21 y 23).

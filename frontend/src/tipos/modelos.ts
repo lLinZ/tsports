@@ -1115,6 +1115,25 @@ export interface PropiedadEnLaWeb {
   }>;
 }
 
+/**
+ * El usuario y la contraseña de invitado con los que un cliente abre el
+ * catálogo de la web. Solo lo ven admin y comercial, y en claro: es lo
+ * que se le manda a cada cliente nuevo.
+ */
+export interface AccesoDeInvitados {
+  usuario: string;
+  /** Nula solo si el servidor ya no la puede leer (cambió su APP_KEY). */
+  contrasena: string | null;
+  cambiadoPor: string | null;
+  cambiadoEn: string | null;
+}
+
+/** Lo que devuelve la puerta del catálogo al entrar con la pareja buena. */
+export interface LlaveDelCatalogo {
+  llave: string;
+  caducaEn: string;
+}
+
 /* ==================================================================== */
 /* Tiempo real                                                          */
 /* ==================================================================== */

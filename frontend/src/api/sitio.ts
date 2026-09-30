@@ -13,6 +13,7 @@
 import { clienteHttp } from "@/api/clienteHttp";
 import type {
   ContenidoDeLaWeb,
+  LlaveDelCatalogo,
   MensajeDeContacto,
   PropiedadEnLaWeb,
   VersionDeContenido,
@@ -32,12 +33,41 @@ export async function obtenerContenidoPublico(): Promise<ContenidoDeLaWeb> {
 }
 
 /**
+ * Si la web tiene catálogo que ofrecer: hay acceso de invitados y alguna
+ * propiedad publicada. Decide si se pinta la sección y su enlace.
+ */
+export async function saberSiHayCatalogo(): Promise<boolean> {
+  const { data } = await clienteHttp.get<{ hayCatalogo: boolean }>(
+    "/propiedades-en-la-web/acceso",
+  );
+
+  return data.hayCatalogo;
+}
+
+/** El usuario y la contraseña de invitado, a cambio de la llave del catálogo. */
+export async function entrarAlCatalogo(
+  usuario: string,
+  contrasena: string,
+): Promise<LlaveDelCatalogo> {
+  const { data } = await clienteHttp.post<LlaveDelCatalogo>(
+    "/propiedades-en-la-web/entrar",
+    { usuario, contrasena },
+  );
+
+  return data;
+}
+
+/**
  * El catálogo de propiedades de la web: las activas que el equipo marcó
  * como publicadas, con sus fotos para la web. Sin montos ni documentos.
+ *
+ * Pide la llave del invitado. Sin ella, o caducada, el servidor contesta
+ * 403 (nunca 401, que aquí cerraría la sesión del panel).
  */
-export async function obtenerPropiedadesDeLaWeb(): Promise<PropiedadEnLaWeb[]> {
+export async function obtenerPropiedadesDeLaWeb(llave: string): Promise<PropiedadEnLaWeb[]> {
   const { data } = await clienteHttp.get<{ data: PropiedadEnLaWeb[] }>(
     "/propiedades-en-la-web",
+    { headers: { "X-Llave-Del-Catalogo": llave } },
   );
 
   return data.data;
