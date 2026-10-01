@@ -37,14 +37,26 @@ function prefiereMenosMovimiento(): boolean {
  * Un único observador atiende a todos los elementos registrados, en vez
  * de crear uno por tarjeta: con veinte servicios y proyectos en la
  * página, la diferencia se nota.
+ *
+ * LOS ELEMENTOS SE APUNTAN AUNQUE EL OBSERVADOR NO EXISTA TODAVÍA. React
+ * llama a la referencia de cada elemento antes de correr los efectos, así
+ * que si la página se pinta entera en el primer render, el observador
+ * aún no está. Pasa con la sesión del panel abierta: el contenido de la
+ * web sale de la copia guardada y no espera a la red. Antes esos
+ * elementos se perdían y se quedaban invisibles para siempre (servicios
+ * y proyectos en blanco, 2026-10-01). Ahora se guardan y el efecto los
+ * vigila al crear el observador.
  */
 export function useRevelarAlEntrar() {
   const observadorRef = useRef<IntersectionObserver | null>(null);
+  const pendientesRef = useRef(new Set<HTMLElement>());
 
   useEffect(() => {
     if (prefiereMenosMovimiento()) return;
 
-    observadorRef.current = new IntersectionObserver(
+    const pendientes = pendientesRef.current;
+
+    const observador = new IntersectionObserver(
       (entradas) => {
         entradas.forEach((entrada) => {
           if (!entrada.isIntersecting) return;
@@ -52,13 +64,20 @@ export function useRevelarAlEntrar() {
           entrada.target.classList.add("visible");
 
           // Una vez visible, ya no hace falta seguir vigilándolo.
-          observadorRef.current?.unobserve(entrada.target);
+          observador.unobserve(entrada.target);
+          pendientes.delete(entrada.target as HTMLElement);
         });
       },
       { threshold: 0.12 },
     );
 
-    return () => observadorRef.current?.disconnect();
+    observadorRef.current = observador;
+    pendientes.forEach((elemento) => observador.observe(elemento));
+
+    return () => {
+      observador.disconnect();
+      observadorRef.current = null;
+    };
   }, []);
 
   // Referencia que se pasa a cada elemento que quiera aparecer.
@@ -71,7 +90,16 @@ export function useRevelarAlEntrar() {
       return;
     }
 
+    if (elemento.classList.contains("visible")) return;
+
+    pendientesRef.current.add(elemento);
     observadorRef.current?.observe(elemento);
+
+    // Al desmontarse, que no se quede apuntado.
+    return () => {
+      pendientesRef.current.delete(elemento);
+      observadorRef.current?.unobserve(elemento);
+    };
   }, []);
 }
 

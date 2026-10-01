@@ -35,6 +35,7 @@
 import { useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { useEffect, useRef, type ReactNode } from "react";
 import { clavesDeCampanas } from "@/hooks/useCampanas";
+import { CLAVE_DE_CIERRES_DE_MES } from "@/hooks/useCierresDeMes";
 import { CLAVE_DE_CATALOGOS } from "@/hooks/useCatalogos";
 import { clavesDeMarcas } from "@/hooks/useMarcas";
 import { clavesDePropiedades } from "@/hooks/usePropiedades";
@@ -106,6 +107,10 @@ function clavesQueCambiaron({ entidad, id }: CambioEnLosDatos): QueryKey[] {
         CLAVE_DEL_PANEL,
         CLAVE_DE_LA_AUDITORIA,
       ];
+
+    // Solo le llega a quien ve los cierres (admin y comercial).
+    case "cierres":
+      return [CLAVE_DE_CIERRES_DE_MES, CLAVE_DE_LA_AUDITORIA];
 
     // El nombre de cada persona sale en las tarjetas y en el resumen.
     case "equipo":

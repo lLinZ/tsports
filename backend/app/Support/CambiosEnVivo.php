@@ -42,6 +42,8 @@ use Throwable;
  *     aviso: es lo que hace que desaparezca de su tablero.
  *   · Lo del catálogo (`propiedades`, `campanas`, `sectores`, `equipo`),
  *     a todo el equipo activo: lo ven todos.
+ *   · Los cierres de mes (`cierres`), solo a quien los ve: admin y
+ *     comercial. A un agente no le serviría de nada.
  * Quien recibe exactamente lo mismo va en un solo envío con varios
  * canales, y de normal sale uno por petición.
  *
@@ -64,6 +66,9 @@ final class CambiosEnVivo
     public const SECTORES = 'sectores';
 
     public const EQUIPO = 'equipo';
+
+    /** Los reportes de cierre de mes. Solo los ve admin y comercial. */
+    public const CIERRES_DE_MES = 'cierres';
 
     /**
      * Pasado este número de marcas en una sola petición (el importador,
@@ -211,6 +216,10 @@ final class CambiosEnVivo
             $cambios = [];
 
             foreach (array_keys($delCatalogo) as $entidad) {
+                if ($entidad === self::CIERRES_DE_MES && ! $persona->rol->veLosCierresDeMes()) {
+                    continue;
+                }
+
                 $cambios[] = ['entidad' => $entidad, 'id' => null];
             }
 

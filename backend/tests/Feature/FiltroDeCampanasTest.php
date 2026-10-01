@@ -58,16 +58,15 @@ class FiltroDeCampanasTest extends TestCase
     }
 
     /**
-     * El caso que descubrió Antonio mirando el panel: una campaña con
-     * acciones hechas salía con CERO marcas.
+     * Una marca TIENE una campaña si la tiene puesta o si la tuvo alguna
+     * vez. Lo pidió así el equipo el 2026-10-01, después de ver una campaña
+     * con cinco marcas trabajadas que la pantalla contaba como cuatro.
      *
      * Pasa en cuanto a una marca se le asigna una campaña nueva: su
-     * `campana_id` es una sola casilla y se sobreescribe, así que
-     * desaparece de la anterior aunque el trabajo se hiciera. Por eso el
-     * reparto devuelve dos cifras, y esta prueba fija qué significa cada
-     * una.
+     * `campana_id` es una sola casilla y se sobreescribe. Por eso el
+     * recuento sale de la casilla Y del historial.
      */
-    public function test_el_reparto_cuenta_aparte_las_marcas_alcanzadas(): void
+    public function test_el_reparto_cuenta_las_marcas_que_tienen_o_tuvieron_la_campana(): void
     {
         $comercial = $this->crearUsuario(RolUsuario::Comercial);
 
@@ -75,7 +74,7 @@ class FiltroDeCampanasTest extends TestCase
         $materialPop = Campana::create(['nombre' => 'Envió material pop']);
 
         // Se la invitó primero y después se le mandó material: hoy tiene
-        // puesta la segunda campaña, pero las dos la alcanzaron.
+        // puesta la segunda campaña, y las dos la cuentan.
         $marca = $this->crearMarca('Marca que cambió de campaña', $materialPop);
 
         $this->anotarAccion($marca, $invitacion, '2026-09-17');
@@ -85,11 +84,33 @@ class FiltroDeCampanasTest extends TestCase
             $this->actingAs($comercial)->getJson('/api/panel/resumen')->json('porCampana'),
         )->keyBy('nombre');
 
-        $this->assertSame(0, $reparto['Invitación a evento']['total']);
-        $this->assertSame(1, $reparto['Invitación a evento']['alcanzadas']);
-
+        $this->assertSame(1, $reparto['Invitación a evento']['total']);
         $this->assertSame(1, $reparto['Envió material pop']['total']);
-        $this->assertSame(1, $reparto['Envió material pop']['alcanzadas']);
+
+        // Una sola cifra: la de «ahora» se quitó a propósito.
+        $this->assertArrayNotHasKey('alcanzadas', $reparto['Invitación a evento']);
+    }
+
+    /**
+     * Una marca con la campaña puesta pero sin ninguna acción anotada
+     * también cuenta. Son las importadas, o las de antes de que existiera
+     * el historial: contar solo el historial las dejaría fuera.
+     */
+    public function test_cuenta_la_marca_con_la_campana_puesta_aunque_no_tenga_acciones(): void
+    {
+        $comercial = $this->crearUsuario(RolUsuario::Comercial);
+
+        $visita = Campana::create(['nombre' => 'Visita presencial']);
+
+        $this->crearMarca('Marca importada con campaña', $visita);
+        $conAccion = $this->crearMarca('Marca visitada', $visita);
+        $this->anotarAccion($conAccion, $visita, '2026-09-10');
+
+        $reparto = collect(
+            $this->actingAs($comercial)->getJson('/api/panel/resumen')->json('porCampana'),
+        )->firstWhere('nombre', 'Visita presencial');
+
+        $this->assertSame(2, $reparto['total']);
     }
 
     /**
@@ -113,16 +134,57 @@ class FiltroDeCampanasTest extends TestCase
             $this->actingAs($comercial)->getJson('/api/panel/resumen')->json('porCampana'),
         )->firstWhere('nombre', 'Visita presencial');
 
-        $this->assertSame(1, $reparto['alcanzadas']);
+        $this->assertSame(1, $reparto['total']);
     }
 
     /**
-     * Al pulsar «alcanzadas» tiene que salir esa misma lista.
+     * La pantalla de campañas cuenta lo mismo que el resumen. Era la que
+     * enseñaba solo las marcas con la campaña puesta hoy.
+     *
+     * Lo que sí sigue saliendo aparte es cuántas la tienen PUESTA: es el
+     * aviso de antes de borrarla, porque esas son las que se quedan sin
+     * campaña.
+     */
+    public function test_la_pantalla_de_campanas_cuenta_las_que_la_tuvieron(): void
+    {
+        $comercial = $this->crearUsuario(RolUsuario::Comercial);
+
+        $megafitness = Campana::create(['nombre' => 'VT Megafitness']);
+        $visita = Campana::create(['nombre' => 'Visita presencial']);
+
+        for ($numero = 1; $numero <= 4; $numero++) {
+            $this->anotarAccion($this->crearMarca("Con la campaña {$numero}", $megafitness), $megafitness, '2026-09-10');
+        }
+
+        // La quinta pasó después a otra campaña.
+        $laQuePaso = $this->crearMarca('La que pasó a otra', $visita);
+        $this->anotarAccion($laQuePaso, $megafitness, '2026-09-10');
+        $this->anotarAccion($laQuePaso, $visita, '2026-09-20');
+
+        $campanas = collect(
+            $this->actingAs($comercial)->getJson('/api/campanas')->assertOk()->json('data'),
+        )->keyBy('nombre');
+
+        $this->assertSame(5, $campanas['VT Megafitness']['totalMarcas']);
+        $this->assertSame(4, $campanas['VT Megafitness']['marcasConLaCampanaPuesta']);
+        $this->assertSame(1, $campanas['Visita presencial']['totalMarcas']);
+
+        // Y al pulsar «Ver las marcas» salen esas mismas cinco.
+        $this->actingAs($comercial)
+            ->getJson('/api/marcas?campana='.$megafitness->id)
+            ->assertOk()
+            ->assertJsonCount(5, 'data');
+    }
+
+    /**
+     * Al pulsar la cifra tiene que salir esa misma lista.
      *
      * Es la regla que sostiene todo el panel: una cifra que lleva a una
-     * lista con otro número es peor que una cifra sin enlace.
+     * lista con otro número es peor que una cifra sin enlace. Se prueba
+     * también `campanaAlcanzada`, el nombre viejo del filtro, que se sigue
+     * aceptando para no romper enlaces guardados.
      */
-    public function test_el_filtro_por_alcanzadas_trae_las_que_ya_cambiaron_de_campana(): void
+    public function test_el_filtro_por_campana_trae_las_que_ya_cambiaron_de_campana(): void
     {
         $comercial = $this->crearUsuario(RolUsuario::Comercial);
 
@@ -138,36 +200,41 @@ class FiltroDeCampanasTest extends TestCase
         // Y una que nunca tuvo nada que ver con esa campaña.
         $this->crearMarca('Marca ajena', $materialPop);
 
-        $nombres = array_column(
-            $this->actingAs($comercial)
-                ->getJson('/api/marcas?campanaAlcanzada='.$invitacion->id)
-                ->assertOk()
-                ->json('data'),
-            'nombreMarca',
-        );
+        foreach (['campana', 'campanaAlcanzada'] as $parametro) {
+            $nombres = array_column(
+                $this->actingAs($comercial)
+                    ->getJson("/api/marcas?{$parametro}=".$invitacion->id)
+                    ->assertOk()
+                    ->json('data'),
+                'nombreMarca',
+            );
 
-        sort($nombres);
+            sort($nombres);
 
-        $this->assertSame(
-            ['Marca invitada y quieta', 'Marca que cambió de campaña'],
-            $nombres,
-        );
+            $this->assertSame(
+                ['Marca invitada y quieta', 'Marca que cambió de campaña'],
+                $nombres,
+                "Con ?{$parametro}=",
+            );
+        }
     }
 
     /**
-     * Renombrar una campaña no le quita sus marcas alcanzadas.
+     * Renombrar una campaña no le quita sus marcas.
      *
      * El historial guarda el nombre viejo dentro de cada acción a
      * propósito (regla 13), así que el reparto tiene que agrupar por id;
      * agrupando por nombre, renombrar vaciaría la cifra de golpe.
      */
-    public function test_renombrar_la_campana_no_pierde_sus_alcanzadas(): void
+    public function test_renombrar_la_campana_no_pierde_sus_marcas(): void
     {
         $comercial = $this->crearUsuario(RolUsuario::Comercial);
 
         $campana = Campana::create(['nombre' => 'Invitación a evento']);
-        $marca = $this->crearMarca('Marca invitada', $campana);
+        $otra = Campana::create(['nombre' => 'Visita presencial']);
 
+        // Ya no la tiene puesta: solo queda en el historial.
+        $marca = $this->crearMarca('Marca invitada', $otra);
         $this->anotarAccion($marca, $campana, '2026-09-17');
 
         $campana->update(['nombre' => 'Invitación a evento de enamorados']);
@@ -176,10 +243,15 @@ class FiltroDeCampanasTest extends TestCase
             $this->actingAs($comercial)->getJson('/api/panel/resumen')->json('porCampana'),
         )->firstWhere('nombre', 'Invitación a evento de enamorados');
 
-        $this->assertSame(1, $reparto['alcanzadas']);
+        $this->assertSame(1, $reparto['total']);
     }
 
-    public function test_el_filtro_sin_campana_trae_las_que_no_tienen_ninguna(): void
+    /**
+     * «Sin campaña» son las que no han tenido NINGUNA. Una marca a la que
+     * se le quitó la campaña la tuvo, así que no sale aquí: sale en la de
+     * su campaña.
+     */
+    public function test_el_filtro_sin_campana_trae_las_que_nunca_tuvieron_ninguna(): void
     {
         $comercial = $this->crearUsuario(RolUsuario::Comercial);
 
@@ -188,6 +260,9 @@ class FiltroDeCampanasTest extends TestCase
         $this->crearMarca('Marca invitada', $campana);
         $this->crearMarca('Marca huérfana', null);
         $this->crearMarca('Otra huérfana', null);
+
+        $laQueSeQuedoSin = $this->crearMarca('Marca a la que se le quitó', null);
+        $this->anotarAccion($laQueSeQuedoSin, $campana, '2026-09-12');
 
         $respuesta = $this->actingAs($comercial)->getJson('/api/marcas?campana=sin_campana');
 
@@ -198,6 +273,12 @@ class FiltroDeCampanasTest extends TestCase
         sort($nombresDevueltos);
 
         $this->assertSame(['Marca huérfana', 'Otra huérfana'], $nombresDevueltos);
+
+        $sinCampana = collect(
+            $this->actingAs($comercial)->getJson('/api/panel/resumen')->json('porCampana'),
+        )->firstWhere('nombre', 'Sin campaña');
+
+        $this->assertSame(2, $sinCampana['total']);
     }
 
     public function test_sin_filtro_de_campana_salen_todas_las_marcas(): void

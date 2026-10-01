@@ -15,7 +15,8 @@ sistema tiene tres partes que comparten una única base de datos:
 | **Web pública** | La página de la agencia. Una sola página, en español e inglés. | Cualquier visitante |
 | **CRM de patrocinios** | El tablero de marcas: a quién se le está vendiendo un patrocinio y por dónde va. | El equipo comercial |
 | **Catálogo comercial** | Las **propiedades** (los productos IOP que se venden) y las **campañas** del año. | Admin y comerciales |
-| **Administrador de la web** | Cambiar textos, fotos, colores y secciones sin tocar código. | Admin y comerciales |
+| **Administrador de la web** | Cambiar textos, fotos, colores y secciones sin tocar código, y en «Catálogo web» qué propiedades ven los clientes. | Admin y comerciales |
+| **Cierre de mes** | Los reportes que el comercial sube al acabar cada mes, agrupados por mes. | Admin y comerciales |
 
 Es la migración de un sistema anterior hecho con HTML/JS suelto y
 Supabase. La versión anterior está en
@@ -223,6 +224,15 @@ La web pública conserva el acabado del sitio original. Todo vive en
 Los cuatro respetan `prefers-reduced-motion`. La marquesina de aliados y
 el anclaje del carrusel del equipo son CSS puro (`index.css`).
 
+> **`useRevelarAlEntrar` apunta los elementos aunque el observador no
+> exista todavía.** React llama a las referencias antes que a los
+> efectos, y con la sesión del panel abierta el contenido de la web sale
+> de la copia guardada y se pinta en el primer render. Hasta el
+> 2026-10-01 esos elementos no se vigilaban nunca y servicios y
+> proyectos salían en blanco **solo en producción**: en desarrollo,
+> `StrictMode` vuelve a enganchar las referencias y tapa el fallo. Un
+> cambio en ese hook se comprueba con el build (`frontend-compilado`).
+
 > **Aviso al verificar:** estos efectos dependen de
 > `IntersectionObserver` y `requestAnimationFrame`, y el navegador los
 > **suspende en pestañas ocultas**. Si se comprueban con herramientas
@@ -347,8 +357,12 @@ Salieron del cliente y están implementadas a propósito así:
    caro de depurar.
 
 6. **Roles:**
-   - `admin` → todo: cuentas, web y marcas.
-   - `comercial` → todas las marcas; asigna vendedores.
+   - `admin` → todo: cuentas, web y marcas. Es el único que ve
+     **Equipo, Auditoría y Tiempo real**.
+   - `comercial` → todas las marcas; asigna vendedores. Desde el
+     2026-10-01 no ve la pantalla de Equipo (la veía sin poder tocar
+     nada); la lista del equipo para repartir marcas le sigue llegando
+     por `/api/usuarios`.
    - `vendedor` (en pantalla, AGENTE) → **ve y edita solo las marcas que
      tiene asignadas**, y no borra. Hasta el 2026-09-08 las veía todas;
      se cambió a petición del equipo, con el argumento de que quien
@@ -411,6 +425,17 @@ Salieron del cliente y están implementadas a propósito así:
     propósito: si la campaña se renombra o se borra, el historial tiene
     que seguir diciendo lo que de verdad pasó. Guardar la ficha sin
     cambiar campaña ni fecha no repite la línea.
+
+    **Una marca TIENE una campaña si la tiene puesta o si la tuvo alguna
+    vez.** Desde el 2026-10-01, a petición del equipo: lo que importa es
+    a cuántas marcas llegó cada campaña, sea cuando sea. Sale de
+    `marcas.campana_id` **y** del historial a la vez
+    (`Marca::campanasQueHaTenido`), y de ahí cuentan la pantalla de
+    campañas, el reparto del resumen y el filtro del tablero, así que la
+    cifra y su lista coinciden. Una sola cifra: la de «ahora» se quitó.
+    «Sin campaña» son las que no han tenido ninguna nunca. El IMPORTE sí
+    sale solo de la casilla, o una marca que pasó por tres campañas
+    sumaría su valor tres veces.
 
 14. **Los listados largos se recorren con scroll infinito.** El tablero
     de marcas y el historial de auditoría vienen paginados del servidor
@@ -551,12 +576,15 @@ Salieron del cliente y están implementadas a propósito así:
 
     El **reporte por fechas** (`/reportes/bitacora`, desde el
     2026-09-25) es la misma bitácora cortada por días y agrupada por
-    marca, y hereda esos permisos: sin marcas elegidas es el de toda la
-    agencia y solo lo saca el administrador (si no, un rango de diez años
-    sería el histórico completo); con marcas, quien pueda ver cada una, y
-    una ajena rechaza la petición entera. Un día es un día **de quien
-    mira**: el navegador manda su zona horaria, porque lo comentado a las
-    nueve de la noche en Caracas ya es mañana en UTC.
+    marca. **Sin marcas elegidas son todas las que ve quien lo pide**: la
+    agencia entera para admin y comercial, su cartera para un agente.
+    Hasta el 2026-10-01 eso era solo del administrador y los demás tenían
+    que elegir las marcas una a una (con quinientas, quinientos clics).
+    Con marcas, quien pueda ver cada una, y una ajena rechaza la petición
+    entera. El histórico completo de una vez sigue siendo solo del
+    administrador. Un día es un día **de quien mira**: el navegador manda
+    su zona horaria, porque lo comentado a las nueve de la noche en
+    Caracas ya es mañana en UTC.
 
 20. **El chat es entre personas, y lo de una charla es de quien está
     dentro.** Desde el 2026-09-25. Uno a uno y en grupo; nunca un hilo
@@ -598,10 +626,14 @@ Salieron del cliente y están implementadas a propósito así:
       tipo en el **contenido** del fichero (`finfo`); el nombre y lo que
       diga el navegador no cuentan. Galería y bitácora admiten fotos y PDF hasta
       20 MB, **sin SVG** (lleva código dentro y esto se enseña a
-      clientes); logos, fotos de la web y avatares siguen en 5 MB.
-    - **Los adjuntos de la bitácora van en el disco privado** y se abren
-      con un enlace firmado que caduca en uno o dos días
-      (`ArchivoMedia::enlaceFirmado`). La bitácora es la relación
+      clientes); logos, fotos de la web y avatares siguen en 5 MB. El
+      cierre de mes (regla 24) admite además Excel, Word y PowerPoint;
+      un Office moderno que `finfo` ve como ZIP a secas se reconoce por
+      las piezas que lleva dentro, nunca por la extensión.
+    - **Los adjuntos de la bitácora y los cierres de mes van en el disco
+      privado** y se abren con un enlace firmado que caduca en uno o dos
+      días (`ArchivoMedia::enlaceFirmado`, por `/api/adjuntos/{archivo}`,
+      que solo sirve `PROPOSITOS_PRIVADOS`). La bitácora es la relación
       comercial con una marca: servida por `/storage`, cualquiera con la
       dirección la vería para siempre. El fichero sube antes que la
       entrada (para enseñar el progreso) y lo que nadie publica se borra
@@ -634,7 +666,7 @@ Salieron del cliente y están implementadas a propósito así:
     - **Lo de una marca solo le llega a quien puede verla**
       (`MarcaPolicy::view`, regla 6); si cambió de agente, también al
       anterior, para que desaparezca de su tablero. Lo del catálogo, a
-      todo el equipo.
+      todo el equipo. Lo de los cierres de mes, solo a admin y comercial.
     - **Lo anota ObservadorDeCambiosEnVivo** al guardarse cada modelo,
       así ningún camino se queda fuera, y `App\Support\CambiosEnVivo`
       lo envía **una vez por petición**, al terminar y con la respuesta
@@ -681,12 +713,36 @@ Salieron del cliente y están implementadas a propósito así:
       sección ni su enlace del menú (`/propiedades-en-la-web/acceso`).
       Las fotos siguen en el disco público con nombre imposible de
       adivinar: la puerta protege el listado, no cada fichero.
+    - **Todo se gestiona en la pantalla «Catálogo web»** (`/catalogo-web`,
+      admin y comercial, desde el 2026-10-01): si el catálogo se ve y qué
+      le falta (con las mismas dos condiciones que comprueba el
+      servidor), el usuario de invitado a la vista, un interruptor por
+      propiedad (`PATCH /propiedades/{id}/publicada`) y el paso a paso
+      para montar una propiedad. Antes el acceso era una ventana escondida
+      en Propiedades y en producción el catálogo no salía porque faltaban
+      las dos cosas, sin que nada lo dijera.
     - **El brochure de propiedades** (Reportes → Brochure, PDF que hace
       el navegador) lleva lo mismo que la web: el texto para clientes
       (nunca `descripcion`), las fotos que salen en la web y ningún
       monto. Las reglas viven en `utilidades/brochureDePropiedades.ts`.
       Todas las fotos van en huecos 16:10: un hueco vertical se comía
       medio plano o media hoja de dossier.
+
+24. **El cierre de mes es un archivo de reportes por mes**, desde el
+    2026-10-01. El comercial sube su reporte al acabar cada mes (PDF,
+    Excel, Word, PowerPoint o imagen, hasta 20 MB) en `/cierre-de-mes`.
+
+    - **Lo ven y lo suben admin y comercial**
+      (`RolUsuario::veLosCierresDeMes`, `CierreDeMesPolicy`). El agente
+      no: habla de toda la agencia.
+    - **Borra quien lo subió, o el administrador.** Un comercial no borra
+      el reporte de otro.
+    - **`mes` es el mes AL QUE CORRESPONDE**, no el día en que se subió:
+      el de septiembre se sube en octubre, y por eso la ventana propone
+      el mes anterior. Un mes que no ha empezado se rechaza.
+    - El fichero va al disco privado por `GuardadoDeArchivos` (regla 21)
+      y se borra con el cierre. Subir y borrar quedan en la auditoría.
+    - Queda fuera de la copia sin conexión: sus enlaces caducan.
 
 ---
 
@@ -799,3 +855,7 @@ VPS usa **MySQL**: la plantilla es `backend/.env.example`.
   panel (regla 23).
 - Sacar hacia fuera (web, brochure) la `descripcion` de una propiedad,
   un monto o una foto «solo para el equipo» (reglas 21 y 23).
+- Contar las marcas de una campaña solo con `marcas.campana_id`: se usa
+  `Marca::campanasQueHaTenido` (regla 13).
+- Dar por bueno un cambio en `useRevelarAlEntrar` probándolo solo en
+  desarrollo: `StrictMode` esconde el fallo (ver 4.6).

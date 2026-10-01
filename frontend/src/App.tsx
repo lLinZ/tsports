@@ -58,6 +58,8 @@ import { PaginaSectores } from "@/paginas/PaginaSectores";
 import { PaginaPerfil } from "@/paginas/PaginaPerfil";
 import { PaginaBrochure } from "@/paginas/PaginaBrochure";
 import { PaginaReporteDeBitacora } from "@/paginas/PaginaReporteDeBitacora";
+import { PaginaCatalogoWeb } from "@/paginas/PaginaCatalogoWeb";
+import { PaginaCierreDeMes } from "@/paginas/PaginaCierreDeMes";
 import { PaginaTiempoReal } from "@/paginas/PaginaTiempoReal";
 import { PaginaUsuarios } from "@/paginas/PaginaUsuarios";
 import { PaginaWebPublica } from "@/paginas/publico/PaginaWebPublica";
@@ -167,6 +169,31 @@ function RutasDeLaAplicacion() {
         path="/propiedades"
       />
 
+      {/* Qué propiedades ven los clientes en la web y con qué usuario
+          entran. Es decidir qué se enseña fuera de la agencia: quien
+          gestiona el catálogo. El servidor lo vuelve a comprobar. */}
+      <Route
+        element={
+          <RutaProtegida
+            requiere={(usuario) => usuario.permisos.gestionaElCatalogoComercial}
+          >
+            <PaginaCatalogoWeb />
+          </RutaProtegida>
+        }
+        path="/catalogo-web"
+      />
+
+      {/* Los reportes de cierre de mes: admin y comercial
+          (CierreDeMesPolicy). */}
+      <Route
+        element={
+          <RutaProtegida requiere={(usuario) => usuario.permisos.veLosCierresDeMes}>
+            <PaginaCierreDeMes />
+          </RutaProtegida>
+        }
+        path="/cierre-de-mes"
+      />
+
       {/* Los rubros los consulta todo el equipo —el selector de la ficha
           los necesita— pero la pantalla que los administra es de quien
           gestiona el catálogo: a un agente solo le daría botones que no
@@ -265,7 +292,7 @@ function RutasDeLaAplicacion() {
 
       <Route
         element={
-          <RutaProtegida requiere={(usuario) => usuario.permisos.asignaVendedores}>
+          <RutaProtegida requiere={(usuario) => usuario.permisos.administraElSistema}>
             <PaginaUsuarios />
           </RutaProtegida>
         }

@@ -38,6 +38,7 @@ import {
   actualizarPiezaDeGaleria,
   actualizarPropiedad,
   cambiarActivaDePropiedad,
+  cambiarPublicacionDePropiedad,
   crearPropiedad,
   elegirPortadaDeGaleria,
   eliminarDeGaleria,
@@ -153,6 +154,21 @@ export function useCambiarActivaDePropiedad(): UseMutationResult<
   return useMutation({
     mutationFn: ({ idDeLaPropiedad, activa }) =>
       cambiarActivaDePropiedad(idDeLaPropiedad, activa),
+    onSuccess: invalidarPropiedades,
+  });
+}
+
+/** El interruptor de «Catálogo web»: sale en la web o no. */
+export function useCambiarPublicacionDePropiedad(): UseMutationResult<
+  Propiedad,
+  unknown,
+  { idDeLaPropiedad: string; publicada: boolean }
+> {
+  const invalidarPropiedades = useInvalidarPropiedades();
+
+  return useMutation({
+    mutationFn: ({ idDeLaPropiedad, publicada }) =>
+      cambiarPublicacionDePropiedad(idDeLaPropiedad, publicada),
     onSuccess: invalidarPropiedades,
   });
 }

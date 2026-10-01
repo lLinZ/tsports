@@ -177,16 +177,12 @@ class PanelSegunElRolTest extends TestCase
             $this->actingAs($agente)->getJson('/api/panel/resumen')->json('misCampanas'),
         )->keyBy('nombre');
 
-        // La que trabajó y ya no tiene puesta: cero ahora, una alcanzada.
-        $this->assertSame(0, $misCampanas['Invitación a evento']['total']);
-        $this->assertSame(1, $misCampanas['Invitación a evento']['alcanzadas']);
-
-        // La que tiene puesta hoy.
+        // Las dos cuentan su marca: la que tuvo y la que tiene puesta. La
+        // de la marca ajena no le suma nada.
+        $this->assertSame(1, $misCampanas['Invitación a evento']['total']);
         $this->assertSame(1, $misCampanas['Envió material pop']['total']);
-        $this->assertSame(1, $misCampanas['Envió material pop']['alcanzadas']);
-
-        // Primero lo que tiene puesto hoy, que es lo que le toca.
-        $this->assertSame('Envió material pop', $misCampanas->keys()->first());
+        $this->assertArrayNotHasKey('alcanzadas', $misCampanas['Invitación a evento']);
+        $this->assertArrayNotHasKey('Sin campaña', $misCampanas->all());
     }
 
     public function test_el_calendario_del_agente_solo_trae_sus_acciones(): void

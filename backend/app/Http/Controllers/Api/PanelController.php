@@ -222,80 +222,49 @@ class PanelController extends Controller
     }
 
     /**
-     * Cómo se reparten las marcas del agente entre campañas.
+     * Cuántas marcas del agente tienen o tuvieron cada campaña.
      *
-     * Las mismas dos cifras que el reparto de la empresa: `total` son sus
-     * marcas con esa campaña PUESTA AHORA y `alcanzadas`, las suyas a las
-     * que esa campaña llegó alguna vez. Sin la segunda, una campaña que
-     * trabajó en septiembre y cuyas marcas pasaron después a otra
-     * desaparecía de su panel sin dejar rastro.
+     * Una sola cifra por campaña, la misma que en el reparto de la
+     * empresa (ver `Marca::campanasQueHaTenido`). Solo salen las campañas
+     * que han tocado alguna de sus marcas: en el panel de la empresa se
+     * listan todas, porque ahí la pregunta es cuál hay que empujar; aquí
+     * serían ruido. Y al final, sus marcas que no han tenido ninguna.
      *
-     * Por eso la lista ya no sale solo de `marcas.campana_id`: se le
-     * añaden las campañas que aparecen en su historial aunque hoy no
-     * tenga ninguna marca en ellas. Las que nunca ha tocado siguen fuera
-     * —en el panel de la empresa se listan todas, porque ahí la pregunta
-     * es cuál hay que empujar; aquí serían ruido—.
-     *
-     * El nombre y el color se leen de `campanas` y no del historial:
-     * esto describe cómo están AHORA sus marcas, no lo que se hizo en su
-     * día.
+     * El nombre y el color se leen de `campanas` y no del historial: si
+     * la campaña se renombró, se enseña como se llama hoy.
      *
      * @return list<array<string,mixed>>
      */
     private function misCampanas(User $usuario): array
     {
-        $conLaCampanaPuesta = Marca::query()
-            ->leftJoin('campanas', 'campanas.id', '=', 'marcas.campana_id')
-            ->where('marcas.vendedor_asignado_id', $usuario->id)
-            ->select('marcas.campana_id')
-            ->selectRaw('MAX(campanas.nombre) as nombre')
-            ->selectRaw('MAX(campanas.color) as color')
-            ->selectRaw('COUNT(*) as total')
-            ->groupBy('marcas.campana_id')
+        $marcasPorCampana = $this->marcasConCadaCampana($usuario);
+
+        $filas = Campana::query()
+            ->whereIn('id', $marcasPorCampana->keys())
             ->get()
-            ->keyBy(fn ($fila): string => (string) ($fila->campana_id ?? 'sin_campana'));
-
-        $alcanzadas = $this->marcasAlcanzadasPorCadaCampana($usuario);
-
-        // Las campañas de su historial que hoy no tiene puesta en ninguna
-        // marca: sin esto quedarían fuera de la lista y su trabajo de
-        // hace un mes no se vería por ningún lado.
-        $campanasSoloDelHistorial = Campana::query()
-            ->whereIn('id', $alcanzadas->keys()->reject(
-                fn ($id): bool => $conLaCampanaPuesta->has((string) $id),
-            ))
-            ->get();
-
-        $filas = $conLaCampanaPuesta
-            ->map(static fn ($fila): array => [
-                'campanaId' => $fila->campana_id,
-                'nombre' => (string) ($fila->nombre ?: 'Sin campaña'),
-                'color' => (string) ($fila->color ?: '#94a3b8'),
-                'total' => (int) $fila->total,
-            ])
-            ->values()
-            ->concat($campanasSoloDelHistorial->map(static fn (Campana $campana): array => [
+            ->map(static fn (Campana $campana): array => [
                 'campanaId' => $campana->id,
                 'nombre' => $campana->nombre,
                 'color' => $campana->color,
-                'total' => 0,
-            ]))
-            ->map(static function (array $fila) use ($alcanzadas): array {
-                // "Sin campaña" no es una campaña y no alcanza a nadie.
-                $fila['alcanzadas'] = $fila['campanaId'] === null
-                    ? null
-                    : (int) ($alcanzadas[$fila['campanaId']] ?? 0);
-
-                return $fila;
-            })
-            // Primero lo que tiene puesto hoy, que es lo que le toca; el
-            // historial desempata.
-            ->sortByDesc(static fn (array $fila): array => [
-                $fila['total'],
-                $fila['alcanzadas'] ?? 0,
+                'total' => (int) $marcasPorCampana[$campana->id],
             ])
+            ->sortByDesc('total')
             ->values()
             ->all();
+
+        $sinNingunaCampana = Marca::query()
+            ->where('vendedor_asignado_id', $usuario->id)
+            ->deCampana('sin_campana')
+            ->count();
+
+        if ($sinNingunaCampana > 0) {
+            $filas[] = [
+                'campanaId' => null,
+                'nombre' => 'Sin campaña',
+                'color' => '#94a3b8',
+                'total' => $sinNingunaCampana,
+            ];
+        }
 
         return $filas;
     }
@@ -556,80 +525,67 @@ class PanelController extends Controller
     }
 
     /**
-     * Reparto del trabajo por campaña, con SUS DOS CIFRAS.
+     * Reparto del trabajo por campaña: cuántas marcas tienen o tuvieron
+     * cada una.
      *
-     * Se listan todas las campañas activas aunque estén vacías —una
-     * campaña recién abierta con cero marcas es justo la que hay que
-     * empujar— y, al final, las marcas que no pertenecen a ninguna.
+     * Se listan todas las campañas aunque estén vacías —una campaña recién
+     * abierta con cero marcas es justo la que hay que empujar— y, al
+     * final, las marcas que no han tenido ninguna.
      *
-     * De cada una se devuelven dos números, y no son lo mismo:
+     * UNA CIFRA, NO DOS. Hasta el 2026-10-01 cada campaña llevaba «N
+     * ahora» (las que la tienen puesta hoy) y «N alcanzadas» (las que la
+     * tuvieron alguna vez), y la pantalla de campañas enseñaba solo la
+     * primera. El equipo pidió quedarse con una: a cuántas marcas llegó la
+     * campaña, sea cuando sea. La regla vive en
+     * `Marca::campanasQueHaTenido`, y el filtro del tablero la usa igual,
+     * así que pulsar la cifra lleva a esa misma lista.
      *
-     *   · `total`      → marcas con esa campaña PUESTA AHORA. Sale de
-     *     `marcas.campana_id`, que es una sola casilla. Contesta a quién
-     *     le toca esa campaña hoy, que es con lo que se reparte trabajo.
-     *   · `alcanzadas` → marcas DISTINTAS a las que esa campaña llegó
-     *     alguna vez. Sale del historial de acciones.
-     *
-     * Durante un tiempo solo se devolvió la primera, bajo el rótulo
-     * "cuántas marcas se están trabajando dentro de cada campaña", y eso
-     * no era cierto: al asignarle a una marca una campaña nueva la
-     * casilla se sobreescribe y la marca desaparece de la anterior. En la
-     * base de pruebas eso dejaba cinco de siete campañas contando por
-     * debajo (33 de 36, 8 de 12…) y dos en CERO teniendo acciones hechas,
-     * porque sus marcas habían pasado después a otra campaña.
-     *
-     * El importe sigue saliendo de la casilla y no del historial a
-     * propósito: una marca que ha pasado por tres campañas sumaría su
-     * valor anual en las tres y el pipeline saldría inflado.
+     * El importe sigue saliendo de la casilla `campana_id` y no del
+     * historial, a propósito: una marca que ha pasado por tres campañas
+     * sumaría su valor anual en las tres y el pipeline saldría inflado.
      *
      * @return list<array<string,mixed>>
      */
     private function resumenPorCampana(): array
     {
-        $filasPorCampana = Marca::query()
+        $valorPorCampana = Marca::query()
+            ->whereNotNull('campana_id')
             ->select('campana_id')
-            ->selectRaw('COUNT(*) as total')
             ->selectRaw('SUM(CASE WHEN fase_propuesta_completada = 1 THEN valor_anual_usd ELSE 0 END) as valor')
             ->groupBy('campana_id')
-            ->get()
-            ->keyBy(fn ($fila): string => (string) ($fila->campana_id ?? 'sin_campana'));
+            ->pluck('valor', 'campana_id');
 
-        $alcanzadasPorCampana = $this->marcasAlcanzadasPorCadaCampana();
+        $marcasPorCampana = $this->marcasConCadaCampana();
 
         $resumen = Campana::query()
             ->enOrdenDeCatalogo()
             ->get()
-            ->map(static function (Campana $campana) use ($filasPorCampana, $alcanzadasPorCampana): array {
-                $fila = $filasPorCampana->get($campana->id);
-
-                return [
-                    'campanaId' => $campana->id,
-                    'nombre' => $campana->nombre,
-                    'color' => $campana->color,
-                    'activa' => $campana->activa,
-                    'estaVigente' => $campana->estaVigente(),
-                    'total' => (int) ($fila->total ?? 0),
-                    'alcanzadas' => (int) ($alcanzadasPorCampana[$campana->id] ?? 0),
-                    'valor' => (float) ($fila->valor ?? 0),
-                ];
-            })
+            ->map(static fn (Campana $campana): array => [
+                'campanaId' => $campana->id,
+                'nombre' => $campana->nombre,
+                'color' => $campana->color,
+                'activa' => $campana->activa,
+                'estaVigente' => $campana->estaVigente(),
+                'total' => (int) ($marcasPorCampana[$campana->id] ?? 0),
+                'valor' => (float) ($valorPorCampana[$campana->id] ?? 0),
+            ])
             ->all();
 
-        $marcasSinCampana = $filasPorCampana->get('sin_campana');
+        $sinNingunaCampana = Marca::query()
+            ->deCampana('sin_campana')
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw('SUM(CASE WHEN fase_propuesta_completada = 1 THEN valor_anual_usd ELSE 0 END) as valor')
+            ->first();
 
-        if ($marcasSinCampana !== null && (int) $marcasSinCampana->total > 0) {
+        if ($sinNingunaCampana !== null && (int) $sinNingunaCampana->total > 0) {
             $resumen[] = [
                 'campanaId' => null,
                 'nombre' => 'Sin campaña',
                 'color' => '#94a3b8',
                 'activa' => true,
                 'estaVigente' => true,
-                'total' => (int) $marcasSinCampana->total,
-                // "Sin campaña" no es una campaña: no ha alcanzado a
-                // nadie. Va nulo y la interfaz no pinta esa cifra, que es
-                // más honesto que un cero que se lee como un dato.
-                'alcanzadas' => null,
-                'valor' => (float) $marcasSinCampana->valor,
+                'total' => (int) $sinNingunaCampana->total,
+                'valor' => (float) $sinNingunaCampana->valor,
             ];
         }
 
@@ -637,33 +593,26 @@ class PanelController extends Controller
     }
 
     /**
-     * Cuántas marcas distintas alcanzó cada campaña, según el historial.
-     *
-     * Se agrupa por `campana_id` y no por el nombre copiado dentro del
-     * evento: renombrar una campaña no le quita sus acciones viejas, y
-     * agrupando por nombre esas acciones acabarían en una fila aparte,
-     * con un nombre que ya no está en el catálogo.
+     * Cuántas marcas distintas tienen o tuvieron cada campaña.
      *
      * Con `$soloDelVendedor` se acota a las marcas de esa persona, que es
      * lo que necesita el panel del agente.
      *
      * @return \Illuminate\Support\Collection<string,int>
      */
-    private function marcasAlcanzadasPorCadaCampana(?User $soloDelVendedor = null)
+    private function marcasConCadaCampana(?User $soloDelVendedor = null)
     {
-        return DB::table('eventos_de_campana as eventos')
+        return DB::query()
+            ->fromSub(Marca::campanasQueHaTenido(), 'parejas')
             ->when(
                 $soloDelVendedor !== null,
                 fn ($consulta) => $consulta
-                    ->join('marcas', 'marcas.id', '=', 'eventos.marca_id')
+                    ->join('marcas', 'marcas.id', '=', 'parejas.marca_id')
                     ->where('marcas.vendedor_asignado_id', $soloDelVendedor->id),
             )
-            // Un evento cuya campaña se borró no se puede atribuir a
-            // ninguna de las que se listan, así que no se cuenta.
-            ->whereNotNull('eventos.campana_id')
-            ->select('eventos.campana_id')
-            ->selectRaw('COUNT(DISTINCT eventos.marca_id) as total')
-            ->groupBy('eventos.campana_id')
+            ->select('parejas.campana_id')
+            ->selectRaw('COUNT(*) as total')
+            ->groupBy('parejas.campana_id')
             ->pluck('total', 'campana_id');
     }
 

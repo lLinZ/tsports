@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Campana — el empujón comercial al que pertenece el trabajo.
@@ -84,5 +85,25 @@ class Campana extends Model
     public function scopeEnOrdenDeCatalogo(Builder $consulta): Builder
     {
         return $consulta->orderBy('orden')->orderBy('nombre');
+    }
+
+    /**
+     * Añade a cada campaña sus dos recuentos de marcas:
+     *
+     *   · `total_marcas` → las que la tienen o la tuvieron alguna vez
+     *     (`Marca::campanasQueHaTenido`). Es la cifra que se enseña.
+     *   · `marcas_count` → las que la tienen puesta hoy. Solo sirve para
+     *     avisar, antes de borrarla, de cuántas se quedarán sin campaña.
+     */
+    public function scopeConSusMarcas(Builder $consulta): Builder
+    {
+        return $consulta
+            ->addSelect([
+                'total_marcas' => DB::query()
+                    ->fromSub(Marca::campanasQueHaTenido(), 'parejas')
+                    ->whereColumn('parejas.campana_id', 'campanas.id')
+                    ->selectRaw('COUNT(*)'),
+            ])
+            ->withCount('marcas');
     }
 }

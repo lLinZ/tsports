@@ -7,6 +7,7 @@ namespace App\Providers;
 use App\Models\AccesoDeInvitados;
 use App\Models\ArchivoDePropiedad;
 use App\Models\Campana;
+use App\Models\CierreDeMes;
 use App\Models\ComentarioMarca;
 use App\Models\Conversacion;
 use App\Models\EventoDeCampana;
@@ -19,6 +20,7 @@ use App\Models\Sector;
 use App\Models\User;
 use App\Observers\ObservadorDeCambiosEnVivo;
 use App\Policies\CampanaPolicy;
+use App\Policies\CierreDeMesPolicy;
 use App\Policies\ConversacionPolicy;
 use App\Policies\EventoDeCampanaPolicy;
 use App\Policies\MarcaPolicy;
@@ -72,6 +74,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Sector::class, SectorPolicy::class);
         Gate::policy(Notificacion::class, NotificacionPolicy::class);
         Gate::policy(Conversacion::class, ConversacionPolicy::class);
+        Gate::policy(CierreDeMes::class, CierreDeMesPolicy::class);
 
         // Comprobaciones estrictas de Eloquent, solo fuera de producción.
         Model::shouldBeStrict(! $this->app->isProduction());
@@ -108,6 +111,7 @@ class AppServiceProvider extends ServiceProvider
             Campana::class,
             Sector::class,
             User::class,
+            CierreDeMes::class,
         ];
 
         foreach ($modelosQueSeVenEnElPanel as $modelo) {

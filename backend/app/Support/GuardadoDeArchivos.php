@@ -15,8 +15,8 @@ use RuntimeException;
  * GuardadoDeArchivos — la única puerta por la que un fichero entra al disco.
  * ---------------------------------------------------------------------
  * La usan la subida de logos e imágenes de la web (MediaController), la
- * galería de las propiedades y los adjuntos de la bitácora. Las reglas
- * son las mismas para todos y viven aquí:
+ * galería de las propiedades, los adjuntos de la bitácora y los reportes
+ * de cierre de mes. Las reglas son las mismas para todos y viven aquí:
  *
  *   · El tipo se decide por el CONTENIDO del fichero, leído con finfo,
  *     nunca por el nombre ni por lo que diga el navegador. Un
@@ -61,6 +61,20 @@ final class GuardadoDeArchivos
 
     private const PDF = ['application/pdf' => 'pdf'];
 
+    /**
+     * Hojas de cálculo, documentos y presentaciones de Office: el reporte
+     * de cierre de mes casi siempre es un Excel. Solo para ese propósito;
+     * nada de esto se enseña fuera del equipo.
+     */
+    private const OFFICE = [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'xlsx',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation' => 'pptx',
+        'application/vnd.ms-excel' => 'xls',
+        'application/msword' => 'doc',
+        'application/vnd.ms-powerpoint' => 'ppt',
+    ];
+
     /** Lo único que se acepta como miniatura: lo que sabe hacer un canvas. */
     private const TIPOS_DE_MINIATURA = [
         'image/jpeg' => 'jpg',
@@ -95,6 +109,13 @@ final class GuardadoDeArchivos
                 'tipos' => self::IMAGENES + self::PDF,
                 'maximoKb' => self::TAMANO_MAXIMO_DE_DOCUMENTO_KB,
                 'formatos' => 'JPG, PNG, WebP, GIF o PDF',
+            ],
+            // Privada: es un reporte interno de la agencia.
+            ArchivoMedia::PROPOSITO_CIERRE_DE_MES => [
+                'disco' => ArchivoMedia::DISCO_PRIVADO,
+                'tipos' => self::PDF + self::OFFICE + self::IMAGENES,
+                'maximoKb' => self::TAMANO_MAXIMO_DE_DOCUMENTO_KB,
+                'formatos' => 'PDF, Excel, Word, PowerPoint o una imagen',
             ],
             default => throw new RuntimeException("Propósito de fichero desconocido: {$proposito}"),
         };
@@ -190,7 +211,55 @@ final class GuardadoDeArchivos
 
         $tipo = (new \finfo(FILEINFO_MIME_TYPE))->file($ruta);
 
-        return is_string($tipo) ? strtolower($tipo) : null;
+        if (! is_string($tipo)) {
+            return null;
+        }
+
+        $tipo = strtolower($tipo);
+
+        // Un Excel, un Word o un PowerPoint modernos son un ZIP por dentro.
+        // finfo los reconoce por la primera pieza del ZIP, y algunos
+        // programas (exportar desde Google, por ejemplo) las guardan en
+        // otro orden: ahí dice «zip» a secas. Se mira entonces qué piezas
+        // lleva dentro, que sigue siendo el contenido y no el nombre.
+        if (in_array($tipo, ['application/zip', 'application/octet-stream'], true)) {
+            return self::tipoDeOfficeDentroDelZip($ruta) ?? $tipo;
+        }
+
+        return $tipo;
+    }
+
+    /**
+     * El tipo de Office de un ZIP, por las piezas que lleva: un .xlsx
+     * tiene `xl/workbook.xml`, un .docx `word/document.xml` y un .pptx
+     * `ppt/presentation.xml`, además del `[Content_Types].xml` de todos.
+     */
+    private static function tipoDeOfficeDentroDelZip(string $ruta): ?string
+    {
+        if (! class_exists(\ZipArchive::class)) {
+            return null;
+        }
+
+        $zip = new \ZipArchive();
+
+        if ($zip->open($ruta, \ZipArchive::RDONLY) !== true) {
+            return null;
+        }
+
+        try {
+            if ($zip->locateName('[Content_Types].xml') === false) {
+                return null;
+            }
+
+            return match (true) {
+                $zip->locateName('xl/workbook.xml') !== false => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                $zip->locateName('word/document.xml') !== false => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                $zip->locateName('ppt/presentation.xml') !== false => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                default => null,
+            };
+        } finally {
+            $zip->close();
+        }
     }
 
     /**

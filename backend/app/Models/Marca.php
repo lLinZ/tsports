@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Marca — una oportunidad de patrocinio dentro del CRM.
@@ -394,7 +396,47 @@ class Marca extends Model
         });
     }
 
-    /** Filtra por campaña; "sin_campana" trae las que no tienen ninguna. */
+    /**
+     * Qué campañas ha tenido cada marca: una fila por pareja
+     * (marca_id, campana_id), sin repetir.
+     *
+     * UNA MARCA TIENE UNA CAMPAÑA SI LA TIENE PUESTA O SI LA TUVO ALGUNA
+     * VEZ. Lo pidió así el equipo el 2026-10-01: lo que se quiere saber es
+     * a cuántas marcas llegó cada campaña, no cuántas la llevan hoy. Hasta
+     * ese día el panel enseñaba dos cifras («N ahora» y «N alcanzadas») y
+     * la pantalla de campañas solo la primera, con lo que una campaña con
+     * cinco marcas trabajadas decía cuatro.
+     *
+     * Salen de dos sitios porque ninguno basta solo:
+     *
+     *   · `marcas.campana_id` es una sola casilla y guarda la última
+     *     campaña: al ponerle otra, la marca desaparece de la anterior.
+     *   · `eventos_de_campana` es el historial, pero hay marcas con la
+     *     casilla puesta y ninguna acción anotada (las importadas, o las
+     *     de antes de que existiera el historial).
+     *
+     * Por id y no por nombre: una campaña renombrada sigue trayendo sus
+     * acciones viejas, que conservan el nombre antiguo dentro del evento
+     * (regla 13). El UNION ya quita las parejas repetidas: dos acciones de
+     * la misma campaña en la misma marca cuentan una marca.
+     */
+    public static function campanasQueHaTenido(): QueryBuilder
+    {
+        return DB::table('marcas')
+            ->select('id as marca_id', 'campana_id')
+            ->whereNotNull('campana_id')
+            ->union(
+                DB::table('eventos_de_campana')
+                    ->select('marca_id', 'campana_id')
+                    ->whereNotNull('campana_id'),
+            );
+    }
+
+    /**
+     * Filtra por campaña: las marcas que la tienen o la tuvieron (ver
+     * `campanasQueHaTenido`). "sin_campana" trae las que no han tenido
+     * ninguna nunca.
+     */
     public function scopeDeCampana(Builder $consulta, ?string $idDeLaCampana): Builder
     {
         if ($idDeLaCampana === null || $idDeLaCampana === '') {
@@ -402,43 +444,18 @@ class Marca extends Model
         }
 
         if ($idDeLaCampana === 'sin_campana') {
-            return $consulta->whereNull('campana_id');
+            return $consulta->whereNotIn(
+                'marcas.id',
+                DB::query()->fromSub(self::campanasQueHaTenido(), 'parejas')->select('parejas.marca_id'),
+            );
         }
 
-        return $consulta->where('campana_id', $idDeLaCampana);
-    }
-
-    /**
-     * Las marcas a las que esta campaña ALCANZÓ alguna vez.
-     *
-     * Es la otra lectura del reparto por campaña, y sale del HISTORIAL,
-     * no de `marcas.campana_id`. Esa columna es una sola casilla: guarda
-     * la última campaña asignada, así que una marca a la que después se
-     * le puso otra —o a la que se le quitó— desaparece de la campaña en
-     * la que sí se trabajó. En la base de pruebas eso dejaba a cinco de
-     * siete campañas contando por debajo, y a dos de ellas en cero
-     * teniendo acciones hechas.
-     *
-     * Las dos lecturas conviven porque contestan preguntas distintas:
-     * `deCampana` dice A QUIÉN LE TOCA esa campaña ahora, que es con lo
-     * que el comercial reparte trabajo; esta dice A CUÁNTAS MARCAS SE
-     * HA LLEGADO con ella, que es lo que mide el esfuerzo.
-     *
-     * Busca por ID y no por nombre para que una campaña renombrada siga
-     * trayendo sus acciones viejas, que conservan el nombre antiguo
-     * dentro del evento (regla 13).
-     */
-    public function scopeAlcanzadasPorLaCampana(
-        Builder $consulta,
-        ?string $idDeLaCampana,
-    ): Builder {
-        if ($idDeLaCampana === null || $idDeLaCampana === '') {
-            return $consulta;
-        }
-
-        return $consulta->whereHas(
-            'eventosDeCampana',
-            fn (Builder $subconsulta) => $subconsulta->where('campana_id', $idDeLaCampana),
+        return $consulta->whereIn(
+            'marcas.id',
+            DB::query()
+                ->fromSub(self::campanasQueHaTenido(), 'parejas')
+                ->where('parejas.campana_id', $idDeLaCampana)
+                ->select('parejas.marca_id'),
         );
     }
 

@@ -139,8 +139,11 @@ export function PaginaMarcas() {
       zona: parametrosDeLaUrl.get("zona") ?? "",
       sector: parametrosDeLaUrl.get("sector") ?? "",
       vendedor: parametrosDeLaUrl.get("vendedor") ?? "",
-      campana: parametrosDeLaUrl.get("campana") ?? "",
-      campanaAlcanzada: parametrosDeLaUrl.get("campanaAlcanzada") ?? "",
+      // `campanaAlcanzada` es el nombre viejo del mismo filtro, de cuando
+      // el panel separaba «ahora» de «alcanzadas». Se lee para que un
+      // enlace guardado de entonces siga abriendo la lista buena.
+      campana:
+        parametrosDeLaUrl.get("campana") ?? parametrosDeLaUrl.get("campanaAlcanzada") ?? "",
       propiedad: parametrosDeLaUrl.get("propiedad") ?? "",
       invierte:
         (parametrosDeLaUrl.get("invierte") as InversionEnPatrocinios) ?? "",
@@ -193,6 +196,12 @@ export function PaginaMarcas() {
       parametrosNuevos.delete("etapa");
     }
 
+    // El nombre viejo del filtro de campaña (ver filtrosAplicados): al
+    // tocar el desplegable se queda solo el nuevo.
+    if (clave === "campana") {
+      parametrosNuevos.delete("campanaAlcanzada");
+    }
+
     // Sin propiedad no hay de qué propiedad ordenar: el servidor volvería
     // a «más recientes» y el selector se quedaría en blanco.
     if (
@@ -219,7 +228,6 @@ export function PaginaMarcas() {
     Boolean(filtrosAplicados.sector) ||
     Boolean(filtrosAplicados.vendedor) ||
     Boolean(filtrosAplicados.campana) ||
-    Boolean(filtrosAplicados.campanaAlcanzada) ||
     Boolean(filtrosAplicados.propiedad) ||
     Boolean(filtrosAplicados.invierte);
 
@@ -626,24 +634,6 @@ export function PaginaMarcas() {
                   : (campanasActivas.find(
                       (campana) => campana.id === filtrosAplicados.campana,
                     )?.nombre ?? "otra")}
-              </Chip>
-            )}
-            {/* No tiene selector propio: se llega desde el panel. Por eso
-                el chip lleva la X, que es la única forma de quitarlo, y
-                dice «alcanzadas» para que no se confunda con el filtro de
-                campaña de arriba, que sí tiene desplegable. */}
-            {filtrosAplicados.campanaAlcanzada && (
-              <Chip
-                color="primary"
-                onClose={() => cambiarFiltro("campanaAlcanzada", "")}
-                radius="lg"
-                size="sm"
-                variant="flat"
-              >
-                Alcanzadas por:{" "}
-                {campanasActivas.find(
-                  (campana) => campana.id === filtrosAplicados.campanaAlcanzada,
-                )?.nombre ?? "una campaña"}
               </Chip>
             )}
             {filtrosAplicados.propiedad && (

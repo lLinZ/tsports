@@ -76,6 +76,19 @@ export async function actualizarPropiedad(
  * de ofrecerse en el checklist, pero las marcas que la llevaban la
  * conservan con su pronóstico.
  */
+/** Publicarla en el catálogo de la web, o retirarla. */
+export async function cambiarPublicacionDePropiedad(
+  idDeLaPropiedad: string,
+  publicada: boolean,
+): Promise<Propiedad> {
+  const { data } = await clienteHttp.patch<{ data: Propiedad }>(
+    `/propiedades/${idDeLaPropiedad}/publicada`,
+    { publicada },
+  );
+
+  return data.data;
+}
+
 export async function cambiarActivaDePropiedad(
   idDeLaPropiedad: string,
   activa: boolean,

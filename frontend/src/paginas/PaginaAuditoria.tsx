@@ -77,6 +77,7 @@ const OPCIONES_DE_ENTIDAD = [
   { valor: "marca", etiqueta: "Marcas" },
   { valor: "usuario", etiqueta: "Cuentas" },
   { valor: "contenido_sitio", etiqueta: "Web pública" },
+  { valor: "cierre_de_mes", etiqueta: "Cierres de mes" },
 ];
 
 /** Lo que se puede acotar. Vacío significa "sin filtrar por esto". */

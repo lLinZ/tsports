@@ -22,9 +22,10 @@ use Tests\TestCase;
  *   · Un día es un día DE QUIEN MIRA. Lo comentado a las nueve de la
  *     noche en Caracas ya es el día siguiente en UTC, que es como se
  *     guarda, y no puede saltar de día en el reporte.
- *   · Sin marcas elegidas es la bitácora de toda la agencia, y eso solo
- *     lo saca el administrador (regla 19). Con marcas, quien pueda verlas
- *     todas; una ajena rechaza la petición entera.
+ *   · Sin marcas elegidas son todas las que ve quien lo pide: la agencia
+ *     entera para admin y comercial, su cartera para un agente (regla
+ *     19). Con marcas, quien pueda verlas todas; una ajena rechaza la
+ *     petición entera.
  *   · Sacarlo queda anotado en la auditoría.
  */
 class ReporteDeBitacoraPorFechasTest extends TestCase
@@ -54,18 +55,55 @@ class ReporteDeBitacoraPorFechasTest extends TestCase
             ->assertJsonPath('resumen.totalEntradas', 0);
     }
 
-    public function test_sin_marcas_elegidas_solo_lo_saca_el_administrador(): void
+    /**
+     * Lo que le pasaba a Homero el 2026-10-01: como comercial no podía
+     * sacar el reporte sin elegir las marcas una a una. Ahora sin marcas
+     * elegidas salen todas las que ve, que para él son todas.
+     */
+    public function test_sin_marcas_elegidas_el_comercial_saca_todas(): void
     {
         $comercial = $this->crearUsuario(RolUsuario::Comercial, 'Comercial');
         $agente = $this->crearUsuario(RolUsuario::Vendedor, 'Agente');
 
+        $una = Marca::create(['nombre_marca' => 'Leti']);
+        $otra = Marca::create(['nombre_marca' => 'Polar', 'vendedor_asignado_id' => $agente->id]);
+
+        $this->comentarEn($una, $comercial, 'Llamada a Leti', '2026-09-10 15:00:00');
+        $this->comentarEn($otra, $agente, 'Visita a Polar', '2026-09-11 15:00:00');
+
         $this->actingAs($comercial)
             ->getJson('/api/bitacora/reporte?desde=2026-09-01&hasta=2026-09-30')
-            ->assertForbidden();
+            ->assertOk()
+            ->assertJsonPath('alcance', 'todas')
+            ->assertJsonPath('resumen.totalEntradas', 2)
+            ->assertJsonPath('resumen.totalMarcas', 2);
+    }
 
-        $this->actingAs($agente)
+    /**
+     * Un agente sin marcas elegidas saca su cartera y nada más: lo de las
+     * marcas ajenas no sale ni sumado en los totales.
+     */
+    public function test_sin_marcas_elegidas_el_agente_solo_saca_las_suyas(): void
+    {
+        $agente = $this->crearUsuario(RolUsuario::Vendedor, 'Agente');
+        $otroAgente = $this->crearUsuario(RolUsuario::Vendedor, 'Otro agente');
+
+        $suya = Marca::create(['nombre_marca' => 'Suya', 'vendedor_asignado_id' => $agente->id]);
+        $ajena = Marca::create(['nombre_marca' => 'Ajena', 'vendedor_asignado_id' => $otroAgente->id]);
+        $sinDueno = Marca::create(['nombre_marca' => 'Lead sin dueño']);
+
+        $this->comentarEn($suya, $agente, 'Lo mío', '2026-09-10 15:00:00');
+        $this->comentarEn($ajena, $otroAgente, 'Lo de otro', '2026-09-10 15:00:00');
+        $this->comentarEn($sinDueno, $otroAgente, 'Lead de la web', '2026-09-10 15:00:00');
+
+        $respuesta = $this->actingAs($agente)
             ->getJson('/api/bitacora/reporte?desde=2026-09-01&hasta=2026-09-30')
-            ->assertForbidden();
+            ->assertOk()
+            ->assertJsonPath('resumen.totalEntradas', 1)
+            ->assertJsonPath('resumen.totalMarcas', 1)
+            ->assertJsonPath('marcas.0.marcaNombre', 'Suya');
+
+        $this->assertSame(['Agente'], array_column($respuesta->json('resumen.porAutor'), 'nombre'));
     }
 
     public function test_con_marcas_elegidas_cada_una_tiene_que_ser_visible(): void

@@ -462,7 +462,9 @@ function ModalDeCampana({
     }
   }
 
-  const marcasEnLaCampana = campanaEnEdicion?.totalMarcas ?? 0;
+  // Las que se quedan sin campaña al borrarla: solo las que la tienen
+  // PUESTA. Las que la tuvieron antes ya llevan otra, o ninguna.
+  const marcasEnLaCampana = campanaEnEdicion?.marcasConLaCampanaPuesta ?? 0;
   const estaGuardando = crearCampana.isPending || actualizarCampana.isPending;
 
   return (

@@ -144,6 +144,18 @@ enum RolUsuario: string
         return $this === self::Admin;
     }
 
+    /**
+     * ¿Ve y sube los reportes de «Cierre de mes»?
+     *
+     * Admin y comercial. Es el reporte que el comercial prepara al acabar
+     * cada mes, y desde el 2026-10-01 se sube al panel en vez de mandarlo
+     * suelto. El agente no lo ve: habla de toda la agencia.
+     */
+    public function veLosCierresDeMes(): bool
+    {
+        return $this === self::Admin || $this === self::Comercial;
+    }
+
     /** Todos los valores, para poblar selectores y validaciones. */
     public static function valores(): array
     {

@@ -461,7 +461,7 @@ export function PaginaPanel() {
 
         <TarjetaBento
           columnas={6}
-          descripcion="Marcas con la campaña puesta ahora, y marcas a las que ha llegado en total."
+          descripcion="Cuántas marcas tienen o tuvieron cada campaña. Pulsa una para verlas."
           icono={<Activity className="size-4" />}
           titulo="Reparto por campaña"
         >
@@ -795,7 +795,7 @@ function PanelDelAgente({
 
         <TarjetaBento
           columnas={6}
-          descripcion="Tus marcas con cada campaña puesta ahora, y a cuántas ha llegado en total."
+          descripcion="Cuántas de tus marcas tienen o tuvieron cada campaña."
           icono={<Megaphone className="size-4" />}
           titulo="Mis campañas"
         >
@@ -853,24 +853,15 @@ function FilaPulsable({
 }
 
 /**
- * Una campaña del reparto, con sus DOS cifras.
+ * Una campaña del reparto: cuántas marcas la tienen o la tuvieron.
  *
- * Las dos contestan preguntas distintas y por eso salen las dos:
+ * Una sola cifra desde el 2026-10-01. Antes había dos («N ahora» y «N
+ * alcanzadas»), y el equipo pidió quedarse con la que importa: a cuántas
+ * marcas llegó la campaña, sea cuando sea. La regla la aplica el
+ * servidor (Marca::campanasQueHaTenido) y el filtro del tablero usa la
+ * misma, así que la fila entera lleva a esa misma lista.
  *
- *   · «N ahora»      → marcas que tienen esa campaña puesta hoy. Es con
- *     lo que el comercial reparte trabajo.
- *   · «N alcanzadas» → marcas a las que esa campaña llegó alguna vez.
- *     Es lo que mide el esfuerzo hecho.
- *
- * Enseñar solo la primera llevaba a engaño: una marca guarda su campaña
- * en UNA casilla, así que al ponerle otra desaparece de la anterior. En
- * la base de pruebas eso dejaba campañas con acciones hechas marcadas a
- * cero, y era imposible saber por qué desde la pantalla.
- *
- * Cada cifra es su propio enlace y cada una lleva a SU lista: «ahora»
- * filtra por la casilla y «alcanzadas» por el historial. La fila no es
- * un único enlace porque un enlace no puede contener otro, y aquí hacen
- * falta dos destinos distintos.
+ * En «Sin campaña» son las marcas que no han tenido ninguna.
  */
 function FilaDeCampana({
   campana,
@@ -894,14 +885,14 @@ function FilaDeCampana({
     // Envuelve en vez de apretar: los nombres de campaña son largos
     // ("Invitación a evento enamorados del marketing deportivo") y con
     // la caja estrecha —un portátil pequeño, o el móvil, donde ocupa el
-    // ancho entero— las dos cifras dejaban el nombre en "Invitación a
-    // e...". Antes que recortarlo, las cifras se van a la línea de
-    // abajo.
-    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 rounded-xl bg-default-50 px-3 py-2.5">
-      <Link
-        className="flex min-w-36 flex-1 items-center gap-2 hover:text-primary"
-        to={`/marcas?${deEsteAgente}campana=${claveDeLaCampana}`}
-      >
+    // ancho entero— la cifra dejaba el nombre en "Invitación a e...".
+    // Antes que recortarlo, la cifra se va a la línea de abajo.
+    <Link
+      className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 rounded-xl bg-default-50 px-3 py-2.5 transition hover:bg-default-100 hover:ring-1 hover:ring-primary/30"
+      title="Marcas que tienen o tuvieron esta campaña"
+      to={`/marcas?${deEsteAgente}campana=${claveDeLaCampana}`}
+    >
+      <span className="flex min-w-36 flex-1 items-center gap-2">
         <span
           className="size-2.5 shrink-0 rounded-full"
           style={{ backgroundColor: campana.color }}
@@ -911,45 +902,20 @@ function FilaDeCampana({
         {estaCerrada && (
           <span className="shrink-0 text-[10px] text-default-400">(cerrada)</span>
         )}
-      </Link>
+      </span>
 
-      <div className="flex shrink-0 items-center gap-1.5">
-        <Link
-          title="Marcas que tienen esta campaña puesta ahora mismo"
-          to={`/marcas?${deEsteAgente}campana=${claveDeLaCampana}`}
-        >
-          <Chip className="cursor-pointer" radius="lg" size="sm" variant="flat">
-            {campana.total} ahora
-          </Chip>
-        </Link>
-
-        {/* «Sin campaña» no alcanza a nadie: el servidor manda nulo y
-            aquí no se pinta, en vez de un cero que se leería como dato. */}
-        {campana.alcanzadas !== null && campana.campanaId !== null && (
-          <Link
-            title="Marcas a las que esta campaña ha llegado alguna vez, según el historial"
-            to={`/marcas?${deEsteAgente}campanaAlcanzada=${campana.campanaId}`}
-          >
-            <Chip
-              className="cursor-pointer"
-              color="primary"
-              radius="lg"
-              size="sm"
-              variant="flat"
-            >
-              {campana.alcanzadas} alcanzada
-              {campana.alcanzadas === 1 ? "" : "s"}
-            </Chip>
-          </Link>
-        )}
+      <span className="flex shrink-0 items-center gap-1.5">
+        <Chip className="cursor-pointer" color="primary" radius="lg" size="sm" variant="flat">
+          {campana.total} {campana.total === 1 ? "marca" : "marcas"}
+        </Chip>
 
         {valor > 0 && (
           <span className="text-[11px] font-semibold text-success">
             {formatearDineroAbreviado(valor)}
           </span>
         )}
-      </div>
-    </div>
+      </span>
+    </Link>
   );
 }
 

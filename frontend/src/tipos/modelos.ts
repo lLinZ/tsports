@@ -40,10 +40,15 @@ export interface PermisosDelUsuario {
    */
   veLasCifrasDeTodaLaEmpresa: boolean;
   /**
-   * Puede sacar la bitácora de TODAS las marcas: el histórico completo o
-   * un reporte por fechas sin marcas elegidas. Hoy, el administrador.
+   * Ve todas las marcas de la agencia (admin y comercial) o solo las que
+   * tiene asignadas (el agente). Decide, por ejemplo, qué dice «todas» en
+   * el reporte de bitácora.
    */
+  veTodasLasMarcas: boolean;
+  /** Puede sacar el histórico completo de la bitácora. Hoy, el administrador. */
   sacaLaBitacoraCompleta: boolean;
+  /** Ve y sube los reportes de «Cierre de mes» (admin y comercial). */
+  veLosCierresDeMes: boolean;
 }
 
 export interface Usuario {
@@ -218,7 +223,13 @@ export interface Campana {
   activa: boolean;
   /** Calculado en el servidor: activa y dentro de sus fechas. */
   estaVigente: boolean;
+  /** Marcas que la tienen o la tuvieron alguna vez: la cifra que se enseña. */
   totalMarcas?: number;
+  /**
+   * Marcas que la tienen PUESTA hoy. Solo para avisar, antes de borrarla,
+   * de cuántas se quedarán sin campaña.
+   */
+  marcasConLaCampanaPuesta?: number;
   puedoEditarla: boolean;
   puedoEliminarla: boolean;
   creadaEn: string | null;
@@ -421,14 +432,11 @@ export interface FiltrosDeMarcas {
   zona: string;
   sector: string;
   vendedor: string;
-  /** Id de campaña, o "sin_campana" para las que no tienen ninguna. */
-  campana: string;
   /**
-   * Id de la campaña que ALCANZÓ a la marca alguna vez, según el
-   * historial. Llega al pulsar «alcanzadas» en el panel, y trae también
-   * las marcas que hoy ya están en otra campaña.
+   * Id de campaña: las marcas que la tienen o la tuvieron alguna vez.
+   * "sin_campana" trae las que no han tenido ninguna.
    */
-  campanaAlcanzada: string;
+  campana: string;
   /** Id de la propiedad que se les está ofreciendo. */
   propiedad: string;
   /** Si invierte hoy en marketing deportivo. */
@@ -750,18 +758,11 @@ export interface ResumenDeCampana {
   color: string;
   activa: boolean;
   estaVigente: boolean;
-  /** Marcas que tienen esa campaña PUESTA ahora mismo. */
-  total: number;
   /**
-   * Marcas distintas a las que la campaña llegó alguna vez, según el
-   * historial de acciones.
-   *
-   * No es lo mismo que `total` y casi nunca coincide: una marca guarda
-   * su campaña en una sola casilla, así que al asignarle otra desaparece
-   * de la anterior aunque el trabajo se hiciera. Va nulo en «Sin
-   * campaña», que no es una campaña y no alcanza a nadie.
+   * Marcas que tienen o tuvieron la campaña alguna vez. En «Sin
+   * campaña», las que no han tenido ninguna.
    */
-  alcanzadas: number | null;
+  total: number;
   valor: number;
 }
 
@@ -799,10 +800,8 @@ export interface MiCampanaDelPanel {
   campanaId: string | null;
   nombre: string;
   color: string;
-  /** Sus marcas con esa campaña puesta ahora mismo. */
+  /** Sus marcas que tienen o tuvieron esa campaña; ver ResumenDeCampana. */
   total: number;
-  /** Sus marcas a las que esa campaña llegó alguna vez; ver ResumenDeCampana. */
-  alcanzadas: number | null;
 }
 
 /**
@@ -1290,4 +1289,37 @@ export interface LatidoDelChat {
   ultimoMensajeId: number;
   /** Ids de quienes están en línea ahora. */
   enLinea: string[];
+}
+
+/* ==================================================================== */
+/* Cierre de mes                                                        */
+/* ==================================================================== */
+
+/** De qué tipo es el fichero de un reporte, para elegir su icono. */
+export type FormatoDeReporte = "pdf" | "hoja" | "texto" | "presentacion" | "imagen";
+
+/**
+ * Un reporte de cierre de mes. Lo sube el comercial (o el administrador)
+ * al acabar cada mes; quedan agrupados por `mes`.
+ */
+export interface CierreDeMes {
+  id: string;
+  /** El mes al que corresponde, «2026-09». No el día en que se subió. */
+  mes: string;
+  titulo: string;
+  notas: string | null;
+  /**
+   * El fichero. Las dos direcciones son FIRMADAS y caducan en uno o dos
+   * días: sirven para abrirlo desde la pantalla, no para copiarlas.
+   */
+  archivo: {
+    nombre: string;
+    formato: FormatoDeReporte;
+    tamanoBytes: number;
+    url: string;
+    urlDescarga: string;
+  } | null;
+  subidoPor: string | null;
+  subidoEn: string | null;
+  puedoEliminarlo: boolean;
 }

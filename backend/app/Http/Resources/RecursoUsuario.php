@@ -66,6 +66,7 @@ class RecursoUsuario extends JsonResource
                 // reporte sin marcas elegidas). Pregunta a la misma política
                 // que lo comprueba al pedirlo, para que no puedan discrepar.
                 'sacaLaBitacoraCompleta' => $this->resource->can('verAuditoria', User::class),
+                'veLosCierresDeMes' => $this->rol->veLosCierresDeMes(),
             ],
 
             'creadoEn' => $this->created_at?->toIso8601String(),

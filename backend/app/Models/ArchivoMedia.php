@@ -27,10 +27,11 @@ use Illuminate\Support\Facades\URL;
  *   · Público (storage/app/public): logos, imágenes de la web, avatares
  *     y la galería de las propiedades. Los sirve nginx directamente y la
  *     URL es fija, porque están hechos para enseñarse.
- *   · Privado (storage/app/private): los adjuntos de la bitácora. Son de
- *     una marca, y una marca no la ve todo el equipo (regla 6). No tienen
- *     URL pública: se sirven con un enlace firmado que caduca y que solo
- *     recibe quien puede ver la marca (ver AdjuntoController).
+ *   · Privado (storage/app/private): los adjuntos de la bitácora y los
+ *     reportes de cierre de mes. Un adjunto es de una marca, y una marca
+ *     no la ve todo el equipo (regla 6); un cierre es un reporte interno.
+ *     No tienen URL pública: se sirven con un enlace firmado que caduca y
+ *     que solo recibe quien puede verlos (ver AdjuntoController).
  *
  * Guardar solo la ruta relativa y calcular la URL al vuelo permite
  * cambiar de dominio, pasar a HTTPS o mover el sitio a un CDN sin tener
@@ -48,6 +49,13 @@ class ArchivoMedia extends Model
     public const PROPOSITO_AVATAR = 'avatar';
     public const PROPOSITO_GALERIA_PROPIEDAD = 'galeria_propiedad';
     public const PROPOSITO_ADJUNTO_COMENTARIO = 'adjunto_comentario';
+    public const PROPOSITO_CIERRE_DE_MES = 'cierre_de_mes';
+
+    /** Los propósitos cuyo fichero va al disco privado y se sirve firmado. */
+    public const PROPOSITOS_PRIVADOS = [
+        self::PROPOSITO_ADJUNTO_COMENTARIO,
+        self::PROPOSITO_CIERRE_DE_MES,
+    ];
 
     public const DISCO_PUBLICO = 'public';
     public const DISCO_PRIVADO = 'local';

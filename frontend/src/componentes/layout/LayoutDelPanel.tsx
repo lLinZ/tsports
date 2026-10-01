@@ -26,6 +26,7 @@ import {
 } from "@heroui/react";
 import {
   Building2,
+  CalendarCheck,
   ExternalLink,
   Globe,
   LayoutDashboard,
@@ -38,6 +39,7 @@ import {
   Radio,
   ScrollText,
   Shapes,
+  Store,
   UserCircle,
   Users,
   Volume2,
@@ -117,6 +119,15 @@ const ENTRADAS_DEL_MENU: EntradaDeMenu[] = [
     laPuedeVer: () => true,
   },
   {
+    ruta: "/catalogo-web",
+    etiqueta: "Catálogo web",
+    descripcion: "Lo que ven los clientes",
+    icono: Store,
+    // Publicar propiedades y dar el acceso de invitado es decidir qué se
+    // enseña fuera de la agencia: lo hace quien gestiona el catálogo.
+    laPuedeVer: (usuario) => usuario.permisos.gestionaElCatalogoComercial,
+  },
+  {
     // Sin la página al final: así queda marcada en las dos pestañas de
     // Reportes (bitácora y brochure).
     ruta: "/reportes",
@@ -125,6 +136,13 @@ const ENTRADAS_DEL_MENU: EntradaDeMenu[] = [
     icono: NotebookPen,
     // Todo el equipo: cada quien saca el de las marcas que ve.
     laPuedeVer: () => true,
+  },
+  {
+    ruta: "/cierre-de-mes",
+    etiqueta: "Cierre de mes",
+    descripcion: "Los reportes de cada mes",
+    icono: CalendarCheck,
+    laPuedeVer: (usuario) => usuario.permisos.veLosCierresDeMes,
   },
   {
     ruta: "/campanas",
@@ -159,7 +177,11 @@ const ENTRADAS_DEL_MENU: EntradaDeMenu[] = [
     etiqueta: "Equipo",
     descripcion: "Cuentas y permisos",
     icono: Users,
-    laPuedeVer: (usuario) => usuario.permisos.asignaVendedores,
+    // Solo el administrador, desde el 2026-10-01: el comercial la veía
+    // entera sin poder tocar nada, porque crear y editar cuentas ya era
+    // solo del administrador. La lista del equipo que necesita para
+    // repartir marcas le sigue llegando por /api/usuarios.
+    laPuedeVer: (usuario) => usuario.permisos.administraElSistema,
   },
   {
     ruta: "/auditoria",

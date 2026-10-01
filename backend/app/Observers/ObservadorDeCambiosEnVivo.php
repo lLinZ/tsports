@@ -7,6 +7,7 @@ namespace App\Observers;
 use App\Models\AccesoDeInvitados;
 use App\Models\ArchivoDePropiedad;
 use App\Models\Campana;
+use App\Models\CierreDeMes;
 use App\Models\ComentarioMarca;
 use App\Models\EventoDeCampana;
 use App\Models\Marca;
@@ -75,6 +76,7 @@ final class ObservadorDeCambiosEnVivo
             $modelo instanceof AccesoDeInvitados => $this->cambios->paraTodoElEquipo(CambiosEnVivo::PROPIEDADES),
             $modelo instanceof Campana => $this->cambios->paraTodoElEquipo(CambiosEnVivo::CAMPANAS),
             $modelo instanceof Sector => $this->cambios->paraTodoElEquipo(CambiosEnVivo::SECTORES),
+            $modelo instanceof CierreDeMes => $this->cambios->paraTodoElEquipo(CambiosEnVivo::CIERRES_DE_MES),
             $modelo instanceof User => $this->siSeVeDesdeFuera($modelo, $seBorro),
             default => null,
         };

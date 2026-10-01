@@ -195,6 +195,42 @@ class PropiedadController extends Controller
     }
 
     /**
+     * PATCH /api/propiedades/{propiedad}/publicada
+     *
+     * Publicarla en el catálogo de la web, o retirarla, desde la pantalla
+     * «Catálogo web» sin abrir el formulario entero. Lo que sale de ella
+     * en la web lo sigue decidiendo RecursoPropiedadEnLaWeb.
+     */
+    public function publicarORetirar(Request $peticion, Propiedad $propiedad): RecursoPropiedad
+    {
+        $this->authorize('update', $propiedad);
+
+        $datos = $peticion->validate(
+            ['publicada' => ['required', 'boolean']],
+            ['publicada.*' => 'Indica si la propiedad sale en la web o no.'],
+        );
+
+        $propiedad->publicada_en_la_web = (bool) $datos['publicada'];
+        $propiedad->save();
+
+        if ($propiedad->wasChanged('publicada_en_la_web')) {
+            RegistroActividad::anotar(
+                $peticion->user(),
+                RegistroActividad::ACCION_ACTUALIZO,
+                'propiedad',
+                $propiedad->id,
+                ($propiedad->publicada_en_la_web ? 'Publicó en la web' : 'Retiró de la web').' la propiedad '.$propiedad->nombre,
+                [
+                    'antes' => ['publicada_en_la_web' => ! $propiedad->publicada_en_la_web],
+                    'despues' => ['publicada_en_la_web' => $propiedad->publicada_en_la_web],
+                ],
+            );
+        }
+
+        return new RecursoPropiedad($propiedad->load(self::LO_QUE_ACOMPANA)->loadCount('marcasQueLaOfrecen'));
+    }
+
+    /**
      * DELETE /api/propiedades/{propiedad}
      *
      * Borra la propiedad y, en cascada, sus líneas del checklist en todas

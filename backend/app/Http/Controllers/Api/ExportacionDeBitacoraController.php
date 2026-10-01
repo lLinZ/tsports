@@ -32,8 +32,10 @@ use Illuminate\Http\Request;
  *     pudiera descargársela sería peor que darle acceso al tablero.
  *
  * El REPORTE POR FECHAS (`porFechas`) es la misma bitácora cortada por
- * un rango de días y agrupada por marca, y hereda esos dos permisos: sin
- * marcas elegidas es el de toda la agencia; con marcas, el de cada una.
+ * un rango de días y agrupada por marca. Lo saca cualquiera, de las
+ * marcas que ve: sin marcas elegidas son todas las suyas (la agencia
+ * entera para admin y comercial, su cartera para un agente); con
+ * marcas, cada una tiene que poder verla.
  *
  * Y TODAS QUEDAN ANOTADAS en el registro de actividad, antes de
  * devolver nada. Sacar una bitácora es sacar del sistema toda la
@@ -126,7 +128,8 @@ class ExportacionDeBitacoraController extends Controller
      * marca. Parámetros:
      *
      *   · `desde`, `hasta` → días, los dos incluidos.
-     *   · `marcas[]`       → opcional; sin él, todas las marcas.
+     *   · `marcas[]`       → opcional; sin él, todas las que quien pide
+     *                        puede ver.
      *   · `zona`           → la zona horaria del navegador. Un día es un
      *                        día DE QUIEN MIRA: el 25 de septiembre en
      *                        Caracas empieza a las 04:00 en UTC, que es
@@ -134,16 +137,19 @@ class ExportacionDeBitacoraController extends Controller
      *                        se comentó a las nueve de la noche saldría al
      *                        día siguiente.
      *
-     * LOS PERMISOS SON LOS DE LA EXPORTACIÓN, porque esto es sacar la
-     * bitácora del sistema con otro corte:
+     * QUÉ MARCAS ENTRAN lo decide lo que cada quien ve (regla 6):
      *
-     *   · Sin elegir marcas es la conversación de toda la agencia en ese
-     *     periodo. Si cualquiera pudiera pedirla, bastaría con poner un
-     *     rango de diez años para llevarse el histórico completo que la
-     *     regla 19 reserva al administrador.
+     *   · Sin elegir marcas, TODAS LAS SUYAS: la agencia entera para admin
+     *     y comercial, su cartera para un agente. Hasta el 2026-10-01 esto
+     *     era solo del administrador y los demás tenían que elegir las
+     *     marcas una a una; con quinientas marcas eran quinientos clics, y
+     *     el comercial ya las ve todas en el tablero.
      *   · Eligiendo marcas, cada una tiene que poder verla quien pregunta.
      *     Una sola ajena y se rechaza entera con un 403: devolver las
      *     demás y callarse esa diría, por omisión, que existe.
+     *
+     * El histórico completo de una vez (`completa`) sigue siendo solo del
+     * administrador.
      *
      * Y queda anotado en la auditoría, igual que las otras dos.
      */
@@ -170,7 +176,6 @@ class ExportacionDeBitacoraController extends Controller
         $idsDeMarcas = array_values(array_unique($datos['marcas'] ?? []));
 
         if ($idsDeMarcas === []) {
-            $this->authorize('verAuditoria', User::class);
             $marcasElegidas = null;
         } else {
             $marcasElegidas = Marca::query()->whereIn('id', $idsDeMarcas)->get();
@@ -201,6 +206,12 @@ class ExportacionDeBitacoraController extends Controller
             ])
             ->whereBetween('created_at', [$inicio->utc(), $fin->utc()])
             ->when($marcasElegidas !== null, fn ($consulta) => $consulta->whereIn('marca_id', $idsDeMarcas))
+            // Sin marcas elegidas, las que ve. Para quien las ve todas no
+            // hace falta filtrar nada.
+            ->when(
+                $marcasElegidas === null && ! $quienConsulta->rol->veTodasLasMarcas(),
+                fn ($consulta) => $consulta->whereIn('marca_id', Marca::query()->quePuedeVer($quienConsulta)->select('id')),
+            )
             ->orderBy('created_at')
             ->orderBy('id')
             ->get();
@@ -234,7 +245,7 @@ class ExportacionDeBitacoraController extends Controller
                 $inicio->format('d/m/Y'),
                 $fin->format('d/m/Y'),
                 $marcasElegidas === null
-                    ? 'todas las marcas'
+                    ? ($quienConsulta->rol->veTodasLasMarcas() ? 'todas las marcas' : 'todas sus marcas')
                     : ($marcasElegidas->count() === 1
                         ? $marcasElegidas->first()->nombre_marca
                         : $marcasElegidas->count().' marcas'),

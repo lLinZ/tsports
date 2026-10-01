@@ -8,11 +8,12 @@
  * Es la pregunta de los lunes —«¿qué se hizo la semana pasada con cada
  * marca?»—, que hasta ahora obligaba a abrir las fichas una por una.
  *
- * QUIÉN PUEDE QUÉ lo decide el servidor, y aquí solo se enseña:
+ * QUÉ MARCAS ENTRAN lo decide el servidor, y aquí solo se enseña:
  *
- *   · Sin marcas elegidas es la bitácora de toda la agencia en ese
- *     periodo. Lo saca el administrador (regla 19): con un rango largo
- *     sería el histórico completo.
+ *   · Sin marcas elegidas, todas las que ve quien lo pide: la agencia
+ *     entera para admin y comercial, su cartera para un agente (regla
+ *     19). Hasta el 2026-10-01 eso era solo del administrador y los demás
+ *     tenían que elegir las marcas una a una.
  *   · Eligiendo marcas, quien pueda verlas. El buscador ya solo ofrece
  *     esas, y el servidor lo vuelve a comprobar al pedir el reporte.
  *
@@ -79,7 +80,8 @@ interface PeticionDelReporte {
 
 export function PaginaReporteDeBitacora() {
   const usuario = useUsuarioAutenticado();
-  const puedeVerTodas = usuario.permisos.sacaLaBitacoraCompleta;
+  const veTodasLasMarcas = usuario.permisos.veTodasLasMarcas;
+  const todasLasQueVe = veTodasLasMarcas ? "todas las marcas" : "todas tus marcas";
 
   const [desde, establecerDesde] = useState(() => primerDiaDelMes(new Date()));
   const [hasta, establecerHasta] = useState(() => diaLocal(new Date()));
@@ -103,10 +105,9 @@ export function PaginaReporteDeBitacora() {
   const error = errorSoloSiNoHayNadaQueEnsenar(consulta);
 
   const fechasValidas = desde !== "" && hasta !== "" && desde <= hasta;
-  const faltanMarcas = !puedeVerTodas && marcasElegidas.length === 0;
 
   function pedirElReporte() {
-    if (!fechasValidas || faltanMarcas) return;
+    if (!fechasValidas) return;
 
     const nueva: PeticionDelReporte = {
       desde,
@@ -143,9 +144,9 @@ export function PaginaReporteDeBitacora() {
 
       <TarjetaBento
         descripcion={
-          puedeVerTodas
+          veTodasLasMarcas
             ? "Sin marcas elegidas, el reporte recoge todas las marcas de la agencia."
-            : "Elige las marcas del reporte. Solo aparecen las que puedes ver."
+            : "Sin marcas elegidas, el reporte recoge todas tus marcas."
         }
         icono={<CalendarRange className="size-4" />}
         titulo="Qué quieres ver"
@@ -196,13 +197,13 @@ export function PaginaReporteDeBitacora() {
 
           <div className="flex flex-col gap-2">
             <span className="text-xs font-medium text-foreground">
-              Marcas {puedeVerTodas && <span className="font-normal text-default-400">(opcional)</span>}
+              Marcas <span className="font-normal text-default-400">(opcional)</span>
             </span>
 
             <div className="max-w-md">
               <BuscadorDeMarcas
                 idsYaElegidos={marcasElegidas.map((marca) => marca.id)}
-                marcadorDePosicion={puedeVerTodas ? "Todas las marcas — o busca una…" : "Busca una marca…"}
+                marcadorDePosicion={`${veTodasLasMarcas ? "Todas las marcas" : "Todas tus marcas"} — o busca una…`}
                 alElegir={(marca) =>
                   establecerMarcasElegidas((actuales) => [...actuales, marca])
                 }
@@ -227,6 +228,18 @@ export function PaginaReporteDeBitacora() {
                     {marca.nombre}
                   </Chip>
                 ))}
+
+                {/* Vuelve a «todas» de un golpe, sin quitar una a una. */}
+                <Chip
+                  as="button"
+                  className="cursor-pointer"
+                  radius="lg"
+                  size="sm"
+                  variant="light"
+                  onClick={() => establecerMarcasElegidas([])}
+                >
+                  Volver a {todasLasQueVe}
+                </Chip>
               </div>
             )}
           </div>
@@ -234,7 +247,7 @@ export function PaginaReporteDeBitacora() {
           <div className="flex flex-wrap items-center gap-3">
             <Button
               color="primary"
-              isDisabled={!fechasValidas || faltanMarcas}
+              isDisabled={!fechasValidas}
               isLoading={consulta.isFetching}
               radius="lg"
               startContent={!consulta.isFetching && <NotebookPen className="size-4" />}
@@ -248,15 +261,12 @@ export function PaginaReporteDeBitacora() {
                 La fecha final no puede ser anterior a la inicial.
               </span>
             )}
-            {fechasValidas && faltanMarcas && (
-              <span className="text-xs text-default-500">Elige al menos una marca.</span>
-            )}
-            {fechasValidas && !faltanMarcas && (
+            {fechasValidas && (
               <span className="text-xs text-default-500">
                 {formatearPeriodo(desde, hasta).replace(/^./, (letra) => letra.toUpperCase())}
                 {" · "}
                 {marcasElegidas.length === 0
-                  ? "todas las marcas"
+                  ? todasLasQueVe
                   : marcasElegidas.length === 1
                     ? "1 marca"
                     : `${marcasElegidas.length} marcas`}

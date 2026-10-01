@@ -141,6 +141,40 @@ class CatalogoEnLaWebTest extends TestCase
             ->assertJsonPath('data.textoWebEn', null);
     }
 
+    /**
+     * El interruptor de la pantalla «Catálogo web»: publica o retira sin
+     * tocar nada más de la propiedad, y solo quien gestiona el catálogo.
+     */
+    public function test_el_interruptor_publica_y_retira_sin_tocar_lo_demas(): void
+    {
+        $comercial = $this->crearUsuario(RolUsuario::Comercial);
+        $agente = $this->crearUsuario(RolUsuario::Vendedor);
+        $propiedad = $this->crearPropiedad('Sportbiz', publicada: false);
+
+        $this->actingAs($agente)
+            ->patchJson("/api/propiedades/{$propiedad->id}/publicada", ['publicada' => true])
+            ->assertForbidden();
+
+        $this->actingAs($comercial)
+            ->patchJson("/api/propiedades/{$propiedad->id}/publicada", ['publicada' => true])
+            ->assertOk()
+            ->assertJsonPath('data.publicadaEnLaWeb', true)
+            ->assertJsonPath('data.montoTotalUsd', 162000);
+
+        $this->pedirElCatalogo()->assertOk()->assertJsonPath('data.0.nombre', 'Sportbiz');
+
+        $this->actingAs($comercial)
+            ->patchJson("/api/propiedades/{$propiedad->id}/publicada", ['publicada' => false])
+            ->assertOk();
+
+        $this->pedirElCatalogo()->assertOk()->assertJsonCount(0, 'data');
+
+        $this->assertSame(
+            ['Publicó en la web la propiedad Sportbiz', 'Retiró de la web la propiedad Sportbiz'],
+            \App\Models\RegistroActividad::query()->orderBy('id')->pluck('descripcion')->all(),
+        );
+    }
+
     /* ------------------------------------------------------------------
      | El contacto desde una tarjeta
      |-----------------------------------------------------------------*/

@@ -39,9 +39,16 @@ class RecursoCampana extends JsonResource
             'activa' => $this->activa,
             'estaVigente' => $this->estaVigente(),
 
-            // Cuántas marcas se están trabajando dentro de la campaña.
-            // Solo viaja si el controlador cargó el contador.
-            'totalMarcas' => $this->whenCounted('marcas'),
+            // Cuántas marcas la tienen o la tuvieron alguna vez, que es
+            // la cifra que se enseña (Campana::scopeConSusMarcas). La
+            // segunda, las que la llevan puesta hoy, solo la usa el aviso
+            // de antes de borrarla: esas son las que se quedan sin campaña.
+            // Solo viajan si el controlador pidió los recuentos.
+            'totalMarcas' => $this->when(
+                array_key_exists('total_marcas', $this->resource->getAttributes()),
+                fn (): int => (int) $this->resource->getAttribute('total_marcas'),
+            ),
+            'marcasConLaCampanaPuesta' => $this->whenCounted('marcas'),
 
             'puedoEditarla' => $usuarioQueConsulta?->can('update', $this->resource) ?? false,
             'puedoEliminarla' => $usuarioQueConsulta?->can('delete', $this->resource) ?? false,

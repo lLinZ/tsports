@@ -38,7 +38,7 @@ class CampanaController extends Controller
         $this->authorize('viewAny', Campana::class);
 
         $consulta = Campana::query()
-            ->withCount('marcas')
+            ->conSusMarcas()
             ->enOrdenDeCatalogo();
 
         if ($peticion->boolean('soloActivas')) {
@@ -129,7 +129,7 @@ class CampanaController extends Controller
             );
         }
 
-        return new RecursoCampana($campana->loadCount('marcas'));
+        return new RecursoCampana(Campana::query()->conSusMarcas()->findOrFail($campana->id));
     }
 
     /**

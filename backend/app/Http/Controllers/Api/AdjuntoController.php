@@ -27,6 +27,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * Lo que se sube y nunca llega a una entrada se barre solo pasadas unas
  * horas (ArchivoMedia::eliminarAdjuntosAbandonados).
  *
+ * Por la misma ruta firmada se sirven los reportes de cierre de mes
+ * (CierreDeMesController), que también viven en el disco privado.
+ *
  * SE SIRVEN CON ENLACE FIRMADO, no desde /storage. Viven en el disco
  * privado porque son de una marca, y una marca no la ve todo el equipo
  * (regla 6). El enlace lo firma el servidor dentro de las respuestas de
@@ -83,9 +86,10 @@ class AdjuntoController extends Controller
      */
     public function ver(Request $peticion, ArchivoMedia $archivo): StreamedResponse
     {
-        // La ruta sirve adjuntos y nada más. Lo demás es público o no es
-        // de nadie, y ninguna de las dos cosas se pide por aquí.
-        abort_unless($archivo->proposito === ArchivoMedia::PROPOSITO_ADJUNTO_COMENTARIO, 404);
+        // La ruta sirve lo privado y nada más: los adjuntos de la bitácora
+        // y los reportes de cierre de mes. Lo demás es público o no es de
+        // nadie, y ninguna de las dos cosas se pide por aquí.
+        abort_unless(in_array($archivo->proposito, ArchivoMedia::PROPOSITOS_PRIVADOS, true), 404);
 
         $variante = (string) $peticion->query('variante', 'original');
         $conMiniatura = $variante === 'miniatura' && $archivo->ruta_miniatura !== null;

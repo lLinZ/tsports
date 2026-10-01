@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\AutenticacionController;
 use App\Http\Controllers\Api\CalendarioController;
 use App\Http\Controllers\Api\CampanaController;
 use App\Http\Controllers\Api\ChatController;
+use App\Http\Controllers\Api\CierreDeMesController;
 use App\Http\Controllers\Api\CatalogoController;
 use App\Http\Controllers\Api\ComentarioMarcaController;
 use App\Http\Controllers\Api\ContenidoSitioController;
@@ -179,6 +180,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // Desactivar desde la tarjeta: lo que se hace con una propiedad que
     // ya pasó y volverá, en vez de borrarla y perder sus marcas.
     Route::patch('/propiedades/{propiedad}/activa', [PropiedadController::class, 'activarODesactivar']);
+    // Publicarla en el catálogo de la web o retirarla, desde «Catálogo web».
+    Route::patch('/propiedades/{propiedad}/publicada', [PropiedadController::class, 'publicarORetirar']);
     Route::delete('/propiedades/{propiedad}', [PropiedadController::class, 'destroy']);
 
     // El usuario y la contraseña de invitado del catálogo de la web.
@@ -234,6 +237,14 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // elegidas es la agencia entera y solo lo saca el administrador; con
     // marcas, quien pueda ver cada una (lo decide el controlador).
     Route::get('/bitacora/reporte', [ExportacionDeBitacoraController::class, 'porFechas']);
+
+    /* ---------- Cierre de mes ----------
+     | Los reportes que el comercial sube al acabar cada mes. Admin y
+     | comercial; quién borra qué lo decide CierreDeMesPolicy. El fichero
+     | se abre con el enlace firmado de /adjuntos/{archivo}.             */
+    Route::get('/cierres-de-mes', [CierreDeMesController::class, 'index']);
+    Route::post('/cierres-de-mes', [CierreDeMesController::class, 'store']);
+    Route::delete('/cierres-de-mes/{cierre}', [CierreDeMesController::class, 'destroy']);
 
     /* ---------- Chat interno ----------
      | Mensajería entre personas, uno a uno y en grupo. Lo de una charla

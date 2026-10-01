@@ -143,108 +143,128 @@ export function PaginaUsuarios() {
             titulo="No hay cuentas todavía"
           />
         ) : (
-          <Table
-            aria-label="Cuentas del equipo"
-            classNames={{
-              wrapper: "shadow-none rounded-none p-0",
-              th: "bg-default-50 text-[11px] uppercase tracking-wide",
-            }}
-            removeWrapper
-          >
-            <TableHeader>
-              <TableColumn>Persona</TableColumn>
-              <TableColumn>Rol</TableColumn>
-              <TableColumn>Zona</TableColumn>
-              <TableColumn>Estado</TableColumn>
-              <TableColumn>Alta</TableColumn>
-              <TableColumn align="end">{""}</TableColumn>
-            </TableHeader>
+          <>
+            {/* En el teléfono, una fila por cuenta con el botón de editar
+                siempre a la vista. La tabla de seis columnas no cabía: se
+                cortaba por la derecha, sin poder desplazarla, y el lápiz
+                de editar quedaba fuera. */}
+            <ul className="divide-y divide-default-100 md:hidden">
+              {usuarios.map((usuario) => (
+                <FilaDeCuentaEnElMovil
+                  key={usuario.id}
+                  esUnoMismo={usuario.id === usuarioActual.id}
+                  puedeEditarla={usuarioActual.permisos.administraElSistema}
+                  usuario={usuario}
+                  alEditar={abrirModalDeEdicion}
+                />
+              ))}
+            </ul>
 
-            <TableBody>
-              {usuarios.map((usuario) => {
-                const esUnoMismo = usuario.id === usuarioActual.id;
+            <div className="hidden overflow-x-auto md:block">
+              <Table
+                aria-label="Cuentas del equipo"
+                classNames={{
+                  wrapper: "shadow-none rounded-none p-0",
+                  th: "bg-default-50 text-[11px] uppercase tracking-wide",
+                }}
+                removeWrapper
+              >
+                <TableHeader>
+                  <TableColumn>Persona</TableColumn>
+                  <TableColumn>Rol</TableColumn>
+                  <TableColumn>Zona</TableColumn>
+                  <TableColumn>Estado</TableColumn>
+                  <TableColumn>Alta</TableColumn>
+                  <TableColumn align="end">{""}</TableColumn>
+                </TableHeader>
 
-                return (
-                  <TableRow key={usuario.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <span
-                          className="flex size-8 shrink-0 items-center justify-center rounded-xl text-[11px] font-bold text-white"
-                          style={{ backgroundColor: usuario.colorAcento }}
-                        >
-                          {inicialesDe(usuario.nombre)}
-                        </span>
+                <TableBody>
+                  {usuarios.map((usuario) => {
+                    const esUnoMismo = usuario.id === usuarioActual.id;
 
-                        <div className="min-w-0">
-                          <p className="flex items-center gap-1.5 truncate text-sm font-medium text-foreground">
-                            {usuario.nombre}
-                            {esUnoMismo && (
-                              <span className="text-[10px] text-default-400">(tú)</span>
-                            )}
-                          </p>
-                          <p className="truncate text-[11px] text-default-500">
-                            {usuario.email ?? "—"}
-                          </p>
-                        </div>
-                      </div>
-                    </TableCell>
+                    return (
+                      <TableRow key={usuario.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <span
+                              className="flex size-8 shrink-0 items-center justify-center rounded-xl text-[11px] font-bold text-white"
+                              style={{ backgroundColor: usuario.colorAcento }}
+                            >
+                              {inicialesDe(usuario.nombre)}
+                            </span>
 
-                    <TableCell>
-                      <Chip
-                        color={COLOR_DEL_ROL[usuario.rol]}
-                        radius="lg"
-                        size="sm"
-                        variant="flat"
-                      >
-                        {usuario.rolEtiqueta}
-                      </Chip>
-                    </TableCell>
+                            <div className="min-w-0">
+                              <p className="flex items-center gap-1.5 truncate text-sm font-medium text-foreground">
+                                {usuario.nombre}
+                                {esUnoMismo && (
+                                  <span className="text-[10px] text-default-400">(tú)</span>
+                                )}
+                              </p>
+                              <p className="truncate text-[11px] text-default-500">
+                                {usuario.email ?? "—"}
+                              </p>
+                            </div>
+                          </div>
+                        </TableCell>
 
-                    <TableCell>
-                      <span className="text-xs text-default-600">
-                        {usuario.zona ?? "—"}
-                      </span>
-                    </TableCell>
-
-                    <TableCell>
-                      {usuario.activo ? (
-                        <Chip color="success" radius="lg" size="sm" variant="dot">
-                          Activa
-                        </Chip>
-                      ) : (
-                        <Chip radius="lg" size="sm" variant="dot">
-                          Desactivada
-                        </Chip>
-                      )}
-                    </TableCell>
-
-                    <TableCell>
-                      <span className="text-xs text-default-500">
-                        {formatearFecha(usuario.creadoEn)}
-                      </span>
-                    </TableCell>
-
-                    <TableCell>
-                      {usuarioActual.permisos.administraElSistema && (
-                        <Tooltip content="Editar la cuenta" placement="left">
-                          <Button
-                            isIconOnly
-                            aria-label={`Editar a ${usuario.nombre}`}
+                        <TableCell>
+                          <Chip
+                            color={COLOR_DEL_ROL[usuario.rol]}
                             radius="lg"
                             size="sm"
-                            variant="light"
-                            onPress={() => abrirModalDeEdicion(usuario)}
+                            variant="flat"
                           >
-                            <Pencil className="size-3.5" />
-                          </Button>
-                        </Tooltip>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                            {usuario.rolEtiqueta}
+                          </Chip>
+                        </TableCell>
+
+                        <TableCell>
+                          <span className="text-xs text-default-600">
+                            {usuario.zona ?? "—"}
+                          </span>
+                        </TableCell>
+
+                        <TableCell>
+                          {usuario.activo ? (
+                            <Chip color="success" radius="lg" size="sm" variant="dot">
+                              Activa
+                            </Chip>
+                          ) : (
+                            <Chip radius="lg" size="sm" variant="dot">
+                              Desactivada
+                            </Chip>
+                          )}
+                        </TableCell>
+
+                        <TableCell>
+                          <span className="text-xs text-default-500">
+                            {formatearFecha(usuario.creadoEn)}
+                          </span>
+                        </TableCell>
+
+                        <TableCell>
+                          {usuarioActual.permisos.administraElSistema && (
+                            <Tooltip content="Editar la cuenta" placement="left">
+                              <Button
+                                isIconOnly
+                                aria-label={`Editar a ${usuario.nombre}`}
+                                radius="lg"
+                                size="sm"
+                                variant="light"
+                                onPress={() => abrirModalDeEdicion(usuario)}
+                              >
+                                <Pencil className="size-3.5" />
+                              </Button>
+                            </Tooltip>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
       </div>
 
@@ -257,6 +277,88 @@ export function PaginaUsuarios() {
         zonasDisponibles={catalogos?.zonas ?? []}
       />
     </div>
+  );
+}
+
+/**
+ * Una cuenta en la lista del teléfono. Toda la fila abre la edición, y el
+ * lápiz se queda a la derecha para que se vea que se puede.
+ */
+function FilaDeCuentaEnElMovil({
+  usuario,
+  esUnoMismo,
+  puedeEditarla,
+  alEditar,
+}: {
+  usuario: Usuario;
+  esUnoMismo: boolean;
+  puedeEditarla: boolean;
+  alEditar: (usuario: Usuario) => void;
+}) {
+  const contenido = (
+    <>
+      <span
+        className="flex size-10 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white"
+        style={{ backgroundColor: usuario.colorAcento }}
+      >
+        {inicialesDe(usuario.nombre)}
+      </span>
+
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+          <span className="truncate">{usuario.nombre}</span>
+          {esUnoMismo && <span className="shrink-0 text-[10px] text-default-400">(tú)</span>}
+        </span>
+        <span className="block truncate text-[11px] text-default-500">{usuario.email ?? "—"}</span>
+
+        <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <Chip color={COLOR_DEL_ROL[usuario.rol]} radius="lg" size="sm" variant="flat">
+            {usuario.rolEtiqueta}
+          </Chip>
+          {usuario.zona && (
+            <Chip radius="lg" size="sm" variant="flat">
+              {usuario.zona}
+            </Chip>
+          )}
+          {usuario.activo ? (
+            <Chip color="success" radius="lg" size="sm" variant="dot">
+              Activa
+            </Chip>
+          ) : (
+            <Chip radius="lg" size="sm" variant="dot">
+              Desactivada
+            </Chip>
+          )}
+        </span>
+
+        <span className="mt-1 block text-[11px] text-default-400">
+          Alta: {formatearFecha(usuario.creadoEn)}
+        </span>
+      </span>
+
+      {puedeEditarla && (
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-default-100 text-default-600">
+          <Pencil className="size-4" />
+        </span>
+      )}
+    </>
+  );
+
+  return (
+    <li>
+      {puedeEditarla ? (
+        <button
+          aria-label={`Editar a ${usuario.nombre}`}
+          className="flex w-full items-center gap-3 px-4 py-3 text-left transition active:bg-default-100"
+          type="button"
+          onClick={() => alEditar(usuario)}
+        >
+          {contenido}
+        </button>
+      ) : (
+        <div className="flex items-center gap-3 px-4 py-3">{contenido}</div>
+      )}
+    </li>
   );
 }
 
