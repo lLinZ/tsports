@@ -54,26 +54,11 @@
 
     <!--
       Pinta el tema ANTES de que React arranque. Sin esto, quien tiene el
-      modo oscuro guardado vería un destello blanco en cada recarga.
-      Lee la misma clave de localStorage que usa ProveedorTema.
+      modo oscuro guardado vería un destello blanco en cada recarga. Va en
+      public/tema-inicial.js y no aquí dentro por la política de contenido
+      (CSP): solo corre código de ficheros del sitio. Sin defer ni async.
     -->
-    <script>
-      (function aplicarTemaGuardado() {
-        try {
-          var preferencia = localStorage.getItem("tsports:tema") || "sistema";
-          var prefiereOscuroElSistema = window.matchMedia("(prefers-color-scheme: dark)").matches;
-          var debeSerOscuro =
-            preferencia === "oscuro" || (preferencia === "sistema" && prefiereOscuroElSistema);
-          document.documentElement.classList.toggle("dark", debeSerOscuro);
-
-          // Color de acento del perfil (se guarda junto al tema).
-          var acento = localStorage.getItem("tsports:acento");
-          if (acento) document.documentElement.setAttribute("data-acento", acento);
-        } catch (e) {
-          /* Si localStorage está bloqueado, se queda el tema claro. */
-        }
-      })();
-    </script>
+    <script src="/tema-inicial.js"></script>
   </head>
   <body>
     <div id="root"></div>

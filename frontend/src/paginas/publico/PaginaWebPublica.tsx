@@ -82,7 +82,7 @@ import {
   useParallax,
   useRevelarAlEntrar,
 } from "@/hooks/useEfectosDeScroll";
-import { enlaceDeWhatsapp, inicialesDe } from "@/utilidades/formato";
+import { enlaceDeWhatsapp, enlaceWebONada, inicialesDe } from "@/utilidades/formato";
 import { elementosDeUnaPropiedadEnLaWeb } from "@/utilidades/galeria";
 import type {
   ContenidoDeLaWeb,
@@ -268,6 +268,9 @@ export function PaginaWebPublica() {
     { ancla: "#aliados", etiqueta: texto("nav.aliados") },
     { ancla: "#contacto", etiqueta: texto("nav.contacto") },
   ];
+
+  const enlaceDeInstagram = enlaceWebONada(contenido.contacto.instagram);
+  const enlaceDeLinkedin = enlaceWebONada(contenido.contacto.linkedin);
 
   return (
     <div className="light min-h-screen bg-white text-slate-900" style={variablesDeColor}>
@@ -834,10 +837,10 @@ export function PaginaWebPublica() {
                 {contenido.contacto.email}
               </a>
 
-              {contenido.contacto.instagram && (
+              {enlaceDeInstagram && (
                 <a
                   className="flex items-center gap-3 text-sm text-slate-700 transition hover:text-[var(--web-acento)]"
-                  href={contenido.contacto.instagram}
+                  href={enlaceDeInstagram}
                   rel="noreferrer"
                   target="_blank"
                 >
@@ -848,10 +851,10 @@ export function PaginaWebPublica() {
                 </a>
               )}
 
-              {contenido.contacto.linkedin && (
+              {enlaceDeLinkedin && (
                 <a
                   className="flex items-center gap-3 text-sm text-slate-700 transition hover:text-[var(--web-acento)]"
-                  href={contenido.contacto.linkedin}
+                  href={enlaceDeLinkedin}
                   rel="noreferrer"
                   target="_blank"
                 >

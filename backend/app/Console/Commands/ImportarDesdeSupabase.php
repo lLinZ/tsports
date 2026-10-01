@@ -42,15 +42,20 @@ use Illuminate\Support\Str;
  * IMPORTANTE — CONTRASEÑAS: Supabase no exporta las contraseñas (están
  * cifradas y son suyas). A cada usuario importado se le asigna una
  * temporal y hay que comunicársela, o pedirle que la cambie al entrar.
+ * Si no se da una con --password-temporal, se inventa una al azar en cada
+ * ejecución. Hasta el 2026-10-01 había una fija escrita aquí, a la vista
+ * de cualquiera que leyera el repositorio (ver ContrasenasPublicadas).
  */
 class ImportarDesdeSupabase extends Command
 {
     protected $signature = 'tsports:importar-supabase
                             {--carpeta= : Carpeta con los .json exportados de Supabase}
                             {--simular : Muestra lo que haría sin escribir nada en la base de datos}
-                            {--password-temporal=CambiaEstaClave2026 : Contraseña que se asigna a los usuarios importados}';
+                            {--password-temporal= : Contraseña que se asigna a los usuarios importados (si no, una al azar)}';
 
     protected $description = 'Importa usuarios, marcas, comentarios y contenido web exportados desde Supabase';
+
+    private ?string $passwordTemporalInventada = null;
 
     /** Cuenta de lo importado, para el resumen final. */
     private array $totalesImportados = [
@@ -118,11 +123,19 @@ class ImportarDesdeSupabase extends Command
         if (! $esSimulacion && $this->totalesImportados['usuarios'] > 0) {
             $this->newLine();
             $this->warn('Los usuarios importados tienen esta contraseña temporal:');
-            $this->line('   '.$this->option('password-temporal'));
+            $this->line('   '.$this->passwordTemporal());
             $this->warn('Pídeles que la cambien la primera vez que entren.');
         }
 
         return self::SUCCESS;
+    }
+
+    /** La que se pidió con --password-temporal o, si no, una al azar para toda la ejecución. */
+    private function passwordTemporal(): string
+    {
+        $pedida = trim((string) $this->option('password-temporal'));
+
+        return $this->passwordTemporalInventada ??= $pedida !== '' ? $pedida : Str::password(16, symbols: false);
     }
 
     /**
@@ -138,7 +151,7 @@ class ImportarDesdeSupabase extends Command
             return;
         }
 
-        $passwordTemporal = (string) $this->option('password-temporal');
+        $passwordTemporal = $this->passwordTemporal();
 
         foreach ($perfiles as $perfil) {
             $correoNormalizado = mb_strtolower(trim((string) ($perfil['email'] ?? '')));

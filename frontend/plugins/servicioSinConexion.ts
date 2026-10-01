@@ -46,10 +46,12 @@ const ARMAZON = "index.html";
 
 /**
  * Lo que se copia de `public/` a `dist/` y merece guardarse: el icono,
- * el manifiesto y los dibujos de la aplicación. Se excluye todo lo que
- * sea pesado o que no haga falta para que el panel abra sin red.
+ * el manifiesto, los dibujos de la aplicación y `tema-inicial.js`, que
+ * index.html pide antes que nada (sin él, sin red, el tema oscuro
+ * parpadea). Se excluye todo lo que sea pesado o que no haga falta para
+ * que el panel abra sin red.
  */
-const EXTENSIONES_DE_PUBLIC = [".svg", ".png", ".webmanifest", ".ico"];
+const EXTENSIONES_DE_PUBLIC = [".svg", ".png", ".webmanifest", ".ico", ".js"];
 
 export function servicioSinConexion(): Plugin {
   return {

@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\RecursoUsuario;
 use App\Models\RegistroActividad;
 use App\Models\User;
+use App\Support\ContrasenasPublicadas;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -151,7 +152,7 @@ class AutenticacionController extends Controller
     {
         $datos = $peticion->validate([
             'passwordActual' => ['required', 'string'],
-            'passwordNueva' => ['required', 'string', 'min:8', 'max:100', 'confirmed'],
+            'passwordNueva' => ['required', 'string', 'min:8', 'max:100', 'confirmed', ContrasenasPublicadas::regla()],
         ], [
             'passwordNueva.min' => 'La contraseña nueva debe tener al menos 8 caracteres.',
             'passwordNueva.confirmed' => 'La confirmación no coincide con la contraseña nueva.',

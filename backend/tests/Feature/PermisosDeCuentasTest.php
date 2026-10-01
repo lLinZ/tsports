@@ -230,6 +230,37 @@ class PermisosDeCuentasTest extends TestCase
      | Ayudante
      |-----------------------------------------------------------------*/
 
+    public function test_nadie_pone_una_contrasena_que_esta_escrita_en_el_repositorio(): void
+    {
+        // La de las semillas está escrita en CLAUDE.md: es de las primeras
+        // que probaría cualquiera (ver ContrasenasPublicadas).
+        $administrador = $this->crearUsuario(RolUsuario::Admin);
+        $comercial = $this->crearUsuario(RolUsuario::Comercial);
+
+        $this->actingAs($administrador)
+            ->postJson('/api/admin/usuarios', [
+                'nombre' => 'Nueva',
+                'email' => 'nueva@test.test',
+                'password' => 'demo12345',
+                'rol' => 'vendedor',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('password', 'errores');
+
+        $this->actingAs($administrador)
+            ->putJson("/api/admin/usuarios/{$comercial->id}", ['password' => 'demo12345'])
+            ->assertUnprocessable();
+
+        $this->actingAs($comercial)
+            ->postJson('/api/auth/cambiar-password', [
+                'passwordActual' => 'clave-de-prueba',
+                'passwordNueva' => 'demo12345',
+                'passwordNueva_confirmation' => 'demo12345',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('passwordNueva', 'errores');
+    }
+
     private function crearUsuario(RolUsuario $rol): User
     {
         return User::create([

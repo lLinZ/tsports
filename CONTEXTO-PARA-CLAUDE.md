@@ -255,7 +255,7 @@ Para mirar la interfaz, `preview_start` con las entradas `backend` y
 | Propiedades | 7 (solo Comité Olímpico con MTP: 162.000 USD) |
 | Campañas | 0 |
 | Comentarios | 0 |
-| Cuentas | 8, todas con la clave provisional `CambiaEstaClave2026` |
+| Cuentas | 8, todas con la clave provisional del importador (retirada el 2026-10-01, ver `ContrasenasPublicadas`) |
 | Textos de la web sin repasar | 5, bajo `_importadoSinTraducir` |
 
 Las ocho cuentas: `tssports@gmail.com` (admin), `linz.webdev@gmail.com`

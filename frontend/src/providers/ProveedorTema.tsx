@@ -12,7 +12,7 @@
  *     dejó.
  *
  *   · En localStorage → es una copia que permite pintar el tema correcto
- *     ANTES de que React arranque (lo hace el script de index.html). Sin
+ *     ANTES de que React arranque (lo hace public/tema-inicial.js). Sin
  *     ella, quien usa el modo oscuro vería un destello blanco en cada
  *     recarga.
  *
@@ -40,7 +40,7 @@ import {
 import { aplicarColorDeLaBarra } from "@/theme/colorDeLaBarra";
 import type { PreferenciaDeTema } from "@/tipos/modelos";
 
-/** Claves de localStorage. Deben coincidir con el script de index.html. */
+/** Claves de localStorage. Deben coincidir con public/tema-inicial.js. */
 const CLAVE_TEMA = "tsports:tema";
 const CLAVE_ACENTO = "tsports:acento";
 

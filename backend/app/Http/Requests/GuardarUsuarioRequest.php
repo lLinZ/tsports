@@ -8,6 +8,7 @@ use App\Enums\RolUsuario;
 use App\Enums\TemaInterfaz;
 use App\Models\User;
 use App\Support\CatalogosDelCrm;
+use App\Support\ContrasenasPublicadas;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -51,7 +52,7 @@ class GuardarUsuarioRequest extends FormRequest
 
             // Al crear la contraseña es obligatoria; al editar solo se
             // envía si de verdad se quiere cambiar.
-            'password' => [$estamosCreando ? 'required' : 'nullable', 'string', 'min:8', 'max:100'],
+            'password' => [$estamosCreando ? 'required' : 'nullable', 'string', 'min:8', 'max:100', ContrasenasPublicadas::regla()],
 
             'rol' => ['sometimes', Rule::in(RolUsuario::valores())],
             'zona' => ['nullable', 'string', Rule::in(CatalogosDelCrm::ZONAS)],

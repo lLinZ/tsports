@@ -14,6 +14,7 @@ use App\Models\Marca;
 use App\Models\User;
 use App\Support\ContenidoWebPorDefecto;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 /**
  * DatabaseSeeder — deja el sistema listo para usarse.
@@ -59,7 +60,15 @@ class DatabaseSeeder extends Seeder
     private function crearAdministradorInicial(): User
     {
         $correoDelAdministrador = mb_strtolower((string) env('ADMIN_EMAIL', 'admin@tssports.com'));
-        $passwordDelAdministrador = (string) env('ADMIN_PASSWORD', 'CambiaEstaClave2026');
+        // Sin ADMIN_PASSWORD se inventa una y se enseña una sola vez. Antes
+        // había una fija escrita aquí y en .env.example, y una contraseña
+        // escrita en el repositorio no protege nada (ContrasenasPublicadas).
+        $passwordDelAdministrador = trim((string) env('ADMIN_PASSWORD', ''));
+        $passwordInventada = $passwordDelAdministrador === '';
+
+        if ($passwordInventada) {
+            $passwordDelAdministrador = Str::password(16, symbols: false);
+        }
 
         $administrador = User::query()->firstOrNew(['email' => $correoDelAdministrador]);
 
@@ -85,6 +94,10 @@ class DatabaseSeeder extends Seeder
                 ? "✔ Administrador creado: {$correoDelAdministrador}"
                 : "· El administrador {$correoDelAdministrador} ya existía (contraseña sin tocar)"
         );
+
+        if ($esUnaCuentaNueva && $passwordInventada) {
+            $this->command?->warn("  Contraseña inventada (apúntala, no se vuelve a enseñar): {$passwordDelAdministrador}");
+        }
 
         return $administrador;
     }

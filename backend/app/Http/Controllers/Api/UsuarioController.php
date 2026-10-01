@@ -133,6 +133,14 @@ class UsuarioController extends Controller
 
         $usuario->save();
 
+        // Desactivar desde la ficha cierra sus sesiones, igual que
+        // desactivar desde el botón de baja. Si solo se quedaran sin
+        // validez, reactivar la cuenta resucitaría pestañas olvidadas en
+        // ordenadores que ya no son suyos.
+        if ($valoresAnteriores['activo'] && ! $usuario->activo) {
+            $usuario->tokens()->delete();
+        }
+
         RegistroActividad::anotar(
             $peticion->user(),
             RegistroActividad::ACCION_ACTUALIZO,

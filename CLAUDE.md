@@ -181,9 +181,11 @@ Esto es una decisión de diseño, no un detalle:
 
 - La preferencia se guarda **en el servidor** (columna `tema` de
   `users`), así que acompaña a la persona a cualquier ordenador.
-- Se guarda **también** en `localStorage` (`tsports:tema`), y un script
-  en `index.html` la aplica **antes de que React arranque**. Sin eso,
-  quien usa el modo oscuro ve un destello blanco en cada recarga.
+- Se guarda **también** en `localStorage` (`tsports:tema`), y
+  `public/tema-inicial.js`, que `index.html` carga en el `<head>`, la
+  aplica **antes de que React arranque**. Sin eso, quien usa el modo
+  oscuro ve un destello blanco en cada recarga. Va en un fichero y no
+  escrito en la página por la CSP (regla 25).
 - Tres opciones: `claro`, `oscuro`, `sistema` (sigue al sistema
   operativo, escuchando `prefers-color-scheme` en vivo).
 - Todo pasa por `providers/ProveedorTema.tsx`. Ningún componente toca
@@ -378,6 +380,13 @@ Salieron del cliente y están implementadas a propósito así:
 7. **Nadie cambia su propio rol ni su propia zona.** Ni un admin. Si el
    único administrador se rebajase, no quedaría nadie capaz de dar
    permisos.
+
+   **Una cuenta desactivada se queda fuera al momento**, también con la
+   pestaña que ya tenía abierta: desactivarla borra sus tokens, y
+   `AppServiceProvider` no acepta el token de una cuenta inactiva
+   (401, que en el panel cierra la sesión). Hasta el 2026-10-01 solo se
+   le impedía volver a entrar, y el reporte de bitácora, el chat y los
+   avisos le seguían respondiendo: no todas las rutas tienen política.
 
 8. **Un producto IOP tiene tres montos y solo uno se escribe dos veces.**
    Una propiedad (Comité Olímpico, Dvo. Táchira, Kombat Challenge…) se
@@ -631,8 +640,10 @@ Salieron del cliente y están implementadas a propósito así:
       decide por propósito el disco, los formatos y el tope, y mira el
       tipo en el **contenido** del fichero (`finfo`); el nombre y lo que
       diga el navegador no cuentan. Galería y bitácora admiten fotos y PDF hasta
-      20 MB, **sin SVG** (lleva código dentro y esto se enseña a
-      clientes); logos, fotos de la web y avatares siguen en 5 MB. El
+      20 MB; logos, fotos de la web y avatares siguen en 5 MB. **Ningún
+      propósito admite SVG**: lleva código dentro y, servido desde
+      /storage, se abre en el mismo origen que la sesión del panel (un
+      agente le pasaría a un administrador el enlace de un «logo»). El
       cierre de mes (regla 24) admite además Excel, Word y PowerPoint;
       un Office moderno que `finfo` ve como ZIP a secas se reconoce por
       las piezas que lleva dentro, nunca por la extensión.
@@ -750,6 +761,42 @@ Salieron del cliente y están implementadas a propósito así:
       y se borra con el cierre. Subir y borrar quedan en la auditoría.
     - Queda fuera de la copia sin conexión: sus enlaces caducan.
 
+25. **Ninguna contraseña de verdad vive en el repositorio, y las
+    cabeceras de seguridad las pone nginx en todas las respuestas.**
+    Desde el 2026-10-01: la contraseña temporal del importador y del
+    seeder estaba escrita en `.env.example`, y el repositorio de GitHub
+    era público. Una contraseña escrita en el repositorio no protege nada.
+
+    - **Sin contraseñas fijas en el código.** El seeder y el importador
+      inventan una al azar si no se les da y la enseñan una sola vez.
+      `App\Support\ContrasenasPublicadas` lista las que ya se publicaron
+      (la de ejemplo y `demo12345`) y el panel no deja ponerlas: ni al
+      crear una cuenta, ni al reiniciarla, ni al cambiar la propia.
+    - **La sesión vive en `localStorage`**, en el mismo origen que la web
+      y que /storage. Por eso importa todo lo de abajo: cualquier código
+      que llegue a correr en tsports.tech puede leerla. Y por eso caduca
+      a los **30 días sin usarse** (`AppServiceProvider`, contando desde
+      `last_used_at`): quien entra a diario no lo nota, y una sesión
+      olvidada o robada deja de valer sola.
+    - **Las cabeceras van en `deploy/nginx-seguridad.conf`**, que se
+      incluye en el servidor y en CADA location con un `add_header`
+      propio: en nginx, uno dentro de un location anula los de arriba.
+      Así estuvo el panel sin `X-Frame-Options` y /storage sin `nosniff`.
+    - **La CSP solo la lleva index.html** (`deploy/nginx.conf`):
+      `script-src 'self'`, nada de `<script>` escrito en la página (el
+      tema va en `public/tema-inicial.js`) ni `eval`. En los PDF no se
+      pone, que algún visor se niega a abrirlos. Un recurso nuevo de otro
+      dominio no cargará hasta que se añada ahí; se comprueba con el
+      build servido con la misma cabecera (`preview.headers` de Vite) y
+      el evento `securitypolicyviolation`.
+    - **Los enlaces que escribe el CMS salen por `enlaceWebONada`**
+      (`http(s)` o `#`): un `javascript:` en un href correría con la
+      sesión de quien abra la web.
+    - **El push solo va a servicios de entrega de verdad**
+      (`GuardarSuscripcionPushRequest`): el servidor llama a esa dirección
+      en cada aviso, y abierta a cualquier https servía para llamar a lo
+      que hay dentro de la máquina.
+
 ---
 
 ## 7. Errores: una sola forma
@@ -865,3 +912,10 @@ VPS usa **MySQL**: la plantilla es `backend/.env.example`.
   `Marca::campanasQueHaTenido` (regla 13).
 - Dar por bueno un cambio en `useRevelarAlEntrar` probándolo solo en
   desarrollo: `StrictMode` esconde el fallo (ver 4.6).
+- Escribir una contraseña de verdad en el repositorio, o un valor por
+  defecto para ella en el código (regla 25).
+- Poner un `<script>` escrito dentro de index.html, o algo que necesite
+  `eval`: la CSP lo bloquea (regla 25).
+- Un `add_header` en un location de nginx sin
+  `include snippets/tsports-seguridad.conf;` al lado (regla 25).
+- Aceptar SVG en cualquier subida (regla 21).

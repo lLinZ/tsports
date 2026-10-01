@@ -399,3 +399,19 @@ export function enlaceDeWhatsapp(telefono: string, mensaje?: string): string {
 
   return `https://wa.me/${soloDigitos}${textoCodificado}`;
 }
+
+/**
+ * Una dirección escrita en el CMS, solo si es una dirección web o un
+ * ancla de la propia página (el «#» que hay puesto mientras no hay
+ * dirección). Si no, nada: el enlace no se pinta.
+ *
+ * La escribe un administrador, pero un `javascript:…` en un href corre en
+ * este mismo origen, donde vive la sesión del panel. Con una cuenta de
+ * administrador robada quedaría plantado en la web, esperando a cada
+ * persona del equipo que la abra con la sesión iniciada.
+ */
+export function enlaceWebONada(direccion: string | null | undefined): string | undefined {
+  const limpia = (direccion ?? "").trim();
+
+  return /^(https?:\/\/|#)/i.test(limpia) ? limpia : undefined;
+}

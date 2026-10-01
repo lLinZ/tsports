@@ -26,9 +26,12 @@ use RuntimeException;
  *   · Carpeta por propósito y por mes, para que el disco no degenere en
  *     un directorio con decenas de miles de ficheros.
  *   · Qué admite cada propósito, cuánto puede pesar y en qué disco va,
- *     en `REGLAS_POR_PROPOSITO`. El SVG solo lo admiten los logos y la
- *     web: un SVG puede llevar código dentro, y la galería y los adjuntos
- *     se enseñan a clientes o guardan papeles de una marca.
+ *     en `reglasDe()`. **Ninguno admite SVG**: un SVG lleva código dentro
+ *     y, servido desde /storage, se abre en el mismo origen que el panel,
+ *     con acceso a la sesión de quien lo abra. Un agente podría subir un
+ *     logo así y pasarle el enlace a un administrador. La regla `image`
+ *     de Laravel ya lo rechazaba en /api/media; desde el 2026-10-01 esta
+ *     lista lo dice también, para que nadie lo abra por descuido.
  *
  * LOS TRES LÍMITES DE TAMAÑO se suben juntos o no se sube ninguno: el de
  * aquí, el de PHP (deploy/php-tsports.ini) y el de nginx
@@ -56,8 +59,6 @@ final class GuardadoDeArchivos
         'image/webp' => 'webp',
         'image/gif' => 'gif',
     ];
-
-    private const SVG = ['image/svg+xml' => 'svg'];
 
     private const PDF = ['application/pdf' => 'pdf'];
 
@@ -92,9 +93,9 @@ final class GuardadoDeArchivos
             ArchivoMedia::PROPOSITO_CONTENIDO_WEB,
             ArchivoMedia::PROPOSITO_AVATAR => [
                 'disco' => ArchivoMedia::DISCO_PUBLICO,
-                'tipos' => self::IMAGENES + self::SVG,
+                'tipos' => self::IMAGENES,
                 'maximoKb' => self::TAMANO_MAXIMO_DE_IMAGEN_KB,
-                'formatos' => 'JPG, PNG, WebP, GIF o SVG',
+                'formatos' => 'JPG, PNG, WebP o GIF',
             ],
             // Pública porque está hecha para enseñarse, también en la web.
             ArchivoMedia::PROPOSITO_GALERIA_PROPIEDAD => [

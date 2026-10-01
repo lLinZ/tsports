@@ -140,8 +140,11 @@ respetó tal cual, en vez de inventar datos.
 ### Contraseñas
 
 **Supabase no exporta las contraseñas.** Los 8 usuarios quedaron con la
-temporal **`CambiaEstaClave2026`** (se cambia con `--password-temporal=`)
-y tienen que cambiarla al entrar. Los correos son los mismos de siempre.
+temporal que enseña el importador al terminar (se elige con
+`--password-temporal=`) y tienen que cambiarla al entrar. Hasta el
+2026-10-01 era una fija escrita en el repositorio: ahora es al azar y el
+panel no deja volver a ponerla (`ContrasenasPublicadas`). Los correos son
+los mismos de siempre.
 
 Para probar: `tssports@gmail.com` es una de las dos cuentas admin.
 

@@ -46,14 +46,14 @@ class MediaController extends Controller
                 'required',
                 'file',
                 'image',
-                'mimes:jpg,jpeg,png,webp,gif,svg',
+                'mimes:jpg,jpeg,png,webp,gif',
                 'max:'.GuardadoDeArchivos::TAMANO_MAXIMO_DE_IMAGEN_KB,
             ],
             'proposito' => ['nullable', Rule::in(self::PROPOSITOS_DE_ESTA_RUTA)],
         ], [
             'archivo.required' => 'Elige una imagen para subir.',
             'archivo.image' => 'El fichero debe ser una imagen.',
-            'archivo.mimes' => 'Formatos admitidos: JPG, PNG, WebP, GIF o SVG.',
+            'archivo.mimes' => 'Formatos admitidos: JPG, PNG, WebP o GIF.',
             'archivo.max' => 'La imagen no puede pesar más de 5 MB.',
         ]);
 

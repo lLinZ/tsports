@@ -154,6 +154,46 @@ class AvisosAlMovilTest extends TestCase
             ->assertJsonStructure(['errores' => ['endpoint']]);
     }
 
+    /**
+     * Y tiene que ser de un servicio de entrega de verdad. El servidor
+     * hace una petición a esa dirección por cada aviso: abierta a
+     * cualquiera, una cuenta del equipo podría usarlo para llamar a
+     * servicios internos de la máquina o de su red.
+     */
+    public function test_la_direccion_de_entrega_es_de_un_servicio_de_push(): void
+    {
+        $agente = $this->crearUsuario(RolUsuario::Vendedor);
+
+        $direccionesAjenas = [
+            'https://127.0.0.1/api/algo',
+            'https://localhost:8080/apps',
+            'https://169.254.169.254/latest/meta-data',
+            'https://fcm.googleapis.com.servidor-de-alguien.test/x',
+            'https://fcm.googleapis.com:8443/fcm/send/abc',
+        ];
+
+        foreach ($direccionesAjenas as $direccion) {
+            $this->actingAs($agente)
+                ->postJson('/api/push/suscripciones', [...$this->datosDelNavegador(), 'endpoint' => $direccion])
+                ->assertStatus(422);
+        }
+
+        $direccionesDeLosNavegadores = [
+            'https://fcm.googleapis.com/fcm/send/abc',
+            'https://updates.push.services.mozilla.com/wpush/v2/abc',
+            'https://wns2-par02p.notify.windows.com/w/?token=abc',
+            'https://web.push.apple.com/abc',
+        ];
+
+        foreach ($direccionesDeLosNavegadores as $direccion) {
+            $this->actingAs($agente)
+                ->postJson('/api/push/suscripciones', [...$this->datosDelNavegador(), 'endpoint' => $direccion])
+                ->assertOk();
+        }
+
+        $this->assertSame(4, SuscripcionPush::query()->count());
+    }
+
     /* ------------------------------------------------------------------
      | El envío
      |-----------------------------------------------------------------*/

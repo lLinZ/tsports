@@ -34,13 +34,47 @@ class GuardarSuscripcionPushRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'endpoint' => ['required', 'string', 'url:https', 'max:500'],
+            'endpoint' => ['required', 'string', 'url:https', 'max:500', $this->esDeUnServicioDeEntrega(...)],
             'p256dh' => ['required', 'string', 'max:255'],
             'auth' => ['required', 'string', 'max:255'],
             // El navegador no lo manda: lo pone la interfaz para que la
             // persona reconozca el dispositivo. Opcional a propósito.
             'dispositivo' => ['nullable', 'string', 'max:120'],
         ];
+    }
+
+    /**
+     * Los servicios de entrega de los navegadores: Chrome, Opera, Brave y
+     * Samsung (Google), Firefox (Mozilla), Edge (Microsoft) y Safari
+     * (Apple). Desde el 2026-10-01.
+     *
+     * El servidor hace una petición a esta dirección por cada aviso. Con
+     * cualquier https bastaba ponerla a mano para que el servidor llamara
+     * a lo que hay dentro de la máquina o de su red (127.0.0.1, el puerto
+     * de Reverb…). Un navegador nuevo con su propio servicio se añade aquí.
+     */
+    private const SERVICIOS_DE_ENTREGA = [
+        'fcm.googleapis.com',
+        '.push.services.mozilla.com',
+        '.notify.windows.com',
+        'web.push.apple.com',
+    ];
+
+    private function esDeUnServicioDeEntrega(string $atributo, mixed $valor, \Closure $fallar): void
+    {
+        $partes = parse_url((string) $valor);
+        $servidor = strtolower((string) ($partes['host'] ?? ''));
+
+        $esConocido = collect(self::SERVICIOS_DE_ENTREGA)->contains(
+            static fn (string $servicio): bool => str_starts_with($servicio, '.')
+                ? str_ends_with($servidor, $servicio)
+                : $servidor === $servicio,
+        );
+
+        // Con puerto propio ya no es el servicio, aunque el nombre coincida.
+        if (! $esConocido || isset($partes['port']) || isset($partes['user'])) {
+            $fallar('Esa dirección no es de ningún servicio de avisos de un navegador.');
+        }
     }
 
     /**

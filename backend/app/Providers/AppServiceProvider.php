@@ -34,6 +34,8 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Sanctum\PersonalAccessToken;
+use Laravel\Sanctum\Sanctum;
 
 /**
  * AppServiceProvider — ajustes globales de la aplicación.
@@ -58,6 +60,9 @@ use Illuminate\Support\ServiceProvider;
  */
 class AppServiceProvider extends ServiceProvider
 {
+    /** Días sin usar un token tras los que deja de valer (ver boot()). */
+    public const DIAS_SIN_USO_QUE_CIERRAN_LA_SESION = 30;
+
     public function register(): void
     {
         // Uno por petición: junta todo lo que cambió en ella.
@@ -75,6 +80,30 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Notificacion::class, NotificacionPolicy::class);
         Gate::policy(Conversacion::class, ConversacionPolicy::class);
         Gate::policy(CierreDeMes::class, CierreDeMesPolicy::class);
+
+        // Cuándo deja de valer un token, aparte de al cerrar sesión. Las
+        // dos condiciones dan un 401, que en el panel cierra la sesión.
+        //
+        //   · Una cuenta desactivada no entra con ninguno, ni con el de la
+        //     pestaña que ya tenía abierta. Desactivar ya borra sus tokens,
+        //     pero aquí queda escrito para cualquier otro camino (la base
+        //     de datos a mano, un comando). Las políticas también lo
+        //     preguntan, pero no todas las rutas tienen política: el
+        //     reporte de bitácora, el chat y los avisos respondían a una
+        //     cuenta ya desactivada.
+        //   · Un token que lleva 30 días sin usarse caduca (desde el
+        //     2026-10-01). Quien entra a diario no lo nota: Sanctum apunta
+        //     `last_used_at` en cada petición. Lo que caduca es la sesión
+        //     olvidada en un ordenador ajeno, o la que alguien se llevó.
+        //     No es la `expiration` de config/sanctum.php: esa cuenta
+        //     desde que se creó el token y echaría a todos cada mes.
+        Sanctum::authenticateAccessTokensUsing(
+            static fn (PersonalAccessToken $token, bool $esValido): bool => $esValido
+                && $token->tokenable instanceof User
+                && $token->tokenable->activo
+                && ($token->last_used_at ?? $token->created_at)
+                    ->gt(now()->subDays(self::DIAS_SIN_USO_QUE_CIERRAN_LA_SESION)),
+        );
 
         // Comprobaciones estrictas de Eloquent, solo fuera de producción.
         Model::shouldBeStrict(! $this->app->isProduction());
