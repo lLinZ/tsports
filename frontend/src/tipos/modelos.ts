@@ -1323,3 +1323,54 @@ export interface CierreDeMes {
   subidoEn: string | null;
   puedoEliminarlo: boolean;
 }
+
+/* ==================================================================== */
+/* Reporte «Pronóstico por marca»                                       */
+/* ==================================================================== */
+
+/** Lo que se le pronostica a una marca en una propiedad. */
+export interface PronosticoDeUnaMarcaEnUnaPropiedad {
+  propiedadId: string;
+  nombre: string;
+  activa: boolean;
+  ovpUsd: number;
+}
+
+export interface PronosticoDeUnaMarca {
+  marcaId: string;
+  nombre: string;
+  logoUrl: string | null;
+  sector: string | null;
+  zona: string | null;
+  agenteNombre: string | null;
+  ovpUsd: number;
+  propiedades: PronosticoDeUnaMarcaEnUnaPropiedad[];
+}
+
+export interface PronosticoDeUnaPropiedad {
+  propiedadId: string;
+  nombre: string;
+  logoUrl: string | null;
+  activa: boolean;
+  ovpUsd: number;
+  marcas: Array<{ marcaId: string; nombre: string; logoUrl: string | null; ovpUsd: number }>;
+}
+
+/**
+ * En qué marcas está el pronóstico (OVP). El mismo dinero leído por
+ * marca y por propiedad; el total cuadra con «Pronosticado por el
+ * equipo» de la pantalla de Propiedades. «personal» = solo las marcas
+ * del agente que lo pide.
+ */
+export interface ReporteDePronostico {
+  alcance: "empresa" | "personal";
+  generadoEn: string;
+  generadoPor: string;
+  resumen: {
+    totalOvpUsd: number;
+    totalMarcas: number;
+    totalPropiedades: number;
+  };
+  porMarca: PronosticoDeUnaMarca[];
+  porPropiedad: PronosticoDeUnaPropiedad[];
+}

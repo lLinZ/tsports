@@ -58,6 +58,7 @@ import { PaginaSectores } from "@/paginas/PaginaSectores";
 import { PaginaPerfil } from "@/paginas/PaginaPerfil";
 import { PaginaBrochure } from "@/paginas/PaginaBrochure";
 import { PaginaReporteDeBitacora } from "@/paginas/PaginaReporteDeBitacora";
+import { PaginaReporteDePronostico } from "@/paginas/PaginaReporteDePronostico";
 import { PaginaCatalogoWeb } from "@/paginas/PaginaCatalogoWeb";
 import { PaginaCierreDeMes } from "@/paginas/PaginaCierreDeMes";
 import { PaginaTiempoReal } from "@/paginas/PaginaTiempoReal";
@@ -256,6 +257,17 @@ function RutasDeLaAplicacion() {
           </RutaProtegida>
         }
         path="/reportes/bitacora"
+      />
+
+      {/* En qué marcas está el pronóstico (OVP). Todo el equipo: cada
+          quien, de las marcas que ve (lo decide el servidor). */}
+      <Route
+        element={
+          <RutaProtegida>
+            <PaginaReporteDePronostico />
+          </RutaProtegida>
+        }
+        path="/reportes/pronostico"
       />
 
       {/* El brochure de propiedades en PDF, para mandar a un patrocinador.

@@ -132,7 +132,7 @@ const ENTRADAS_DEL_MENU: EntradaDeMenu[] = [
     // Reportes (bitácora y brochure).
     ruta: "/reportes",
     etiqueta: "Reportes",
-    descripcion: "Bitácora y brochure",
+    descripcion: "Bitácora, pronóstico y brochure",
     icono: NotebookPen,
     // Todo el equipo: cada quien saca el de las marcas que ve.
     laPuedeVer: () => true,

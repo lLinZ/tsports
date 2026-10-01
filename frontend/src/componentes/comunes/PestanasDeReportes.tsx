@@ -1,17 +1,18 @@
 /**
  * componentes/comunes/PestanasDeReportes.tsx
  * ---------------------------------------------------------------------
- * Las pestañas de la sección Reportes: la bitácora por fechas y el
- * brochure de propiedades. Cada una es su propia ruta (/reportes/…),
+ * Las pestañas de la sección Reportes: la bitácora por fechas, el
+ * pronóstico por marca y el brochure de propiedades. Cada una es su propia ruta (/reportes/…),
  * así que se pueden enlazar y el botón «atrás» del navegador funciona.
  * ---------------------------------------------------------------------
  */
-import { BookOpen, NotebookPen } from "lucide-react";
+import { BookOpen, NotebookPen, TrendingUp } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 const REPORTES = [
-  { ruta: "/reportes/bitacora", etiqueta: "Bitácora por fechas", Icono: NotebookPen },
-  { ruta: "/reportes/brochure", etiqueta: "Brochure de propiedades", Icono: BookOpen },
+  { ruta: "/reportes/bitacora", etiqueta: "Bitácora por fechas", corta: "Bitácora", Icono: NotebookPen },
+  { ruta: "/reportes/pronostico", etiqueta: "Pronóstico por marca", corta: "Pronóstico", Icono: TrendingUp },
+  { ruta: "/reportes/brochure", etiqueta: "Brochure de propiedades", corta: "Brochure", Icono: BookOpen },
 ] as const;
 
 export function PestanasDeReportes() {
@@ -20,7 +21,7 @@ export function PestanasDeReportes() {
       aria-label="Reportes"
       className="flex w-full gap-1 rounded-xl bg-default-100 p-1 sm:w-fit"
     >
-      {REPORTES.map(({ ruta, etiqueta, Icono }) => (
+      {REPORTES.map(({ ruta, etiqueta, corta, Icono }) => (
         <NavLink
           key={ruta}
           className={({ isActive }) =>
@@ -34,7 +35,9 @@ export function PestanasDeReportes() {
           to={ruta}
         >
           <Icono className="size-3.5" />
-          {etiqueta}
+          {/* En el teléfono no caben los tres nombres largos en una fila. */}
+          <span className="sm:hidden">{corta}</span>
+          <span className="hidden sm:inline">{etiqueta}</span>
         </NavLink>
       ))}
     </nav>

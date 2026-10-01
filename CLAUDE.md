@@ -396,6 +396,12 @@ Salieron del cliente y están implementadas a propósito así:
    (`Propiedad::PORCENTAJE_FORECAST_POR_DEFECTO`) y es editable por
    propiedad, porque es un acuerdo, no una ley.
 
+   **En qué marcas está el OVP** lo contesta Reportes › «Pronóstico por
+   marca» (desde el 2026-10-01): el mismo dinero por marca y por
+   propiedad, cada quien de las marcas que ve. Su total tiene que
+   cuadrar con «Pronosticado por el equipo» de Propiedades, que suma
+   todas las líneas, también las de propiedades desactivadas.
+
 9. **El checklist de propiedades NO completa la prospección.** Va dentro
    de esa fase porque es el trabajo que se hace ahí, pero la fase sigue
    dependiendo solo de los cinco datos de la regla 2. Mezclarlos haría
