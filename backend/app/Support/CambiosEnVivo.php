@@ -71,6 +71,15 @@ final class CambiosEnVivo
     public const CIERRES_DE_MES = 'cierres';
 
     /**
+     * Los días que tarda una marca en enfriarse. Cambian el estado de
+     * todas las marcas a la vez, así que se avisa a todo el equipo.
+     */
+    public const UMBRALES_DEL_ESTADO = 'umbrales';
+
+    /** Las metas de venta: cada quien vuelve a pedir su panel. */
+    public const METAS = 'metas';
+
+    /**
      * Pasado este número de marcas en una sola petición (el importador,
      * un cambio masivo) se avisa «cambiaron las marcas» sin decir cuáles.
      * Es lo mismo para quien lo recibe —vuelve a pedir su tablero— y el

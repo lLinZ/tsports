@@ -273,6 +273,59 @@ function ayer(): Date {
   return new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - 1);
 }
 
+/**
+ * Un día del calendario LOCAL como AAAA-MM-DD, para enviarlo al servidor
+ * o ponerlo en un campo de fecha. No se usa toISOString(): da el día en
+ * UTC, y a las nueve de la noche en Caracas ya sería mañana.
+ */
+export function diaLocal(fecha: Date): string {
+  const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+  const dia = String(fecha.getDate()).padStart(2, "0");
+
+  return `${fecha.getFullYear()}-${mes}-${dia}`;
+}
+
+/** Un día AAAA-MM-DD movido N días adelante (o atrás), como día de calendario. */
+export function sumarDias(diaIso: string, dias: number): string {
+  const fecha = comoFechaLocal(diaIso) ?? new Date();
+
+  return diaLocal(new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate() + dias));
+}
+
+/** El día de dentro de N días (0 = hoy), en el calendario local. */
+export function diaLocalDentroDe(dias: number): string {
+  const hoy = new Date();
+
+  return diaLocal(new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + dias));
+}
+
+/**
+ * El día de algo agendado, dicho corto: "hoy", "mañana" o "el 20 oct"
+ * (con el año solo si no es el actual). Recibe un día AAAA-MM-DD y
+ * cuántos días faltan para él, que cuenta el SERVIDOR con el calendario
+ * de Caracas: el navegador puede estar en otra zona horaria, y «mañana»
+ * no puede depender de dónde está el ordenador.
+ */
+export function formatearDiaAgendado(
+  fechaIso: string | null | undefined,
+  diasQueFaltan: number,
+): string {
+  const fecha = comoFechaLocal(fechaIso);
+
+  if (fecha === null) return "—";
+
+  if (diasQueFaltan === 0) return "hoy";
+  if (diasQueFaltan === 1) return "mañana";
+
+  const diaYMes = fecha.toLocaleDateString("es", {
+    day: "numeric",
+    month: "short",
+    ...(fecha.getFullYear() === new Date().getFullYear() ? {} : { year: "numeric" }),
+  });
+
+  return `el ${diaYMes.replace(".", "")}`;
+}
+
 /** Hora del mensaje: "14:05". */
 export function formatearHora(fechaIso: string | null | undefined): string {
   const fecha = comoFechaLocal(fechaIso);
@@ -398,6 +451,30 @@ export function enlaceDeWhatsapp(telefono: string, mensaje?: string): string {
   const textoCodificado = mensaje ? `?text=${encodeURIComponent(mensaje)}` : "";
 
   return `https://wa.me/${soloDigitos}${textoCodificado}`;
+}
+
+/**
+ * El teléfono de un contacto como lo pide WhatsApp: con el código del
+ * país delante y sin el cero. En la ficha el equipo los escribe como se
+ * marcan en Venezuela («0414-1234567»), y `wa.me/04141234567` no abre
+ * ninguna charla. Un número que ya trae su código (+58, +57…) se deja
+ * como está. Null si no parece un teléfono.
+ */
+export function numeroParaWhatsapp(telefono: string | null | undefined): string | null {
+  const escrito = (telefono ?? "").trim();
+  const soloDigitos = escrito.replace(/\D/g, "");
+
+  if (soloDigitos.length < 7) return null;
+
+  // Con «+» o «00» delante ya lleva el código de su país.
+  if (escrito.startsWith("+")) return soloDigitos;
+  if (soloDigitos.startsWith("00")) return soloDigitos.slice(2);
+
+  // 0414-1234567 → 584141234567; 414-1234567 → 584141234567.
+  if (soloDigitos.length === 11 && soloDigitos.startsWith("0")) return `58${soloDigitos.slice(1)}`;
+  if (soloDigitos.length === 10 && !soloDigitos.startsWith("58")) return `58${soloDigitos}`;
+
+  return soloDigitos;
 }
 
 /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\MotivoDeMovimiento;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -52,6 +53,25 @@ class EventoDeCampana extends Model
         return [
             'fecha' => 'date',
         ];
+    }
+
+    /**
+     * Anotar una acción mueve la marca el día que se anota. El día de la
+     * acción cuenta aparte, al leer: si es por delante, la mantiene
+     * caliente hasta que pase (App\Support\EstadoDeLasMarcas).
+     *
+     * Corregir o borrar una acción no la mueve: es arreglar el historial,
+     * no trabajar la marca.
+     */
+    protected static function booted(): void
+    {
+        static::created(function (EventoDeCampana $evento): void {
+            Marca::anotarMovimiento(
+                $evento->marca_id,
+                $evento->created_at ?? now(),
+                MotivoDeMovimiento::AccionDeCampana,
+            );
+        });
     }
 
     /* ------------------------------------------------------------------

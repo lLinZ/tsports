@@ -276,6 +276,24 @@ resuelven:
   </Modal>
   ```
 
+### 4.8 Las pantallas largas van por partes
+
+Desde el 2026-10-06 el resumen de la dirección va en cinco partes, cada
+una con su título y la pregunta que contesta, y un índice arriba para
+saltar a cada una (`componentes/comunes/SeccionDePantalla.tsx`): «Lo de
+hoy», «El pipeline», «Lo que se espera vender», «El equipo» y «Dónde está
+el negocio». Antes eran diez cifras y once cajas seguidas, y el equipo lo
+encontraba denso y sin saber qué era cada cosa.
+
+- Una caja nueva del resumen entra en la parte cuya pregunta contesta,
+  no al final.
+- Si una caja no se entiende solo con su título (una barra con una raya,
+  un tramo gris), lleva `ayuda` en `<TarjetaBento>`: un «?» que explica
+  cómo se lee. Es un Popover y no un Tooltip, para que funcione con el
+  dedo.
+- La sección no es una caja: el título va suelto sobre el fondo y las
+  cajas debajo (sin caja dentro de caja).
+
 ---
 
 ## 5. Estructura del repositorio
@@ -319,7 +337,7 @@ tsports/
 │       │   │                checklist y galería de propiedades
 │       │   └── layout/    ← barra lateral y superior
 │       ├── hooks/         ← useMarcas, usePropiedades, useCampanas,
-│       │                    useCatalogos, useEfectosDeScroll
+│       │                    useCatalogos, useRecordatorios, useEfectosDeScroll
 │       ├── paginas/       ← una por ruta
 │       ├── providers/     ← tema, sesión, caché de datos, tiempo real
 │       │                    y cambios en vivo
@@ -485,6 +503,18 @@ Salieron del cliente y están implementadas a propósito así:
     detecta y las arma a mano; no usar `new Date(cadena)` con fechas de
     solo día.
 
+    **El sistema entero va en hora de Venezuela** (desde el 2026-10-05):
+    `APP_TIMEZONE=America/Caracas` y la conexión con la base en
+    `DB_TIMEZONE=-04:00`. Así `now()` y `today()` ya son los de Caracas
+    y no hay que convertir nada a mano. Hasta ese día `config/app.php`
+    tenía `'UTC'` escrito y no leía el `.env`: desde las 20:00 el
+    calendario marcaba el día siguiente como «hoy». **Las dos se cambian
+    juntas o ninguna**: las columnas de hora son TIMESTAMP (la base las
+    guarda en UTC y las convierte a la zona de la conexión), y con una
+    sola cambiada todo lo guardado se correría cuatro horas
+    (`HoraDeVenezuelaTest`). El VPS y MariaDB siguen en UTC; no cambiarles
+    la zona.
+
 17. **Los avisos se guardan antes de empujarse.** Toda notificación la
     crea `App\Support\Notificador` y es una fila en `notificaciones`;
     el WebSocket solo la adelanta a quien tenga el panel abierto y el
@@ -505,6 +535,9 @@ Salieron del cliente y están implementadas a propósito así:
       decidió así), y a quien lleva esa marca. Nunca a quien lo escribió,
       y a quien además etiquetaron le llega un solo aviso: el de la
       mención. Editar no vuelve a avisar.
+    - **Recordatorios del día** (desde el 2026-10-05) → a cada persona,
+      a las 08:00 de Caracas, UN aviso con todos los suyos de hoy (regla
+      27). Es el único aviso que no nace de algo que hizo alguien.
 
     Cada quien lee y marca solo SUS avisos; ni un admin los de otro.
 
@@ -797,6 +830,112 @@ Salieron del cliente y están implementadas a propósito así:
       en cada aviso, y abierta a cualquier https servía para llamar a lo
       que hay dentro de la máquina.
 
+26. **El estado de una marca (caliente, tibia o fría) se calcula al
+    leer, nunca se guarda.** Desde el 2026-10-05, primera función de la
+    Fase 4. La fórmula vive en SQL en un solo sitio,
+    `App\Support\EstadoDeLasMarcas`, y de ahí leen el filtro del tablero,
+    sus contadores, el reparto del resumen y la tarjeta. Si se guardara,
+    cambiar los umbrales dejaría todas las marcas con el estado de antes.
+
+    - **Lo que la mueve es una lista cerrada** (`MotivoDeMovimiento`):
+      alta, cambio de fase (también completar la prospección), valor de
+      la propuesta, comentario o respuesta en la bitácora (la que deja
+      «Contacté» lleva su propio motivo, `contacto`, regla 29), y acción
+      de campaña anotada. Se apunta en `marcas.ultimo_movimiento_en`, que
+      solo avanza. **No es el `updated_at`**: ese cambia al corregir el
+      teléfono, y corregir datos no calienta una marca. Editar o borrar
+      un comentario, reaccionar o fijar el estado tampoco la mueven.
+    - **Una acción de campaña con fecha por delante la deja caliente**
+      hasta ese día, y después se enfría contando desde la acción.
+    - **Los umbrales** (caliente hasta 5 días, tibia hasta 15) son una
+      fila de `umbrales_del_estado` que solo cambia el administrador.
+    - **Lo fijado a mano manda** hasta que alguien lo suelta, y se guarda
+      quién y cuándo. Lo fija quien pueda editar la marca.
+    - **Los días son los de Caracas**, porque el sistema va en hora de
+      Venezuela (regla 16). Los cuenta el servidor, días incluidos
+      (`ultimoMovimiento.haceDias`): el navegador no cuenta nada.
+
+27. **Un recordatorio es de una persona, y solo le sale mientras pueda
+    ver su marca.** Desde el 2026-10-05. Tabla `recordatorios` (varios
+    por marca, cada uno de alguien), en la ficha encima de la bitácora,
+    el próximo propio en la tarjeta y «Para hoy» y «Vencidos» en el panel.
+
+    - **Los permisos salen de la marca** (`RecordatorioController`): los
+      ve quien puede verla; los deja, cumple, pospone o borra quien
+      puede editarla. Dejárselo a OTRA persona es solo de quien reparte,
+      y solo a alguien que pueda ver esa marca, porque el recordatorio
+      lleva dentro su nombre (regla 6). Si a alguien le quitan la marca,
+      sus recordatorios dejan de salirle (`Recordatorio::scopeDe`).
+    - **Ni hoy ni mañana los decide el navegador**: el servidor manda
+      `cuando` y `diasHasta` con el día de Caracas, y la interfaz solo
+      los pinta. Un día ya pasado no se acepta.
+    - **El aviso de la mañana** lo lanza un temporizador de systemd
+      (`deploy/tsports-recordatorios.timer`, 08:00 de Caracas) con
+      `php artisan recordatorios:avisar-del-dia`. Es el primer proceso
+      programado del sistema y lo instala `desplegar.sh`. Solo avisa de
+      lo de HOY (lo vencido se cuenta dentro) y marca lo avisado
+      (`avisado_en`), así que repetirlo no duplica; posponer quita la
+      marca para que avise el día nuevo.
+    - **Cumplirlo no calienta la marca**: no está en la lista cerrada de
+      la regla 26. Si de la llamada sale algo, va a la bitácora.
+
+28. **Las herramientas del día a día no enseñan más que el tablero.**
+    Desde el 2026-10-06 (etapa 7).
+
+    - **El buscador único** (`/api/buscar`, Ctrl+K o «/» en la barra
+      superior) encuentra marcas con `quePuedeVer`, como el tablero; el
+      catálogo (propiedades, campañas, sectores) y al equipo activo, que
+      el chat ya enseña a todos. Cada resultado trae su `enlace` del
+      servidor; una persona solo lleva a su cartera a quien reparte, y a
+      los demás les abre una charla.
+    - **Las metas son anuales y se miden contra el OVP** (LinZ eligió el
+      OVP; lo anual fue decisión de desarrollo, porque los importes del
+      sistema son anuales). Se guarda el monto (`metas`, una por persona
+      y año); el avance y su porcentaje los calcula
+      `App\Support\AvanceDeLasMetas` al leer, con la misma regla que «Mi
+      pronóstico» (regla 11). Sin meta, el porcentaje es null, no cero.
+      Las ponen quienes reparten (`UserPolicy::fijarMetas`); un agente ve
+      solo la suya.
+    - **El Excel del tablero sale de la MISMA consulta que la pantalla**
+      (`MarcaController::marcasDelTablero`): mismos filtros, mismo orden
+      y mismo corte por rol. La hoja «Filtros» dice de qué lista se trata.
+    - **La ficha en PDF** lleva datos, avance, propiedades, campañas y
+      recordatorios; la bitácora no (tiene su exportación, regla 19).
+    - **Las dos exportaciones quedan en la auditoría**: sacan del sistema
+      contactos e importes.
+
+29. **«Contacté» deja la entrada y el siguiente paso de una vez, y «sin
+    siguiente paso» se cuenta en un solo sitio.** Desde el 2026-10-06, a
+    propuesta de desarrollo y aceptado por LinZ. Una marca se enfriaba
+    porque después de una llamada había que escribir en la bitácora y,
+    aparte, dejarse el recordatorio, y lo segundo se olvidaba.
+
+    - **El botón va en la tarjeta del tablero** (`VentanaDeContacto`,
+      `POST /marcas/{id}/contactos`, `ContactoController`), para quien
+      puede editar la marca. Deja una entrada en la bitácora con su tipo
+      (llamada, WhatsApp, reunión o correo:
+      `comentarios_marca.tipo_de_contacto`) y, si se elige, un
+      recordatorio para quien lo anota. La entrada es una más: calienta
+      la marca, avisa como un comentario (regla 17) y se edita o se
+      elimina igual (regla 19).
+    - **«¿Cuándo lo retomas?» no trae nada elegido**: hay que contestar,
+      aunque sea «No hace falta». «En N días» lo cuenta el servidor desde
+      el día de Caracas (regla 27); solo «Otro día» manda una fecha.
+    - **Si quien anota tenía un recordatorio de hoy o vencido en esa
+      marca, se propone darlo por cumplido** (marcado de partida): casi
+      siempre es la llamada que se acaba de hacer, y si no, se quedaba en
+      «Para hoy» junto al nuevo.
+    - **Sin siguiente paso** es no tener ni un recordatorio pendiente (de
+      quien sea, vencido o no) ni una acción de campaña de hoy en
+      adelante. La condición vive en SQL en
+      `App\Support\SiguientePasoDeLasMarcas`, y de ahí salen la cifra del
+      resumen, la de cada persona en «Carga por agente», la del panel del
+      agente y el filtro `?siguientePaso=sin` del tablero: pulsar «7 sin
+      siguiente paso» abre esas siete.
+    - **El teléfono de la ficha se pasa a WhatsApp con su código de país**
+      (`numeroParaWhatsapp`: «0414-1234567» → 584141234567). En la ficha
+      se escribe como se marca en Venezuela, y `wa.me/0414…` no abre nada.
+
 ---
 
 ## 7. Errores: una sola forma
@@ -919,3 +1058,15 @@ VPS usa **MySQL**: la plantilla es `backend/.env.example`.
 - Un `add_header` en un location de nginx sin
   `include snippets/tsports-seguridad.conf;` al lado (regla 25).
 - Aceptar SVG en cualquier subida (regla 21).
+- Calcular el estado de una marca con su `updated_at`, guardarlo en una
+  columna o contar sus días en el navegador (regla 26).
+- Escribir una zona horaria a mano en el backend (`now('UTC')`,
+  `->utc()`, `'America/Caracas'`): el sistema ya va en hora de Venezuela
+  (regla 16).
+- Decidir en el navegador si algo es de hoy o de mañana comparando con
+  su reloj: el ordenador puede no estar en hora de Caracas (reglas 26
+  y 27).
+- Contar «sin siguiente paso» fuera de `SiguientePasoDeLasMarcas`: la
+  cifra del resumen y la lista del tablero dejarían de coincidir (regla 29).
+- Añadir una caja al resumen fuera de la parte cuya pregunta contesta
+  (ver 4.8).

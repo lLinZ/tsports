@@ -12,7 +12,10 @@ use App\Models\Marca;
 use App\Models\Propiedad;
 use App\Models\RegistroActividad;
 use App\Models\User;
+use App\Support\AvanceDeLasMetas;
 use App\Support\CatalogosDelCrm;
+use App\Support\EstadoDeLasMarcas;
+use App\Support\SiguientePasoDeLasMarcas;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +33,8 @@ use Illuminate\Support\Facades\DB;
  *     propiedades y el pronóstico acumulado del equipo.
  *   · El resumen por zona (el gráfico de barras de cada fase).
  *   · El reparto por sector, por vendedor y por campaña.
+ *   · Cuántas marcas están calientes, tibias y frías.
+ *   · La meta del año de quien mira y, para quien reparte, las del equipo.
  *   · Qué empresas de cada zona invierten hoy en marketing deportivo.
  *   · El informe de propiedades (MTP, meta y pronóstico de cada una) y
  *     cuánto pronostica cada prospector.
@@ -62,6 +67,8 @@ class PanelController extends Controller
             return response()->json([
                 'alcance' => 'personal',
                 'misNumeros' => $this->misNumeros($usuario),
+                'miMeta' => AvanceDeLasMetas::deLaPersona($usuario),
+                'porEstado' => $this->repartoPorEstado($usuario),
                 'misPropiedades' => $this->misPropiedades($usuario),
                 'misCampanas' => $this->misCampanas($usuario),
             ]);
@@ -71,6 +78,14 @@ class PanelController extends Controller
             'alcance' => 'empresa',
             'contadores' => $this->contadoresGenerales(),
             'misNumeros' => $this->misNumeros($usuario),
+            'miMeta' => AvanceDeLasMetas::deLaPersona($usuario),
+            // Las del equipo van solo aquí: son cifras de cada persona, y
+            // un agente no tiene por qué ver cuánto pronostica su compañera.
+            'metasDelEquipo' => [
+                'anio' => AvanceDeLasMetas::anioEnCurso(),
+                'personas' => AvanceDeLasMetas::delEquipo(),
+            ],
+            'porEstado' => $this->repartoPorEstado($usuario),
             'porZona' => $this->resumenPorZona(),
             'porSector' => $this->resumenPorSector(),
             'porVendedor' => $this->resumenPorVendedor(),
@@ -101,6 +116,7 @@ class PanelController extends Controller
             // filtro del tablero: una fila con el nombre puesto sale al
             // filtrar por esa persona, así que no es huérfana.
             ->selectRaw("SUM(CASE WHEN vendedor_asignado_id IS NULL AND COALESCE(vendedor_asignado_nombre, '') = '' THEN 1 ELSE 0 END) as total_sin_asignar")
+            ->selectRaw(...SiguientePasoDeLasMarcas::contarSql('total_sin_siguiente_paso'))
             ->first();
 
         // Las dos cifras de los productos IOP viven en otras tablas, así
@@ -120,12 +136,35 @@ class PanelController extends Controller
             'conPropuesta' => (int) ($agregados->total_propuesta ?? 0),
             'valorPropuestoAnual' => (float) ($agregados->valor_propuesto ?? 0),
             'sinAsignar' => (int) ($agregados->total_sin_asignar ?? 0),
+            // Ni recordatorio pendiente ni acción por delante: nadie va a
+            // volver a tocarlas (SiguientePasoDeLasMarcas).
+            'sinSiguientePaso' => (int) ($agregados->total_sin_siguiente_paso ?? 0),
 
             // Meta de venta de todo el catálogo: la suma del porcentaje
             // acordado sobre el monto total de cada propiedad activa.
             'forecastDePropiedades' => round($forecastDeLasPropiedades, 2),
             // Lo que el equipo pronostica vender de esas propiedades.
             'ovpPronosticado' => round($pronosticoAcumulado, 2),
+        ];
+    }
+
+    /**
+     * Cuántas marcas están calientes, tibias y frías, de las que ve quien
+     * mira: toda la cartera para admin y comercial, la suya para un agente.
+     *
+     * Se cuenta con la misma fórmula que el filtro del tablero, así que
+     * pulsar «12 calientes» abre exactamente esas doce. Van con los
+     * umbrales para que la caja pueda decir qué significa cada color.
+     *
+     * @return array<string,mixed>
+     */
+    private function repartoPorEstado(User $usuario): array
+    {
+        $estados = EstadoDeLasMarcas::conLosUmbralesVigentes();
+
+        return [
+            ...$estados->contarPorEstado(Marca::query()->quePuedeVer($usuario)),
+            'umbrales' => $estados->umbrales(),
         ];
     }
 
@@ -159,6 +198,7 @@ class PanelController extends Controller
             ->selectRaw('SUM(CASE WHEN fase_prospeccion_completada = 1 THEN 1 ELSE 0 END) as en_prospeccion')
             ->selectRaw('SUM(CASE WHEN fase_propuesta_completada = 1 THEN 1 ELSE 0 END) as con_propuesta')
             ->selectRaw('SUM(CASE WHEN fase_propuesta_completada = 1 THEN valor_anual_usd ELSE 0 END) as valor_propuesto')
+            ->selectRaw(...SiguientePasoDeLasMarcas::contarSql('sin_siguiente_paso'))
             ->first();
 
         // El pronóstico de una marca se le apunta a su vendedor asignado,
@@ -185,6 +225,7 @@ class PanelController extends Controller
             'valorPropuestoAnual' => (float) ($agregados->valor_propuesto ?? 0),
             'miPronostico' => round($miPronostico, 2),
             'accionesPorDelante' => $accionesPorDelante,
+            'sinSiguientePaso' => (int) ($agregados->sin_siguiente_paso ?? 0),
         ];
     }
 
@@ -351,6 +392,8 @@ class PanelController extends Controller
             ->selectRaw('COUNT(*) as total')
             ->selectRaw('SUM(CASE WHEN fase_propuesta_completada = 1 THEN 1 ELSE 0 END) as propuestas')
             ->selectRaw('SUM(CASE WHEN fase_propuesta_completada = 1 THEN valor_anual_usd ELSE 0 END) as valor')
+            // Quién tiene la cartera al día: sus marcas sin nada por delante.
+            ->selectRaw(...SiguientePasoDeLasMarcas::contarSql('sin_siguiente_paso'))
             ->whereNotNull('vendedor_asignado_id')
             ->groupBy('vendedor_asignado_id', 'vendedor_asignado_nombre')
             ->orderByDesc(DB::raw('COUNT(*)'))
@@ -362,6 +405,7 @@ class PanelController extends Controller
                 'total' => (int) $fila->total,
                 'propuestas' => (int) $fila->propuestas,
                 'valor' => (float) $fila->valor,
+                'sinSiguientePaso' => (int) $fila->sin_siguiente_paso,
             ])
             ->all();
     }

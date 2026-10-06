@@ -14,18 +14,23 @@
  * de la agencia ni siquiera le llegan. Si solo se escondieran aquí,
  * seguirían viajando en la respuesta y se leerían desde el inspector.
  *
- * El panel de la empresa está montado como una rejilla bento de cajas de
- * distinto tamaño:
+ * EL PANEL DE LA EMPRESA VA EN CINCO PARTES (desde el 2026-10-06), cada
+ * una con su título y la pregunta que contesta (SeccionDePantalla), y un
+ * índice arriba para saltar a cada una. Antes eran diez cifras y once
+ * cajas seguidas, y el equipo lo encontraba denso y sin saber qué era
+ * cada cosa:
  *
- *   · Arriba, los cinco contadores grandes y, en su propia fila, los dos
- *     de los productos IOP: la meta del catálogo y lo que el equipo
- *     pronostica vender.
- *   · Después, el informe de propiedades (cuánto se pronostica de cada
- *     una) y el forecast de cada prospector.
- *   · Luego, la inversión en marketing deportivo por zona y el reparto
- *     por campaña.
- *   · A continuación, el avance por zona y la actividad reciente.
- *   · Abajo, el reparto por sector y la carga de cada vendedor.
+ *   1. Lo de hoy — lo propio, las marcas sin agente y sin siguiente
+ *      paso, los recordatorios y el calendario.
+ *   2. El pipeline — los cinco contadores y la actividad (caliente,
+ *      tibia o fría).
+ *   3. Lo que se espera vender — la meta del catálogo frente al OVP, el
+ *      ranking de propiedades y el pronóstico de cada persona.
+ *   4. El equipo — metas, carga por agente y actividad reciente.
+ *   5. Dónde está el negocio — zona, inversión, sector y campaña.
+ *
+ * Las cajas que no se entienden solo con el título llevan un «?» que
+ * explica cómo se leen (`ayuda` de TarjetaBento).
  *
  * Todas las cifras vienen ya calculadas del servidor: el navegador no
  * descarga las marcas para poder enseñar un total.
@@ -68,16 +73,23 @@ import {
   Building2,
   CalendarClock,
   CheckCircle2,
+  CircleDashed,
+  Flame,
   Handshake,
   MapPin,
   Megaphone,
   Package,
   PieChart,
   Search,
+  Snowflake,
+  Sun,
   Target,
   TrendingUp,
   UserRound,
+  UserRoundX,
+  Users,
   Wallet,
+  Workflow,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { BarraDeProporcion } from "@/componentes/comunes/BarraDeProporcion";
@@ -91,6 +103,9 @@ import {
   CalendarioDeCampanas,
 } from "@/componentes/crm/CalendarioDeCampanas";
 import { RejillaBento, TarjetaBento } from "@/componentes/comunes/TarjetaBento";
+import { IndiceDeSecciones, SeccionDePantalla } from "@/componentes/comunes/SeccionDePantalla";
+import { MetasDelEquipo, MiMetaDelAnio } from "@/componentes/crm/Metas";
+import { MisRecordatoriosDelPanel } from "@/componentes/crm/Recordatorios";
 import { useResumenDelPanel } from "@/hooks/useMarcas";
 import { useUsuarioAutenticado } from "@/providers/ProveedorSesion";
 import { mensajeDeError } from "@/api/clienteHttp";
@@ -103,6 +118,7 @@ import type {
   MiCampanaDelPanel,
   MisNumerosDelPanel,
   RegistroDeActividad,
+  RepartoPorEstado,
   ResumenDeCampana,
   ResumenDeInversionPorZona,
   ResumenDelAgente,
@@ -125,6 +141,58 @@ const COLOR_DE_FASE = {
  * nombre no acabe escrito en dos sitios.
  */
 const ANCLA_DE_MIS_PROPIEDADES = "mis-propiedades";
+
+/**
+ * Las cinco partes del resumen de la empresa: su ancla, su título, la
+ * pregunta que contestan y el nombre corto con el que salen en el índice.
+ */
+const SECCION = {
+  hoy: {
+    id: "hoy",
+    titulo: "Lo de hoy",
+    corto: "Hoy",
+    descripcion:
+      "Lo que te toca hacer hoy, las acciones de campaña de la semana y las marcas que necesitan que alguien las mueva.",
+    icono: <CalendarClock className="size-4" />,
+  },
+  pipeline: {
+    id: "pipeline",
+    titulo: "El pipeline",
+    corto: "Pipeline",
+    descripcion:
+      "Cuántas marcas hay y por dónde van. Las tres fases se marcan por separado, así que una marca puede contar en varias; el valor solo suma las que tienen propuesta enviada.",
+    icono: <Workflow className="size-4" />,
+  },
+  venta: {
+    id: "lo-que-se-espera-vender",
+    titulo: "Lo que se espera vender",
+    corto: "Productos IOP",
+    descripcion:
+      "Las propiedades (productos IOP): la meta de venta del catálogo frente a lo que el equipo pronostica venderles (OVP) en sus marcas.",
+    icono: <Target className="size-4" />,
+  },
+  equipo: {
+    id: "equipo",
+    titulo: "El equipo",
+    corto: "Equipo",
+    descripcion:
+      "Cómo va cada persona con su meta, cuántas marcas lleva, si las tiene al día y qué se ha hecho últimamente.",
+    icono: <Users className="size-4" />,
+  },
+  mercado: {
+    id: "donde-esta-el-negocio",
+    titulo: "Dónde está el negocio",
+    corto: "Zonas y sectores",
+    descripcion: "Cómo se reparten las marcas por zona, por sector y por campaña, y dónde ya se invierte en marketing deportivo.",
+    icono: <MapPin className="size-4" />,
+  },
+} as const;
+
+const SECCIONES_DEL_RESUMEN = Object.values(SECCION).map((seccion) => ({
+  id: seccion.id,
+  titulo: seccion.corto,
+  icono: seccion.icono,
+}));
 
 /**
  * El valor con el que se pide una zona al tablero.
@@ -166,6 +234,8 @@ export function PaginaPanel() {
   const {
     contadores,
     misNumeros,
+    metasDelEquipo,
+    porEstado,
     porZona,
     porSector,
     porVendedor,
@@ -177,444 +247,520 @@ export function PaginaPanel() {
   } = consulta.data;
 
   return (
-    <div className="space-y-6">
-      {/* Saludo y acceso directo al trabajo del día. */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight text-foreground">
-            Hola, {usuario.nombre.split(" ")[0]}
-          </h2>
-          <p className="mt-0.5 text-sm text-default-500">
-            Así va el pipeline de patrocinios ahora mismo.
-          </p>
+    <div className="space-y-10">
+      {/* Saludo, acceso al tablero y el índice de las cinco partes. */}
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight text-foreground">
+              Hola, {usuario.nombre.split(" ")[0]}
+            </h2>
+            <p className="mt-0.5 text-sm text-default-500">
+              Así va el negocio ahora mismo. Cada cifra se puede pulsar para ver de qué marcas sale.
+            </p>
+          </div>
+
+          <Button
+            as={Link}
+            color="primary"
+            radius="lg"
+            size="sm"
+            startContent={<Building2 className="size-4" />}
+            to="/marcas"
+            variant="flat"
+          >
+            Ir a las marcas
+          </Button>
         </div>
 
-        <Button
-          as={Link}
-          color="primary"
-          radius="lg"
-          size="sm"
-          startContent={<Building2 className="size-4" />}
-          to="/marcas"
-          variant="flat"
-        >
-          Ir a las marcas
-        </Button>
+        <IndiceDeSecciones secciones={SECCIONES_DEL_RESUMEN} />
       </div>
 
-      {/*
-        Lo propio, antes que lo del equipo.
+      {/* ============================================================
+          1. LO DE HOY — la pregunta con la que se entra por la mañana.
+          ============================================================ */}
+      <SeccionDePantalla {...SECCION.hoy}>
+        {/*
+          Lo propio, antes que lo del equipo. Un comercial que además
+          lleva marcas suyas quiere verlas antes que el total de la
+          agencia. Se calla cuando no tiene ninguna, que es cuando serían
+          cinco ceros ocupando la mejor parte de la pantalla.
+        */}
+        {misNumeros.totalMarcas > 0 && (
+          <MisMarcasDeUnVistazo miId={usuario.id} numeros={misNumeros} />
+        )}
 
-        Un comercial que además lleva marcas suyas quiere verlas antes
-        que el total de la agencia. Se calla cuando no tiene ninguna, que
-        es cuando serían cinco ceros ocupando la mejor parte de la
-        pantalla.
-      */}
-      {misNumeros.totalMarcas > 0 && (
-        <MisMarcasDeUnVistazo miId={usuario.id} numeros={misNumeros} />
-      )}
+        {/* Las dos listas de trabajo que nadie está haciendo. Salen
+            siempre, también a cero: «todas tienen agente» también es una
+            respuesta, y una caja que desaparece se lee como que falla. */}
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <TarjetaDeAviso
+            cantidad={contadores.sinAsignar}
+            enlace="/marcas?vendedor=sin_asignar"
+            explicacion="Nadie las está trabajando. Pulsa para verlas y repartirlas desde el tablero."
+            icono={<UserRoundX className="size-4" />}
+            textoSiNoHay="Todas las marcas tienen a alguien que las lleva."
+            titulo={contadores.sinAsignar === 1 ? "marca sin agente" : "marcas sin agente"}
+          />
+          <TarjetaDeAviso
+            cantidad={contadores.sinSiguientePaso}
+            enlace="/marcas?siguientePaso=sin"
+            explicacion="Ni un recordatorio pendiente ni una acción de campaña por delante: nadie va a volver a tocarlas si no se acuerda."
+            icono={<CircleDashed className="size-4" />}
+            textoSiNoHay="Todas tienen algo por delante: un recordatorio o una acción de campaña."
+            titulo={contadores.sinSiguientePaso === 1 ? "marca sin siguiente paso" : "marcas sin siguiente paso"}
+          />
+        </div>
 
-      {/* --- Los cinco contadores ---
-          Todos llevan al tablero con el filtro puesto: una cifra suelta
-          no se puede comprobar, y lo primero que se pregunta al verla es
-          «¿cuáles son?».
+        <RejillaBento>
+          <MisRecordatoriosDelPanel />
+          <CalendarioDeCampanas />
+        </RejillaBento>
+      </SeccionDePantalla>
 
-          Filtran por FASE (`?fase=`) y no por etapa (`?etapa=`), que no
-          son lo mismo: la etapa mete cada marca en un único cajón —una
-          con propuesta ya no cuenta como en aproximación—, mientras que
-          estos contadores cuentan casillas marcadas. Con `etapa` la
-          lista saldría más corta que el número pulsado. */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-        <TarjetaDeMetrica
-          enlace="/marcas"
-          etiqueta="Marcas registradas"
-          icono={<Building2 className="size-4" />}
-          valor={formatearNumero(contadores.totalMarcas)}
-        />
-        <TarjetaDeMetrica
-          color={COLOR_DE_FASE.aproximacion}
-          enlace="/marcas?fase=aproximacion"
-          etiqueta="En aproximación"
-          icono={<Handshake className="size-4" />}
-          valor={formatearNumero(contadores.enAproximacion)}
-        />
-        <TarjetaDeMetrica
-          color={COLOR_DE_FASE.prospeccion}
-          enlace="/marcas?fase=prospeccion"
-          etiqueta="Prospección completa"
-          icono={<Search className="size-4" />}
-          valor={formatearNumero(contadores.enProspeccion)}
-        />
-        <TarjetaDeMetrica
-          color={COLOR_DE_FASE.propuesta}
-          enlace="/marcas?fase=propuesta"
-          etiqueta="Con propuesta"
-          icono={<CheckCircle2 className="size-4" />}
-          valor={formatearNumero(contadores.conPropuesta)}
-        />
-        <TarjetaDeMetrica
-          destacada
-          // El importe solo lo suman las marcas con propuesta (regla 4),
-          // y salen de mayor a menor: quien pulsa un total quiere ver
-          // primero lo que más pesa dentro de él.
-          enlace="/marcas?fase=propuesta&orden=valor_desc"
-          etiqueta="Valor propuesto / año"
-          icono={<Wallet className="size-4" />}
-          valor={formatearDineroAbreviado(contadores.valorPropuestoAnual)}
-        />
-      </div>
+      {/* ============================================================
+          2. EL PIPELINE — cuántas marcas y por dónde van.
+          ============================================================ */}
+      <SeccionDePantalla {...SECCION.pipeline}>
+        {/* Todos llevan al tablero con el filtro puesto. Filtran por FASE
+            (`?fase=`) y no por etapa (`?etapa=`), que no son lo mismo: la
+            etapa mete cada marca en un único cajón —una con propuesta ya
+            no cuenta como en aproximación—, mientras que estos contadores
+            cuentan casillas marcadas. Con `etapa` la lista saldría más
+            corta que el número pulsado. */}
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+          <TarjetaDeMetrica
+            enlace="/marcas"
+            etiqueta="Marcas registradas"
+            icono={<Building2 className="size-4" />}
+            valor={formatearNumero(contadores.totalMarcas)}
+          />
+          <TarjetaDeMetrica
+            color={COLOR_DE_FASE.aproximacion}
+            enlace="/marcas?fase=aproximacion"
+            etiqueta="En aproximación"
+            icono={<Handshake className="size-4" />}
+            valor={formatearNumero(contadores.enAproximacion)}
+          />
+          <TarjetaDeMetrica
+            color={COLOR_DE_FASE.prospeccion}
+            enlace="/marcas?fase=prospeccion"
+            etiqueta="Prospección completa"
+            icono={<Search className="size-4" />}
+            valor={formatearNumero(contadores.enProspeccion)}
+          />
+          <TarjetaDeMetrica
+            color={COLOR_DE_FASE.propuesta}
+            enlace="/marcas?fase=propuesta"
+            etiqueta="Con propuesta"
+            icono={<CheckCircle2 className="size-4" />}
+            valor={formatearNumero(contadores.conPropuesta)}
+          />
+          <TarjetaDeMetrica
+            destacada
+            // El importe solo lo suman las marcas con propuesta (regla 4),
+            // y salen de mayor a menor: quien pulsa un total quiere ver
+            // primero lo que más pesa dentro de él.
+            enlace="/marcas?fase=propuesta&orden=valor_desc"
+            etiqueta="Valor propuesto / año"
+            icono={<Wallet className="size-4" />}
+            valor={formatearDineroAbreviado(contadores.valorPropuestoAnual)}
+          />
+        </div>
 
-      {/* --- Los dos números de los productos IOP ---
-          Van en su propia fila y no mezclados con los de arriba porque
-          responden a otra pregunta: aquellos cuentan marcas y propuestas
-          enviadas; estos, cuánto se espera vender de las propiedades. */}
-      {/* Estos dos no llevan al tablero de marcas sino al catálogo:
-          allí están desglosados propiedad a propiedad, que es de donde
-          salen las dos sumas. */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <TarjetaDeMetrica
-          enlace="/propiedades"
-          etiqueta="Meta de venta del catálogo"
-          icono={<Target className="size-4" />}
-          valor={formatearDineroAbreviado(contadores.forecastDePropiedades)}
-        />
-        <TarjetaDeMetrica
-          color={COLOR_DE_FASE.propuesta}
-          enlace="/propiedades"
-          etiqueta="Pronosticado por el equipo (OVP)"
-          icono={<TrendingUp className="size-4" />}
-          valor={formatearDineroAbreviado(contadores.ovpPronosticado)}
-        />
-      </div>
+        <CajaDeEstados reparto={porEstado} />
+      </SeccionDePantalla>
 
-      {/* Aviso de leads sin dueño: es trabajo que nadie está haciendo. */}
-      {contadores.sinAsignar > 0 && (
-        <Link
-          className="flex items-center justify-between gap-3 rounded-2xl border border-warning-200 bg-warning-50 px-4 py-3 transition hover:border-warning-300 dark:bg-warning-100/10"
-          to="/marcas?vendedor=sin_asignar"
-        >
-          <span className="text-sm text-warning-700 dark:text-warning-500">
-            Hay <strong>{contadores.sinAsignar}</strong>{" "}
-            {contadores.sinAsignar === 1 ? "marca" : "marcas"} sin agente
-            asignado. Nadie las está trabajando.
-          </span>
+      {/* ============================================================
+          3. LO QUE SE ESPERA VENDER — los productos IOP.
+          ============================================================ */}
+      <SeccionDePantalla {...SECCION.venta}>
+        {/* Estos dos no llevan al tablero de marcas sino al catálogo:
+            allí están desglosados propiedad a propiedad, que es de donde
+            salen las dos sumas. */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <TarjetaDeMetrica
+            enlace="/propiedades"
+            etiqueta="Meta de venta del catálogo (el % acordado del MTP de cada propiedad)"
+            icono={<Target className="size-4" />}
+            valor={formatearDineroAbreviado(contadores.forecastDePropiedades)}
+          />
+          <TarjetaDeMetrica
+            color={COLOR_DE_FASE.propuesta}
+            enlace="/propiedades"
+            etiqueta="Pronosticado por el equipo (OVP de todas las marcas)"
+            icono={<TrendingUp className="size-4" />}
+            valor={formatearDineroAbreviado(contadores.ovpPronosticado)}
+          />
+        </div>
 
-          <Chip color="warning" radius="lg" size="sm" variant="flat">
-            Ver
-          </Chip>
-        </Link>
-      )}
-
-      {/* --- Rejilla bento --- */}
-      <RejillaBento>
-        {/* El calendario abre la rejilla: es lo que contesta "¿qué toca
-            hacer esta semana?", que es la pregunta con la que el equipo
-            entra al panel por la mañana. */}
-        <CalendarioDeCampanas />
-
-        {/* El informe de propiedades va después: es la vista nueva y
-            la que responde "¿cuánto estamos pronosticando vender?". */}
-        <TarjetaBento
-          accionDeCabecera={
-            <Button
-              as={Link}
-              radius="lg"
-              size="sm"
-              to="/propiedades"
-              variant="flat"
-            >
-              Ver catálogo
-            </Button>
-          }
-          columnas={8}
-          descripcion="Ranking de mayor a menor OVP sobre el MTP: cuánto de cada propiedad pronostica vender el equipo."
-          icono={<Package className="size-4" />}
-          titulo="Propiedades (productos IOP)"
-        >
-          {propiedades.length === 0 ? (
-            <EstadoVacio
-              descripcion="Se cargan en la pantalla de Propiedades, con su monto total y su meta."
-              titulo="Todavía no hay propiedades"
-            />
-          ) : (
-            <ul className="space-y-4">
-              {propiedades.map((propiedad, posicion) => (
-                <li key={propiedad.propiedadId}>
-                  {/* El servidor las manda en ranking y con las que no
-                      tienen MTP al final: esas no tienen porcentaje que
-                      comparar, y se separan para que no se lean como un
-                      0 % de venta. */}
-                  {propiedad.montoTotalUsd <= 0 &&
-                    (posicion === 0 || propiedades[posicion - 1].montoTotalUsd > 0) && (
-                      <p className="mb-3 border-t border-default-100 pt-3 text-[10px] font-semibold uppercase tracking-wide text-default-400">
-                        Sin MTP cargado · fuera del ranking
-                      </p>
-                    )}
-
-                  {/* La fila entera lleva a las marcas que ofrecen esta
-                      propiedad: de sus checklists sale el pronóstico que
-                      pinta la barra. La meta, en cambio, es un dato de la
-                      propiedad y vive en el catálogo. */}
-                  <Link
-                    className="block rounded-lg px-1 py-0.5 -mx-1 transition hover:bg-default-100"
-                    to={`/marcas?propiedad=${propiedad.propiedadId}&orden=ovp_propiedad`}
-                  >
-                    <div className="mb-1.5 flex items-baseline justify-between gap-2">
-                      <span className="flex min-w-0 items-baseline gap-1.5 text-xs font-semibold text-foreground">
-                        {propiedad.montoTotalUsd > 0 && (
-                          <span className="shrink-0 tabular-nums text-default-400">
-                            {posicion + 1}.
-                          </span>
-                        )}
-                        <span className="truncate">{propiedad.nombre}</span>
-                      </span>
-
-                      <span className="shrink-0 text-[11px] text-default-500">
-                        {propiedad.totalMarcas}{" "}
-                        {propiedad.totalMarcas === 1 ? "marca" : "marcas"} · meta{" "}
-                        <strong className="text-foreground">
-                          {formatearDineroAbreviado(propiedad.forecastDeVentaUsd)}
-                        </strong>
-                      </span>
-                    </div>
-
-                    {/* Sin MTP no hay barra que llenar, pero lo pronosticado
-                        sí cuenta y se enseña: es justo lo que dice que a
-                        esa propiedad le falta el precio. */}
-                    {propiedad.montoTotalUsd > 0 ? (
-                      <BarraDeProporcion
-                        montoDeLaMeta={propiedad.forecastDeVentaUsd}
-                        montoPronosticado={propiedad.ovpAcumuladoUsd}
-                        montoTotal={propiedad.montoTotalUsd}
-                      />
-                    ) : (
-                      <p className="text-[11px] text-default-500">
-                        OVP{" "}
-                        <strong className="text-foreground">
-                          {formatearDineroAbreviado(propiedad.ovpAcumuladoUsd)}
-                        </strong>{" "}
-                        · falta cargar el MTP
-                      </p>
-                    )}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </TarjetaBento>
-
-        <TarjetaBento
-          columnas={4}
-          descripcion="Cuánto pronostica vender cada persona, sumando todas sus marcas."
-          icono={<TrendingUp className="size-4" />}
-          titulo="Forecast por prospector"
-        >
-          {forecastPorProspector.length === 0 ? (
-            <EstadoVacio
-              descripcion="Aparecerá en cuanto se anoten pronósticos en el checklist de una marca."
-              titulo="Sin pronósticos todavía"
-            />
-          ) : (
-            <ul className="space-y-2.5">
-              {forecastPorProspector.map((fila) => (
-                <li key={fila.vendedorId ?? "sin_asignar"}>
-                  {/* El pronóstico de una persona sale de los checklists
-                      de SUS marcas (regla 11), así que el enlace lleva a
-                      esa cartera: es donde se puede comprobar la cifra,
-                      porque cada tarjeta del tablero lleva su OVP. */}
-                  <FilaPulsable
-                    enlace={`/marcas?vendedor=${fila.vendedorId ?? "sin_asignar"}`}
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-medium text-foreground">
-                        {fila.vendedorNombre}
-                      </p>
-                      <p className="text-[10px] text-default-400">
-                        {fila.totalMarcas}{" "}
-                        {fila.totalMarcas === 1 ? "marca" : "marcas"} ·{" "}
-                        {fila.totalPropiedades}{" "}
-                        {fila.totalPropiedades === 1
-                          ? "propiedad"
-                          : "propiedades"}
-                      </p>
-                    </div>
-
-                    <span className="shrink-0 text-xs font-bold text-primary">
-                      {formatearDineroAbreviado(fila.ovpUsd)}
-                    </span>
-                  </FilaPulsable>
-                </li>
-              ))}
-            </ul>
-          )}
-        </TarjetaBento>
-
-        {/* El informe de inversión en marketing deportivo por zona. */}
-        <TarjetaBento
-          columnas={6}
-          descripcion="Cuántas empresas de cada zona ya invierten en marketing deportivo y cuántas no."
-          icono={<Megaphone className="size-4" />}
-          titulo="Inversión por zona"
-        >
-          <GraficoDeInversionPorZona zonas={inversionPorZona} />
-        </TarjetaBento>
-
-        <TarjetaBento
-          columnas={6}
-          descripcion="Cuántas marcas tienen o tuvieron cada campaña. Pulsa una para verlas."
-          icono={<Activity className="size-4" />}
-          titulo="Reparto por campaña"
-        >
-          {porCampana.length === 0 ? (
-            <EstadoVacio
-              descripcion="Las campañas se crean en su propia pantalla y se asignan desde la ficha de cada marca."
-              titulo="Todavía no hay campañas"
-            />
-          ) : (
-            <ul className="space-y-2.5">
-              {porCampana.map((campana) => (
-                <li key={campana.campanaId ?? "sin_campana"}>
-                  <FilaDeCampana campana={campana} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </TarjetaBento>
-
-        <TarjetaBento
-          columnas={8}
-          descripcion="Cuántas marcas ha movido cada zona en cada fase del proceso."
-          icono={<MapPin className="size-4" />}
-          titulo="Avance por zona"
-        >
-          <GraficoDeZonas zonas={porZona} />
-        </TarjetaBento>
-
-        <TarjetaBento
-          accionDeCabecera={
-            // El listado completo es la pantalla de auditoría, y esa es
-            // solo de quien administra: a un comercial el enlace lo
-            // devolvería la propia ruta.
-            usuario.permisos.administraElSistema ? (
-              <Button as={Link} radius="lg" size="sm" to="/auditoria" variant="flat">
-                Ver todo
+        <RejillaBento>
+          <TarjetaBento
+            accionDeCabecera={
+              <Button
+                as={Link}
+                radius="lg"
+                size="sm"
+                to="/propiedades"
+                variant="flat"
+              >
+                Ver catálogo
               </Button>
-            ) : undefined
-          }
-          columnas={4}
-          descripcion="Lo último que ha hecho el equipo."
-          icono={<Activity className="size-4" />}
-          titulo="Actividad reciente"
-        >
-          {actividadReciente.length === 0 ? (
-            <EstadoVacio
-              descripcion="Aquí aparecerá lo que vaya haciendo el equipo."
-              titulo="Todavía no hay movimiento"
-            />
-          ) : (
-            <ol className="space-y-1">
-              {actividadReciente.slice(0, 8).map((registro) => (
-                <li key={registro.id}>
-                  <RegistroDeLaActividad registro={registro} usuario={usuario} />
-                </li>
-              ))}
-            </ol>
-          )}
-        </TarjetaBento>
+            }
+            ayuda={
+              <>
+                <p>
+                  Cada barra es una propiedad. Lo relleno es lo que el equipo pronostica venderle (OVP) sobre su
+                  monto total (MTP), y la raya fina marca la meta de venta: el porcentaje acordado del MTP, un
+                  20 % de partida.
+                </p>
+                <p>Van de la que más tiene pronosticado a la que menos. Pulsa una para ver las marcas a las que se ofrece.</p>
+              </>
+            }
+            columnas={8}
+            descripcion="Cuánto de cada propiedad pronostica vender el equipo, de más a menos."
+            icono={<Package className="size-4" />}
+            titulo="Propiedades (productos IOP)"
+          >
+            {propiedades.length === 0 ? (
+              <EstadoVacio
+                descripcion="Se cargan en la pantalla de Propiedades, con su monto total y su meta."
+                titulo="Todavía no hay propiedades"
+              />
+            ) : (
+              <ul className="space-y-4">
+                {propiedades.map((propiedad, posicion) => (
+                  <li key={propiedad.propiedadId}>
+                    {/* El servidor las manda en ranking y con las que no
+                        tienen MTP al final: esas no tienen porcentaje que
+                        comparar, y se separan para que no se lean como un
+                        0 % de venta. */}
+                    {propiedad.montoTotalUsd <= 0 &&
+                      (posicion === 0 || propiedades[posicion - 1].montoTotalUsd > 0) && (
+                        <p className="mb-3 border-t border-default-100 pt-3 text-[10px] font-semibold uppercase tracking-wide text-default-400">
+                          Sin MTP cargado · fuera del ranking
+                        </p>
+                      )}
 
-        <TarjetaBento
-          columnas={6}
-          descripcion="En qué rubros se está concentrando el esfuerzo."
-          icono={<PieChart className="size-4" />}
-          titulo="Marcas por sector"
-        >
-          {porSector.length === 0 ? (
-            <EstadoVacio
-              descripcion="Asigna un sector a las marcas para ver este reparto."
-              titulo="Sin sectores asignados"
-            />
-          ) : (
-            <ul className="space-y-3">
-              {porSector.slice(0, 7).map((fila) => {
-                const totalMayor = porSector[0].total || 1;
-
-                return (
-                  <li key={fila.sector}>
-                    {/* El servidor deja fuera de este reparto las marcas
-                        sin sector, así que la etiqueta siempre es un
-                        sector de verdad y el filtro la entiende tal cual. */}
+                    {/* La fila entera lleva a las marcas que ofrecen esta
+                        propiedad: de sus checklists sale el pronóstico que
+                        pinta la barra. La meta, en cambio, es un dato de la
+                        propiedad y vive en el catálogo. */}
                     <Link
                       className="block rounded-lg px-1 py-0.5 -mx-1 transition hover:bg-default-100"
-                      to={`/marcas?sector=${encodeURIComponent(fila.sector)}`}
+                      to={`/marcas?propiedad=${propiedad.propiedadId}&orden=ovp_propiedad`}
                     >
-                      <div className="mb-1 flex items-baseline justify-between gap-2">
-                        <span className="truncate text-xs font-medium text-foreground">
-                          {fila.sector}
+                      <div className="mb-1.5 flex items-baseline justify-between gap-2">
+                        <span className="flex min-w-0 items-baseline gap-1.5 text-xs font-semibold text-foreground">
+                          {propiedad.montoTotalUsd > 0 && (
+                            <span className="shrink-0 tabular-nums text-default-400">
+                              {posicion + 1}.
+                            </span>
+                          )}
+                          <span className="truncate">{propiedad.nombre}</span>
                         </span>
+
                         <span className="shrink-0 text-[11px] text-default-500">
-                          {fila.total} · {formatearDineroAbreviado(fila.valor)}
+                          {propiedad.totalMarcas}{" "}
+                          {propiedad.totalMarcas === 1 ? "marca" : "marcas"} · meta{" "}
+                          <strong className="text-foreground">
+                            {formatearDineroAbreviado(propiedad.forecastDeVentaUsd)}
+                          </strong>
                         </span>
                       </div>
 
-                      <Progress
-                        aria-label={`Marcas en el sector ${fila.sector}`}
-                        classNames={{ track: "h-1.5" }}
-                        color="primary"
-                        radius="full"
-                        value={(fila.total / totalMayor) * 100}
-                      />
+                      {/* Sin MTP no hay barra que llenar, pero lo pronosticado
+                          sí cuenta y se enseña: es justo lo que dice que a
+                          esa propiedad le falta el precio. */}
+                      {propiedad.montoTotalUsd > 0 ? (
+                        <BarraDeProporcion
+                          montoDeLaMeta={propiedad.forecastDeVentaUsd}
+                          montoPronosticado={propiedad.ovpAcumuladoUsd}
+                          montoTotal={propiedad.montoTotalUsd}
+                        />
+                      ) : (
+                        <p className="text-[11px] text-default-500">
+                          OVP{" "}
+                          <strong className="text-foreground">
+                            {formatearDineroAbreviado(propiedad.ovpAcumuladoUsd)}
+                          </strong>{" "}
+                          · falta cargar el MTP
+                        </p>
+                      )}
                     </Link>
                   </li>
-                );
-              })}
-            </ul>
-          )}
-        </TarjetaBento>
+                ))}
+              </ul>
+            )}
+          </TarjetaBento>
 
-        <TarjetaBento
-          columnas={6}
-          descripcion="Cuántas marcas lleva cada persona y cuánto tiene propuesto."
-          icono={<UserRound className="size-4" />}
-          titulo="Carga por agente"
-        >
-          {porVendedor.length === 0 ? (
-            <EstadoVacio
-              descripcion="Asigna agentes a las marcas desde su ficha."
-              titulo="Nadie tiene marcas asignadas"
-            />
-          ) : (
-            <ul className="space-y-2.5">
-              {porVendedor.slice(0, 7).map((fila) => (
-                <li key={fila.vendedorId}>
-                  <FilaPulsable enlace={`/marcas?vendedor=${fila.vendedorId}`}>
-                    <span className="min-w-0 truncate text-xs font-medium text-foreground">
-                      {fila.vendedorNombre}
-                    </span>
+          <TarjetaBento
+            ayuda={
+              <p>
+                El pronóstico de una marca se le apunta a quien la lleva, no a quien escribió la cifra: si la marca
+                cambia de agente, su pronóstico se va con ella.
+              </p>
+            }
+            columnas={4}
+            descripcion="Cuánto pronostica vender cada persona, sumando todas sus marcas."
+            icono={<TrendingUp className="size-4" />}
+            titulo="Pronóstico por persona"
+          >
+            {forecastPorProspector.length === 0 ? (
+              <EstadoVacio
+                descripcion="Aparecerá en cuanto se anoten pronósticos en el checklist de una marca."
+                titulo="Sin pronósticos todavía"
+              />
+            ) : (
+              <ul className="space-y-2.5">
+                {forecastPorProspector.map((fila) => (
+                  <li key={fila.vendedorId ?? "sin_asignar"}>
+                    {/* El pronóstico de una persona sale de los checklists
+                        de SUS marcas (regla 11), así que el enlace lleva a
+                        esa cartera: es donde se puede comprobar la cifra,
+                        porque cada tarjeta del tablero lleva su OVP. */}
+                    <FilaPulsable
+                      enlace={`/marcas?vendedor=${fila.vendedorId ?? "sin_asignar"}`}
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-medium text-foreground">
+                          {fila.vendedorNombre}
+                        </p>
+                        <p className="text-[10px] text-default-400">
+                          {fila.totalMarcas}{" "}
+                          {fila.totalMarcas === 1 ? "marca" : "marcas"} ·{" "}
+                          {fila.totalPropiedades}{" "}
+                          {fila.totalPropiedades === 1
+                            ? "propiedad"
+                            : "propiedades"}
+                        </p>
+                      </div>
 
-                    <div className="flex shrink-0 items-center gap-2">
-                      <Chip radius="lg" size="sm" variant="flat">
-                        {fila.total} {fila.total === 1 ? "marca" : "marcas"}
-                      </Chip>
+                      <span className="shrink-0 text-xs font-bold text-primary">
+                        {formatearDineroAbreviado(fila.ovpUsd)}
+                      </span>
+                    </FilaPulsable>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </TarjetaBento>
+        </RejillaBento>
+      </SeccionDePantalla>
 
-                      {fila.valor > 0 && (
-                        <Chip
-                          color="success"
-                          radius="lg"
-                          size="sm"
-                          startContent={<TrendingUp className="ml-1 size-3" />}
-                          variant="flat"
-                        >
-                          {formatearDineroAbreviado(fila.valor)}
+      {/* ============================================================
+          4. EL EQUIPO — cómo va cada persona.
+          ============================================================ */}
+      <SeccionDePantalla {...SECCION.equipo}>
+        <RejillaBento>
+          <MetasDelEquipo metas={metasDelEquipo} puedeFijarlas={usuario.permisos.fijaLasMetas} />
+
+          <TarjetaBento
+            ayuda={
+              <>
+                <p>Cuántas marcas lleva cada persona y cuánto suman sus propuestas enviadas.</p>
+                <p>
+                  A la derecha, cuántas de las suyas están sin siguiente paso: sin recordatorio pendiente ni acción de
+                  campaña por delante. Es la forma rápida de ver quién tiene la cartera al día.
+                </p>
+              </>
+            }
+            columnas={6}
+            descripcion="Cuántas marcas lleva cada persona y si las tiene al día."
+            icono={<UserRound className="size-4" />}
+            titulo="Carga por agente"
+          >
+            {porVendedor.length === 0 ? (
+              <EstadoVacio
+                descripcion="Asigna agentes a las marcas desde su ficha."
+                titulo="Nadie tiene marcas asignadas"
+              />
+            ) : (
+              <ul className="space-y-2.5">
+                {porVendedor.slice(0, 7).map((fila) => (
+                  <li key={fila.vendedorId} className="flex flex-col gap-1.5 sm:flex-row">
+                    <FilaPulsable className="min-w-0 flex-1" enlace={`/marcas?vendedor=${fila.vendedorId}`}>
+                      <span className="min-w-0 truncate text-xs font-medium text-foreground">
+                        {fila.vendedorNombre}
+                      </span>
+
+                      <div className="flex shrink-0 items-center gap-2">
+                        <Chip radius="lg" size="sm" variant="flat">
+                          {fila.total} {fila.total === 1 ? "marca" : "marcas"}
                         </Chip>
-                      )}
-                    </div>
-                  </FilaPulsable>
-                </li>
-              ))}
-            </ul>
-          )}
-        </TarjetaBento>
-      </RejillaBento>
+
+                        {fila.valor > 0 && (
+                          <Chip
+                            color="success"
+                            radius="lg"
+                            size="sm"
+                            startContent={<TrendingUp className="ml-1 size-3" />}
+                            variant="flat"
+                          >
+                            {formatearDineroAbreviado(fila.valor)}
+                          </Chip>
+                        )}
+                      </div>
+                    </FilaPulsable>
+
+                    {/* Aparte de la fila y con su propio enlace: lleva a
+                        SUS marcas sin siguiente paso, que es la lista con
+                        la que se le pide ponerse al día. */}
+                    <SiguientePasoDelAgente cantidad={fila.sinSiguientePaso} idDelAgente={fila.vendedorId} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </TarjetaBento>
+
+          <TarjetaBento
+            accionDeCabecera={
+              // El listado completo es la pantalla de auditoría, y esa es
+              // solo de quien administra: a un comercial el enlace lo
+              // devolvería la propia ruta.
+              usuario.permisos.administraElSistema ? (
+                <Button as={Link} radius="lg" size="sm" to="/auditoria" variant="flat">
+                  Ver todo
+                </Button>
+              ) : undefined
+            }
+            columnas={6}
+            descripcion="Lo último que ha hecho el equipo. Pulsa una línea para abrir la marca."
+            icono={<Activity className="size-4" />}
+            titulo="Actividad reciente"
+          >
+            {actividadReciente.length === 0 ? (
+              <EstadoVacio
+                descripcion="Aquí aparecerá lo que vaya haciendo el equipo."
+                titulo="Todavía no hay movimiento"
+              />
+            ) : (
+              <ol className="space-y-1">
+                {actividadReciente.slice(0, 8).map((registro) => (
+                  <li key={registro.id}>
+                    <RegistroDeLaActividad registro={registro} usuario={usuario} />
+                  </li>
+                ))}
+              </ol>
+            )}
+          </TarjetaBento>
+        </RejillaBento>
+      </SeccionDePantalla>
+
+      {/* ============================================================
+          5. DÓNDE ESTÁ EL NEGOCIO — por zona, sector y campaña.
+          ============================================================ */}
+      <SeccionDePantalla {...SECCION.mercado}>
+        <RejillaBento>
+          <TarjetaBento
+            ayuda={
+              <>
+                <p>Tres barras por zona, una por fase. Las fases se marcan por separado: una marca con dos fases cuenta en las dos.</p>
+                <p>A la derecha, cuántas marcas tiene la zona y cuánto suman sus propuestas enviadas.</p>
+              </>
+            }
+            columnas={6}
+            descripcion="Cuántas marcas ha movido cada zona en cada fase."
+            icono={<MapPin className="size-4" />}
+            titulo="Avance por zona"
+          >
+            <GraficoDeZonas zonas={porZona} />
+          </TarjetaBento>
+
+          <TarjetaBento
+            ayuda={
+              <>
+                <p>Verde: ya invierten en marketing deportivo. Rojo: no invierten. Gris: todavía no se ha averiguado.</p>
+                <p>Una zona muy gris no dice que allí no haya inversión: dice que falta preguntar.</p>
+              </>
+            }
+            columnas={6}
+            descripcion="Cuántas empresas de cada zona ya invierten en marketing deportivo."
+            icono={<Megaphone className="size-4" />}
+            titulo="Inversión por zona"
+          >
+            <GraficoDeInversionPorZona zonas={inversionPorZona} />
+          </TarjetaBento>
+
+          <TarjetaBento
+            ayuda={<p>Cuántas marcas hay de cada rubro y cuánto suman sus propuestas. Salen los siete con más marcas.</p>}
+            columnas={6}
+            descripcion="En qué rubros se está concentrando el esfuerzo."
+            icono={<PieChart className="size-4" />}
+            titulo="Marcas por sector"
+          >
+            {porSector.length === 0 ? (
+              <EstadoVacio
+                descripcion="Asigna un sector a las marcas para ver este reparto."
+                titulo="Sin sectores asignados"
+              />
+            ) : (
+              <ul className="space-y-3">
+                {porSector.slice(0, 7).map((fila) => {
+                  const totalMayor = porSector[0].total || 1;
+
+                  return (
+                    <li key={fila.sector}>
+                      {/* El servidor deja fuera de este reparto las marcas
+                          sin sector, así que la etiqueta siempre es un
+                          sector de verdad y el filtro la entiende tal cual. */}
+                      <Link
+                        className="block rounded-lg px-1 py-0.5 -mx-1 transition hover:bg-default-100"
+                        to={`/marcas?sector=${encodeURIComponent(fila.sector)}`}
+                      >
+                        <div className="mb-1 flex items-baseline justify-between gap-2">
+                          <span className="truncate text-xs font-medium text-foreground">
+                            {fila.sector}
+                          </span>
+                          <span className="shrink-0 text-[11px] text-default-500">
+                            {fila.total} · {formatearDineroAbreviado(fila.valor)}
+                          </span>
+                        </div>
+
+                        <Progress
+                          aria-label={`Marcas en el sector ${fila.sector}`}
+                          classNames={{ track: "h-1.5" }}
+                          color="primary"
+                          radius="full"
+                          value={(fila.total / totalMayor) * 100}
+                        />
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </TarjetaBento>
+
+          <TarjetaBento
+            ayuda={
+              <p>
+                Cuenta las marcas que tienen la campaña o la tuvieron alguna vez. El importe suma solo las que la tienen
+                puesta ahora, para no contar dos veces una marca que pasó por varias.
+              </p>
+            }
+            columnas={6}
+            descripcion="A cuántas marcas ha llegado cada campaña. Pulsa una para verlas."
+            icono={<Activity className="size-4" />}
+            titulo="Reparto por campaña"
+          >
+            {porCampana.length === 0 ? (
+              <EstadoVacio
+                descripcion="Las campañas se crean en su propia pantalla y se asignan desde la ficha de cada marca."
+                titulo="Todavía no hay campañas"
+              />
+            ) : (
+              <ul className="space-y-2.5">
+                {porCampana.map((campana) => (
+                  <li key={campana.campanaId ?? "sin_campana"}>
+                    <FilaDeCampana campana={campana} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </TarjetaBento>
+        </RejillaBento>
+      </SeccionDePantalla>
     </div>
   );
 }
@@ -644,7 +790,7 @@ function PanelDelAgente({
   resumen: ResumenDelAgente;
   usuario: Usuario;
 }) {
-  const { misNumeros, misPropiedades, misCampanas } = resumen;
+  const { misNumeros, porEstado, misPropiedades, misCampanas } = resumen;
 
   const noTieneNadaAsignado = misNumeros.totalMarcas === 0;
 
@@ -724,6 +870,26 @@ function PanelDelAgente({
         />
       </div>
 
+      <MiMetaDelAnio anio={resumen.miMeta?.anio ?? new Date().getFullYear()} meta={resumen.miMeta} />
+
+      {/* Cuáles de las suyas se están apagando, mientras todavía se
+          pueden recuperar, y cuáles no tienen nada por delante. El
+          tablero de un agente ya trae solo lo suyo. */}
+      {!noTieneNadaAsignado && (
+        <>
+          <TarjetaDeAviso
+            cantidad={misNumeros.sinSiguientePaso}
+            enlace={`/marcas?vendedor=${usuario.id}&siguientePaso=sin`}
+            explicacion="Ni un recordatorio pendiente ni una acción de campaña por delante. Pulsa para verlas y usa «Contacté» en cada una."
+            icono={<CircleDashed className="size-4" />}
+            textoSiNoHay="Todas tus marcas tienen algo por delante."
+            titulo={misNumeros.sinSiguientePaso === 1 ? "marca tuya sin siguiente paso" : "marcas tuyas sin siguiente paso"}
+          />
+
+          <CajaDeEstados reparto={porEstado} />
+        </>
+      )}
+
       {/* El aviso de trabajo pendiente, con el mismo peso visual que en
           el panel de la dirección tienen los leads sin dueño. */}
       {misNumeros.accionesPorDelante > 0 && (
@@ -747,9 +913,11 @@ function PanelDelAgente({
       )}
 
       <RejillaBento>
-        {/* La agenda abre el panel: para quien trabaja las marcas, "¿qué
-            toca esta semana?" es la primera pregunta del día. El
-            servidor ya la devuelve acotada a sus marcas. */}
+        {/* Sus recordatorios y su agenda abren el panel: para quien
+            trabaja las marcas, "¿qué toca hoy?" es la primera pregunta
+            del día. El servidor ya los devuelve acotados a sus marcas. */}
+        <MisRecordatoriosDelPanel />
+
         <CalendarioDeCampanas />
 
         <TarjetaBento
@@ -827,6 +995,202 @@ function PanelDelAgente({
 /* ==================================================================== */
 
 /**
+ * Cuántas marcas están calientes, tibias y frías, de las que ve quien
+ * mira, en una sola caja: una barra con la proporción y las tres cifras
+ * debajo. Eran tres cifras grandes sueltas, iguales que las del pipeline,
+ * y no se distinguía que hablaban de otra cosa.
+ *
+ * Cada cifra lleva al tablero filtrado por ese estado, que cuenta con la
+ * misma fórmula: al pulsar «12 calientes» salen esas doce.
+ */
+function CajaDeEstados({ reparto }: { reparto: RepartoPorEstado }) {
+  const { diasCaliente, diasTibia } = reparto.umbrales;
+  const total = reparto.caliente + reparto.tibia + reparto.fria;
+
+  const ESTADOS = [
+    {
+      clave: "caliente",
+      etiqueta: reparto.caliente === 1 ? "caliente" : "calientes",
+      detalle: `se movieron en los últimos ${diasCaliente} días`,
+      color: "#E5484D",
+      icono: <Flame className="size-4" />,
+      cantidad: reparto.caliente,
+    },
+    {
+      clave: "tibia",
+      etiqueta: reparto.tibia === 1 ? "tibia" : "tibias",
+      detalle: `de ${diasCaliente + 1} a ${diasTibia} días sin moverse`,
+      color: "#F5A524",
+      icono: <Sun className="size-4" />,
+      cantidad: reparto.tibia,
+    },
+    {
+      clave: "fria",
+      etiqueta: reparto.fria === 1 ? "fría" : "frías",
+      detalle: `más de ${diasTibia} días sin moverse`,
+      color: "#6B93C7",
+      icono: <Snowflake className="size-4" />,
+      cantidad: reparto.fria,
+    },
+  ] as const;
+
+  return (
+    <TarjetaBento
+      ayuda={
+        <>
+          <p>
+            Una marca se mueve cuando se registra, se marca una fase, cambia el valor de la propuesta, se escribe en su
+            bitácora (también con «Contacté») o se le anota una acción de campaña. Corregir un teléfono no cuenta.
+          </p>
+          <p>Una acción de campaña con fecha por delante la mantiene caliente hasta ese día.</p>
+        </>
+      }
+      descripcion="Cuánto hace que alguien movió cada marca. Las frías son las que se están perdiendo."
+      icono={<Flame className="size-4" />}
+      titulo="Actividad de las marcas"
+    >
+      {/* La proporción, de un vistazo. Sin marcas no hay nada que repartir. */}
+      {total > 0 && (
+        <div aria-hidden className="mb-4 flex h-2.5 w-full overflow-hidden rounded-full bg-default-100">
+          {ESTADOS.map((estado) =>
+            estado.cantidad === 0 ? null : (
+              <span
+                key={estado.clave}
+                className="h-full"
+                style={{ width: `${(estado.cantidad / total) * 100}%`, backgroundColor: estado.color }}
+              />
+            ),
+          )}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        {ESTADOS.map((estado) => (
+          <Link
+            key={estado.clave}
+            className="flex items-center gap-3 rounded-xl bg-default-50 px-3 py-2.5 transition hover:bg-default-100 hover:ring-1 hover:ring-primary/30"
+            to={`/marcas?estado=${estado.clave}`}
+          >
+            <span
+              className="flex size-8 shrink-0 items-center justify-center rounded-xl"
+              style={{ color: estado.color, backgroundColor: `${estado.color}1a` }}
+            >
+              {estado.icono}
+            </span>
+
+            <span className="min-w-0">
+              <span className="flex items-baseline gap-1.5">
+                <span className="text-xl font-bold leading-none tracking-tight text-foreground">
+                  {formatearNumero(estado.cantidad)}
+                </span>
+                <span className="text-xs font-semibold text-foreground">{estado.etiqueta}</span>
+              </span>
+              <span className="mt-0.5 block text-[11px] leading-tight text-default-500">{estado.detalle}</span>
+            </span>
+          </Link>
+        ))}
+      </div>
+    </TarjetaBento>
+  );
+}
+
+/**
+ * Una lista de trabajo que nadie está haciendo: las marcas sin agente, o
+ * sin siguiente paso. Con su cifra, qué significa y, si hay alguna, el
+ * enlace a esas marcas.
+ *
+ * A cero se queda, en verde y sin enlace: «todas tienen agente» también
+ * es una respuesta, y llevar a una lista vacía es peor que no llevar.
+ */
+function TarjetaDeAviso({
+  cantidad,
+  titulo,
+  explicacion,
+  textoSiNoHay,
+  icono,
+  enlace,
+}: {
+  cantidad: number;
+  /** Lo que va junto a la cifra: «marcas sin agente». */
+  titulo: string;
+  explicacion: string;
+  textoSiNoHay: string;
+  icono: React.ReactNode;
+  enlace: string;
+}) {
+  const hayAlguna = cantidad > 0;
+
+  const contenido = (
+    <>
+      <span
+        className={[
+          "flex size-8 shrink-0 items-center justify-center rounded-xl",
+          hayAlguna
+            ? "bg-warning-100 text-warning-600 dark:bg-warning-100/20 dark:text-warning-500"
+            : "bg-success-100 text-success-600 dark:bg-success-100/20 dark:text-success-500",
+        ].join(" ")}
+      >
+        {hayAlguna ? icono : <CheckCircle2 className="size-4" />}
+      </span>
+
+      <span className="min-w-0 flex-1">
+        <span className="flex flex-wrap items-baseline gap-x-1.5">
+          <span className="text-2xl font-bold leading-none tracking-tight text-foreground">
+            {formatearNumero(cantidad)}
+          </span>
+          <span className="text-sm font-semibold text-foreground">{titulo}</span>
+        </span>
+        <span className="mt-1 block text-xs leading-relaxed text-default-500">
+          {hayAlguna ? explicacion : textoSiNoHay}
+        </span>
+      </span>
+
+      {hayAlguna && <ArrowUpRight aria-hidden className="size-4 shrink-0 text-warning-500" />}
+    </>
+  );
+
+  if (!hayAlguna) {
+    return <div className="bento-card flex items-start gap-3 p-4">{contenido}</div>;
+  }
+
+  return (
+    <Link
+      className="bento-card bento-card-interactive flex items-start gap-3 border-warning-200 bg-warning-50 p-4 dark:border-warning-100/30 dark:bg-warning-100/10"
+      to={enlace}
+    >
+      {contenido}
+    </Link>
+  );
+}
+
+/**
+ * Cuántas marcas de un agente están sin siguiente paso, al lado de su
+ * fila en «Carga por agente». Con alguna, lleva a esas marcas; a cero
+ * dice «al día», que es lo que se quiere ver de un vistazo.
+ */
+function SiguientePasoDelAgente({ cantidad, idDelAgente }: { cantidad: number; idDelAgente: string }) {
+  if (cantidad === 0) {
+    return (
+      <span className="flex shrink-0 items-center justify-center gap-1 rounded-xl bg-success-50 px-2.5 py-1.5 text-[11px] font-semibold text-success-700 dark:bg-success-100/10 dark:text-success-500">
+        <CheckCircle2 className="size-3" />
+        Al día
+      </span>
+    );
+  }
+
+  return (
+    <Link
+      className="flex shrink-0 items-center justify-center gap-1 rounded-xl bg-warning-50 px-2.5 py-1.5 text-[11px] font-semibold text-warning-700 transition hover:bg-warning-100 dark:bg-warning-100/10 dark:text-warning-500"
+      title={`${cantidad} ${cantidad === 1 ? "marca" : "marcas"} sin recordatorio pendiente ni acción por delante`}
+      to={`/marcas?vendedor=${idDelAgente}&siguientePaso=sin`}
+    >
+      <CircleDashed className="size-3" />
+      {cantidad} sin siguiente paso
+    </Link>
+  );
+}
+
+/**
  * Una fila de lista que lleva al listado del que sale su cifra.
  *
  * Existe porque el mismo patrón se repite en cinco cajas del panel
@@ -837,14 +1201,16 @@ function PanelDelAgente({
  */
 function FilaPulsable({
   enlace,
+  className = "",
   children,
 }: {
   enlace: string;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
     <Link
-      className="flex items-center justify-between gap-3 rounded-xl bg-default-50 px-3 py-2.5 transition hover:bg-default-100 hover:ring-1 hover:ring-primary/30"
+      className={`flex items-center justify-between gap-3 rounded-xl bg-default-50 px-3 py-2.5 transition hover:bg-default-100 hover:ring-1 hover:ring-primary/30 ${className}`}
       to={enlace}
     >
       {children}

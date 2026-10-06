@@ -54,6 +54,7 @@ import {
   MessageSquarePlus,
   Paperclip,
   Pencil,
+  PhoneCall,
   RotateCw,
   Send,
   SmilePlus,
@@ -441,6 +442,14 @@ function CuerpoDeLaEntrada({
         <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-foreground">
           {entrada.autorNombre}
         </span>
+
+        {/* Las que dejó «Contacté» dicen cómo fue: llamada, WhatsApp… */}
+        {entrada.tipoDeContacto !== null && (
+          <span className="flex shrink-0 items-center gap-1 rounded-full bg-primary-100 px-1.5 py-0.5 text-[10px] font-semibold text-primary-700 dark:bg-primary-100/20 dark:text-primary-400">
+            <PhoneCall className="size-2.5" />
+            {entrada.tipoDeContacto.etiqueta}
+          </span>
+        )}
 
         <time className="shrink-0 text-[10px] text-default-400">
           {formatearTiempoRelativo(entrada.creadoEn)}

@@ -39,6 +39,9 @@ class Notificacion extends Model
     /** Alguien escribió en la bitácora de una marca (a los administradores y a su agente). */
     public const TIPO_COMENTARIO = 'comentario_en_bitacora';
 
+    /** El aviso de la mañana: los recordatorios que te tocan hoy. */
+    public const TIPO_RECORDATORIOS_DEL_DIA = 'recordatorios_del_dia';
+
     protected $fillable = [
         'destinatario_id',
         'tipo',
@@ -88,6 +91,12 @@ class Notificacion extends Model
      */
     public function enlaceEnElPanel(): ?string
     {
+        // Varios recordatorios de marcas distintas: al panel, donde salen
+        // juntos en «Para hoy». Con uno solo, el aviso va a su marca.
+        if ($this->entidad_tipo === 'recordatorios') {
+            return '/panel';
+        }
+
         if ($this->entidad_id === null) {
             return null;
         }

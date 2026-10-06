@@ -14,6 +14,9 @@ import type {
   AdjuntoDeComentario,
   AgenteConMarcas,
   ComentarioDeMarca,
+  ContadoresDeEstado,
+  EstadoDeMarca,
+  UmbralesDelEstado,
   DatosDeComentario,
   HistoricoDeBitacora,
   PersonaMencionable,
@@ -23,6 +26,7 @@ import type {
   DatosDeMarcaParaGuardar,
   FiltrosDeMarcas,
   Marca,
+  Recordatorio,
   ResumenDePropiedadFiltrada,
 } from "@/tipos/modelos";
 
@@ -40,6 +44,12 @@ export interface ResultadoDeListado {
   ultimaPagina: number;
   /** Solo con el filtro por propiedad puesto; si no, null. */
   resumenDeLaPropiedad: ResumenDePropiedadFiltrada | null;
+  /**
+   * Cuántas hay en cada estado con los demás filtros puestos (todos
+   * menos el de estado): lo que sale al pulsar cada uno.
+   */
+  contadoresDeEstado: ContadoresDeEstado;
+  umbralesDelEstado: UmbralesDelEstado;
 }
 
 /**
@@ -57,23 +67,16 @@ export async function listarMarcas(
   filtros: Partial<FiltrosDeMarcas>,
   pagina = 1,
 ): Promise<ResultadoDeListado> {
-  const parametrosDeConsulta: Record<string, string> = {};
+  const parametrosDeConsulta = parametrosDelTablero(filtros);
 
   if (pagina > 1) parametrosDeConsulta.page = String(pagina);
 
-  if (filtros.busqueda?.trim()) parametrosDeConsulta.busqueda = filtros.busqueda.trim();
-  if (filtros.etapa) parametrosDeConsulta.etapa = filtros.etapa;
-  if (filtros.fase) parametrosDeConsulta.fase = filtros.fase;
-  if (filtros.zona) parametrosDeConsulta.zona = filtros.zona;
-  if (filtros.sector) parametrosDeConsulta.sector = filtros.sector;
-  if (filtros.vendedor) parametrosDeConsulta.vendedor = filtros.vendedor;
-  if (filtros.campana) parametrosDeConsulta.campana = filtros.campana;
-  if (filtros.propiedad) parametrosDeConsulta.propiedad = filtros.propiedad;
-  if (filtros.invierte) parametrosDeConsulta.invierte = filtros.invierte;
-  if (filtros.orden) parametrosDeConsulta.orden = filtros.orden;
-
   const { data } = await clienteHttp.get<
-    RespuestaPaginada<Marca> & { resumenDeLaPropiedad?: ResumenDePropiedadFiltrada | null }
+    RespuestaPaginada<Marca> & {
+      resumenDeLaPropiedad?: ResumenDePropiedadFiltrada | null;
+      contadoresDeEstado: ContadoresDeEstado;
+      umbralesDelEstado: UmbralesDelEstado;
+    }
   >("/marcas", {
     params: parametrosDeConsulta,
   });
@@ -84,7 +87,62 @@ export async function listarMarcas(
     pagina: data.meta?.current_page ?? 1,
     ultimaPagina: data.meta?.last_page ?? 1,
     resumenDeLaPropiedad: data.resumenDeLaPropiedad ?? null,
+    contadoresDeEstado: data.contadoresDeEstado,
+    umbralesDelEstado: data.umbralesDelEstado,
   };
+}
+
+/**
+ * El tablero entero con sus filtros, sin páginas, para llevarlo a Excel.
+ * Lleva los MISMOS parámetros que el listado: el fichero dice lo que se
+ * estaba mirando. El servidor lo deja anotado en la auditoría.
+ */
+export async function exportarElTablero(
+  filtros: Partial<FiltrosDeMarcas>,
+): Promise<{ marcas: Marca[]; generadoEn: string }> {
+  const { data } = await clienteHttp.get<{ data: Marca[]; generadoEn: string }>(
+    "/marcas/exportacion",
+    { params: parametrosDelTablero(filtros) },
+  );
+
+  return { marcas: data.data, generadoEn: data.generadoEn };
+}
+
+/** La ficha completa de una marca para sacarla a PDF (queda en la auditoría). */
+export async function exportarLaFicha(
+  idDeLaMarca: string,
+): Promise<{ marca: Marca; recordatorios: Recordatorio[]; generadoEn: string }> {
+  const { data } = await clienteHttp.get<{
+    data: Marca;
+    recordatorios: Recordatorio[];
+    generadoEn: string;
+  }>(`/marcas/${idDeLaMarca}/exportacion`);
+
+  return { marca: data.data, recordatorios: data.recordatorios, generadoEn: data.generadoEn };
+}
+
+/**
+ * Los filtros de la interfaz como parámetros de la consulta. Los vacíos
+ * no se envían, para no ensuciar la URL ni obligar al backend a
+ * distinguir entre "sin filtro" y "filtro en blanco".
+ */
+function parametrosDelTablero(filtros: Partial<FiltrosDeMarcas>): Record<string, string> {
+  const parametrosDeConsulta: Record<string, string> = {};
+
+  if (filtros.busqueda?.trim()) parametrosDeConsulta.busqueda = filtros.busqueda.trim();
+  if (filtros.etapa) parametrosDeConsulta.etapa = filtros.etapa;
+  if (filtros.fase) parametrosDeConsulta.fase = filtros.fase;
+  if (filtros.zona) parametrosDeConsulta.zona = filtros.zona;
+  if (filtros.sector) parametrosDeConsulta.sector = filtros.sector;
+  if (filtros.vendedor) parametrosDeConsulta.vendedor = filtros.vendedor;
+  if (filtros.campana) parametrosDeConsulta.campana = filtros.campana;
+  if (filtros.propiedad) parametrosDeConsulta.propiedad = filtros.propiedad;
+  if (filtros.invierte) parametrosDeConsulta.invierte = filtros.invierte;
+  if (filtros.estado) parametrosDeConsulta.estado = filtros.estado;
+  if (filtros.siguientePaso) parametrosDeConsulta.siguientePaso = filtros.siguientePaso;
+  if (filtros.orden) parametrosDeConsulta.orden = filtros.orden;
+
+  return parametrosDeConsulta;
 }
 
 /**
@@ -149,6 +207,34 @@ export async function alternarFaseDeMarca(
   const { data } = await clienteHttp.patch<{ data: Marca }>(
     `/marcas/${idDeLaMarca}/fase`,
     { fase, completada },
+  );
+
+  return data.data;
+}
+
+/**
+ * Fija a mano el estado de una marca (caliente, tibia o fría), o la
+ * devuelve al automático con `null`.
+ */
+export async function fijarEstadoDeMarca(
+  idDeLaMarca: string,
+  estado: EstadoDeMarca | null,
+): Promise<Marca> {
+  const { data } = await clienteHttp.patch<{ data: Marca }>(
+    `/marcas/${idDeLaMarca}/estado`,
+    { estado },
+  );
+
+  return data.data;
+}
+
+/** Cambia los días que tarda una marca en enfriarse (solo administrador). */
+export async function guardarUmbralesDelEstado(
+  umbrales: UmbralesDelEstado,
+): Promise<UmbralesDelEstado> {
+  const { data } = await clienteHttp.put<{ data: UmbralesDelEstado }>(
+    "/umbrales-del-estado",
+    umbrales,
   );
 
   return data.data;

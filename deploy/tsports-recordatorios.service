@@ -1,0 +1,32 @@
+# =====================================================================
+#  TS SPORTS — Unidad de systemd para el aviso de la mañana
+#  ---------------------------------------------------------------------
+#  No se arranca sola: la dispara tsports-recordatorios.timer. Avisa a
+#  cada persona de los recordatorios que le tocan hoy
+#  (php artisan recordatorios:avisar-del-dia).
+#
+#  Repetirla no duplica nada: cada recordatorio avisado queda marcado y
+#  no se vuelve a contar. Se puede lanzar a mano para probar:
+#    sudo systemctl start tsports-recordatorios
+#
+#  El push sale por la cola, así que hace falta tsports-queue en marcha;
+#  sin ella el aviso queda en la campanita y el móvil no suena.
+#
+#  CÓMO VER QUÉ PASÓ
+#    systemctl status tsports-recordatorios
+#    journalctl -u tsports-recordatorios -n 40
+#
+#  SUSTITUYE ANTES: /var/www/tsports → la ruta donde clonaste el repositorio.
+#  (instalar-vps.sh y desplegar.sh lo hacen solos.)
+# =====================================================================
+
+[Unit]
+Description=TS Sports — aviso de los recordatorios del día
+After=network.target mysql.service mariadb.service
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/tsports/backend
+ExecStart=/usr/bin/php /var/www/tsports/backend/artisan recordatorios:avisar-del-dia

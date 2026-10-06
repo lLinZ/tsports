@@ -112,6 +112,16 @@ function clavesQueCambiaron({ entidad, id }: CambioEnLosDatos): QueryKey[] {
     case "cierres":
       return [CLAVE_DE_CIERRES_DE_MES, CLAVE_DE_LA_AUDITORIA];
 
+    // Los días que tarda una marca en enfriarse: cambian el estado de
+    // todas a la vez, en el tablero y en el reparto del resumen.
+    case "umbrales":
+      return [clavesDeMarcas.todas, CLAVE_DEL_PANEL];
+
+    // Las metas salen en el resumen: la propia y, a quien reparte, las
+    // del equipo.
+    case "metas":
+      return [CLAVE_DEL_PANEL, CLAVE_DE_LA_AUDITORIA];
+
     // El nombre de cada persona sale en las tarjetas y en el resumen.
     case "equipo":
       return [CLAVE_DEL_EQUIPO, clavesDeMarcas.todas, CLAVE_DEL_PANEL, CLAVE_DE_LA_AUDITORIA];

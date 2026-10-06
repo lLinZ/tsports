@@ -23,6 +23,14 @@
  * dos a la vez no tendría sentido: `cambiarFiltro` quita uno al poner
  * el otro.
  *
+ * `?estado=` (caliente, tibia, fría) va en su propia barra, encima de la
+ * cuadrícula, con cuántas marcas salen en cada uno con los demás filtros
+ * puestos. Lo cuenta el servidor con la misma fórmula con la que filtra.
+ *
+ * `?siguientePaso=sin` no tiene selector: llega al pulsar «Sin siguiente
+ * paso» en el resumen y se quita desde su etiqueta. Es la lista con la
+ * que se trabaja pulsando «Contacté» en cada tarjeta.
+ *
  * La búsqueda se aplica con un pequeño retardo para no lanzar una
  * consulta por cada tecla pulsada.
  * ---------------------------------------------------------------------
@@ -30,6 +38,7 @@
 import { Button, Chip, Input, Select, SelectItem } from "@heroui/react";
 import {
   Building2,
+  FileSpreadsheet,
   Package,
   Plus,
   RefreshCw,
@@ -40,14 +49,17 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { mensajeDeError } from "@/api/clienteHttp";
+import { exportarElTablero } from "@/api/marcas";
 import { BarraDeProporcion } from "@/componentes/comunes/BarraDeProporcion";
 import {
   BloqueDeCarga,
   BloqueDeError,
   EstadoVacio,
 } from "@/componentes/comunes/EstadosDePantalla";
+import { FiltroPorEstado } from "@/componentes/crm/EstadoDeLaMarca";
 import { ModalDeMarca } from "@/componentes/crm/ModalDeMarca";
 import { TarjetaDeMarca } from "@/componentes/crm/TarjetaDeMarca";
+import { VentanaDeContacto } from "@/componentes/crm/VentanaDeContacto";
 import { useCampanasActivas } from "@/hooks/useCampanas";
 import { useCatalogos } from "@/hooks/useCatalogos";
 import {
@@ -59,13 +71,15 @@ import {
 import { usePropiedadesOfrecibles } from "@/hooks/usePropiedades";
 import { useScrollInfinito } from "@/hooks/useScrollInfinito";
 import { useUsuarioAutenticado } from "@/providers/ProveedorSesion";
-import { avisarDeError } from "@/utilidades/avisos";
+import { avisarDeError, avisarDeExito } from "@/utilidades/avisos";
+import { descargarElTableroEnExcel, type FiltroDescrito } from "@/utilidades/excelDelTablero";
 import {
   formatearDineroAbreviado,
   formatearNumero,
   formatearPorcentaje,
 } from "@/utilidades/formato";
 import type {
+  EstadoDeMarca,
   EtapaDeMarca,
   FaseDeMarca,
   FiltrosDeMarcas,
@@ -147,6 +161,8 @@ export function PaginaMarcas() {
       propiedad: parametrosDeLaUrl.get("propiedad") ?? "",
       invierte:
         (parametrosDeLaUrl.get("invierte") as InversionEnPatrocinios) ?? "",
+      estado: (parametrosDeLaUrl.get("estado") as EstadoDeMarca) ?? "",
+      siguientePaso: parametrosDeLaUrl.get("siguientePaso") === "sin" ? "sin" : "",
       orden:
         (parametrosDeLaUrl.get("orden") as FiltrosDeMarcas["orden"]) ?? "recientes",
     }),
@@ -220,7 +236,10 @@ export function PaginaMarcas() {
     establecerParametrosDeLaUrl(new URLSearchParams(), { replace: true });
   }
 
-  const hayFiltrosActivos =
+  // Los de la caja de filtros, que se recuerdan en su franja de abajo. El
+  // de estado va aparte: su propia barra ya dice cuál está elegido, y
+  // contarlo aquí dejaba la franja abierta y vacía.
+  const hayFiltrosEnLaCaja =
     Boolean(filtrosAplicados.busqueda) ||
     Boolean(filtrosAplicados.etapa) ||
     Boolean(filtrosAplicados.fase) ||
@@ -229,7 +248,10 @@ export function PaginaMarcas() {
     Boolean(filtrosAplicados.vendedor) ||
     Boolean(filtrosAplicados.campana) ||
     Boolean(filtrosAplicados.propiedad) ||
-    Boolean(filtrosAplicados.invierte);
+    Boolean(filtrosAplicados.invierte) ||
+    Boolean(filtrosAplicados.siguientePaso);
+
+  const hayFiltrosActivos = hayFiltrosEnLaCaja || Boolean(filtrosAplicados.estado);
 
   /* ---------------------------------------------------------------- */
   /* Datos                                                            */
@@ -284,6 +306,9 @@ export function PaginaMarcas() {
     establecerFichaAbierta(true);
   }
 
+  /** La marca de la ventana «Contacté», mientras está abierta. */
+  const [marcaDelContacto, establecerMarcaDelContacto] = useState<Marca | null>(null);
+
   /* ---------------------------------------------------------------- */
   /* Abrir una marca desde fuera (?abrir=<id>)                        */
   /* ---------------------------------------------------------------- */
@@ -325,6 +350,78 @@ export function PaginaMarcas() {
     establecerParametrosDeLaUrl(parametrosSinAbrir, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fichaPedidaPorLaUrl.error]);
+
+  /* ---------------------------------------------------------------- */
+  /* Llevarse el tablero a Excel                                      */
+  /* ---------------------------------------------------------------- */
+
+  const [estaExportando, establecerExportando] = useState(false);
+
+  /**
+   * Los filtros puestos, dichos como los lee una persona: van en la hoja
+   * «Filtros» del Excel para que se sepa de qué lista se trata.
+   */
+  function describirLosFiltros(): FiltroDescrito[] {
+    const descritos: FiltroDescrito[] = [];
+    const anotar = (etiqueta: string, valor: string | undefined) => {
+      if (valor) descritos.push({ etiqueta, valor });
+    };
+
+    anotar("Búsqueda", filtrosAplicados.busqueda);
+    anotar("Avance", OPCIONES_DE_ETAPA.find((opcion) => opcion.valor === filtrosAplicados.etapa && opcion.valor !== "")?.etiqueta);
+    anotar("Fase", filtrosAplicados.fase ? NOMBRE_DE_LA_FASE[filtrosAplicados.fase] : undefined);
+    anotar("Zona", filtrosAplicados.zona === "sin_zona" ? "Sin zona" : filtrosAplicados.zona);
+    anotar("Sector", filtrosAplicados.sector);
+    anotar(
+      "Agente",
+      filtrosAplicados.vendedor === "sin_asignar"
+        ? "Sin agente asignado"
+        : filtrosAplicados.vendedor
+          ? (agentes.find((agente) => agente.id === filtrosAplicados.vendedor)?.nombre ?? "El elegido")
+          : undefined,
+    );
+    anotar(
+      "Campaña",
+      filtrosAplicados.campana === "sin_campana"
+        ? "Sin campaña"
+        : filtrosAplicados.campana
+          ? (campanasActivas.find((campana) => campana.id === filtrosAplicados.campana)?.nombre ?? "Otra")
+          : undefined,
+    );
+    anotar(
+      "Ofreciendo",
+      filtrosAplicados.propiedad
+        ? (propiedadesOfrecibles.find((propiedad) => propiedad.id === filtrosAplicados.propiedad)?.nombre ?? "Una propiedad")
+        : undefined,
+    );
+    anotar(
+      "Invierte",
+      catalogos?.opcionesDeInversion.find((opcion) => opcion.valor === filtrosAplicados.invierte)?.etiqueta,
+    );
+    anotar("Estado", { caliente: "Calientes", tibia: "Tibias", fria: "Frías", "": undefined }[filtrosAplicados.estado ?? ""]);
+    anotar("Siguiente paso", filtrosAplicados.siguientePaso === "sin" ? "Sin siguiente paso" : undefined);
+    anotar(
+      "Orden",
+      [ORDEN_POR_OVP_DE_LA_PROPIEDAD, ...OPCIONES_DE_ORDEN].find((opcion) => opcion.valor === filtrosAplicados.orden)?.etiqueta,
+    );
+
+    return descritos;
+  }
+
+  async function exportarAExcel() {
+    establecerExportando(true);
+
+    try {
+      const { marcas, generadoEn } = await exportarElTablero(filtrosAplicados);
+
+      await descargarElTableroEnExcel({ marcas, generadoEn, filtros: describirLosFiltros() });
+      avisarDeExito(`Excel con ${formatearNumero(marcas.length)} ${marcas.length === 1 ? "marca" : "marcas"}`);
+    } catch (error) {
+      avisarDeError(error, "No se pudo sacar el Excel");
+    } finally {
+      establecerExportando(false);
+    }
+  }
 
   async function alternarLaFaseDeUnaMarca(
     marca: Marca,
@@ -370,6 +467,19 @@ export function PaginaMarcas() {
             onPress={() => void listado.recargar()}
           >
             {!listado.estaRefrescando && <RefreshCw className="size-4" />}
+          </Button>
+
+          {/* Lo que se está mirando, con sus filtros, para una reunión. */}
+          <Button
+            isDisabled={listado.total === 0}
+            isLoading={estaExportando}
+            radius="lg"
+            size="sm"
+            startContent={!estaExportando && <FileSpreadsheet className="size-4" />}
+            variant="flat"
+            onPress={() => void exportarAExcel()}
+          >
+            Excel
           </Button>
 
           <Button
@@ -583,11 +693,34 @@ export function PaginaMarcas() {
         </div>
 
         {/* Recordatorio visible de que la vista está filtrada. */}
-        {hayFiltrosActivos && (
+        {hayFiltrosEnLaCaja && (
           <div className="mt-2 flex flex-wrap gap-1.5 border-t border-default-100 pt-2">
             {filtrosAplicados.busqueda && (
               <Chip radius="lg" size="sm" variant="flat">
                 «{filtrosAplicados.busqueda}»
+              </Chip>
+            )}
+            {filtrosAplicados.siguientePaso === "sin" && (
+              <Chip
+                color="warning"
+                onClose={() => cambiarFiltro("siguientePaso", "")}
+                radius="lg"
+                size="sm"
+                variant="flat"
+              >
+                Sin siguiente paso
+              </Chip>
+            )}
+            {/* Etapa y sector ya se ven en su selector, pero sin su
+                etiqueta aquí la franja salía abierta y vacía. */}
+            {filtrosAplicados.etapa && (
+              <Chip radius="lg" size="sm" variant="flat">
+                {OPCIONES_DE_ETAPA.find((opcion) => opcion.valor === filtrosAplicados.etapa)?.etiqueta}
+              </Chip>
+            )}
+            {filtrosAplicados.sector && (
+              <Chip radius="lg" size="sm" variant="flat">
+                Sector: {filtrosAplicados.sector}
               </Chip>
             )}
             {filtrosAplicados.fase && (
@@ -655,6 +788,17 @@ export function PaginaMarcas() {
         )}
       </div>
 
+      {/* Caliente, tibia o fría. Va fuera de la caja de filtros porque
+          se usa como pestañas: cada número dice cuántas salen al pulsarlo
+          con los demás filtros puestos. */}
+      <FiltroPorEstado
+        alElegir={(estado) => cambiarFiltro("estado", estado)}
+        contadores={listado.contadoresDeEstado}
+        elegido={filtrosAplicados.estado ?? ""}
+        puedeAjustarLosDias={usuario.permisos.ajustaLosUmbralesDelEstado}
+        umbrales={listado.umbralesDelEstado}
+      />
+
       {listado.resumenDeLaPropiedad !== null && (
         <ResumenDeLaPropiedad
           resumen={listado.resumenDeLaPropiedad}
@@ -710,7 +854,9 @@ export function PaginaMarcas() {
               <TarjetaDeMarca
                 key={marca.id}
                 idDeLaPropiedadEnFoco={filtrosAplicados.propiedad || undefined}
+                umbralesDelEstado={listado.umbralesDelEstado}
                 alAbrirFicha={abrirFichaDe}
+                alAnotarContacto={establecerMarcaDelContacto}
                 alAlternarFase={(marcaPulsada, fase, completada) =>
                   void alternarLaFaseDeUnaMarca(marcaPulsada, fase, completada)
                 }
@@ -757,6 +903,8 @@ export function PaginaMarcas() {
         estaAbierto={laFichaEstaAbierta}
         marcaEnEdicion={marcaEnEdicion}
       />
+
+      <VentanaDeContacto marca={marcaDelContacto} alCerrar={() => establecerMarcaDelContacto(null)} />
     </div>
   );
 }

@@ -49,6 +49,10 @@ export interface PermisosDelUsuario {
   sacaLaBitacoraCompleta: boolean;
   /** Ve y sube los reportes de «Cierre de mes» (admin y comercial). */
   veLosCierresDeMes: boolean;
+  /** Cambia los días que tarda una marca en enfriarse. Hoy, el administrador. */
+  ajustaLosUmbralesDelEstado: boolean;
+  /** Pone y quita las metas de venta (quien reparte: admin y comercial). */
+  fijaLasMetas: boolean;
 }
 
 export interface Usuario {
@@ -276,6 +280,130 @@ export type InversionEnPatrocinios = "desconocido" | "si" | "no";
 /** De dónde salió el registro. */
 export type OrigenDeMarca = "manual" | "web";
 
+/**
+ * Caliente, tibia o fría. Lo calcula siempre el servidor
+ * (App\Support\EstadoDeLasMarcas): la interfaz no cuenta días.
+ */
+export type EstadoDeMarca = "caliente" | "tibia" | "fria";
+
+/** Qué fue lo último que movió la marca. */
+export type MotivoDeMovimiento =
+  | "alta"
+  | "fase"
+  | "valor"
+  | "comentario"
+  /** Una entrada de la bitácora que dejó «Contacté». */
+  | "contacto"
+  | "accion_de_campana";
+
+/** Hasta cuántos días dura cada estado. Los fija el administrador. */
+export interface UmbralesDelEstado {
+  diasCaliente: number;
+  diasTibia: number;
+}
+
+/**
+ * De qué día es un recordatorio respecto a hoy, con el calendario de
+ * Caracas. Lo decide el servidor: aquí no se comparan fechas.
+ */
+export type CuandoDelRecordatorio = "vencido" | "hoy" | "proximo";
+
+/** Lo que la tarjeta enseña de mi próximo recordatorio. */
+export interface ProximoRecordatorio {
+  id: string;
+  /** AAAA-MM-DD. */
+  fecha: string;
+  cuando: CuandoDelRecordatorio;
+  /** 0 hoy, 1 mañana, negativo si ya pasó. Contado por el servidor. */
+  diasHasta: number;
+  nota: string | null;
+}
+
+/** Un recordatorio de seguimiento, tal como lo devuelve RecursoRecordatorio. */
+export interface Recordatorio extends ProximoRecordatorio {
+  personaId: string;
+  personaNombre?: string | null;
+  /** Si es de quien pregunta. En la ficha salen los de todo el equipo. */
+  esMio: boolean;
+  creadoPorNombre: string | null;
+  cumplido: boolean;
+  cumplidoEn: string | null;
+  cumplidoPorNombre: string | null;
+  /** Solo cuando hace falta reconocerla (en el panel). */
+  marca?: { id: string; nombre: string; logoUrl: string | null };
+  /** Si puede cumplirlo, posponerlo o borrarlo: el permiso de editar su marca. */
+  puedoCambiarlo: boolean;
+}
+
+/** Lo que el panel enseña de los recordatorios de quien mira. */
+export interface MisRecordatorios {
+  vencidos: Recordatorio[];
+  paraHoy: Recordatorio[];
+  /** Los de los próximos siete días. */
+  proximos: Recordatorio[];
+}
+
+/** Cómo se habló con una marca, en las entradas que deja «Contacté». */
+export type TipoDeContacto = "llamada" | "whatsapp" | "reunion" | "correo";
+
+/**
+ * Lo que se envía al pulsar «Contacté»: la entrada de la bitácora y,
+ * si se elige, el siguiente paso. Los «N días» los cuenta el servidor
+ * desde el día de Caracas; un día concreto va en `retomarEl`. Sin
+ * ninguno de los dos no se deja recordatorio («no hace falta»).
+ */
+export interface DatosDeContacto {
+  tipo: TipoDeContacto;
+  cuerpo: string;
+  retomarEnDias?: number | null;
+  /** AAAA-MM-DD, hoy o por delante. */
+  retomarEl?: string | null;
+  notaDelSiguientePaso?: string | null;
+  /** El recordatorio de hoy (o vencido) que este contacto ya cumple. */
+  recordatorioCumplidoId?: string | null;
+}
+
+/** Lo que se envía al dejar un recordatorio. */
+export interface DatosDeRecordatorio {
+  /** AAAA-MM-DD, hoy o por delante. */
+  fecha: string;
+  nota?: string | null;
+  /** Para otra persona; solo lo acepta el servidor de quien reparte. */
+  personaId?: string | null;
+}
+
+/* -------------------------------------------------------------------- */
+/* El buscador único                                                     */
+/* -------------------------------------------------------------------- */
+
+/**
+ * Un resultado del buscador. `enlace` viene resuelto del servidor; en una
+ * persona puede ser null, y entonces se le escribe por el chat.
+ */
+export interface ResultadoDelBuscador {
+  id: string;
+  titulo: string;
+  detalle: string;
+  enlace: string | null;
+  imagenUrl?: string | null;
+  /** Solo las campañas: el color con que se pintan en todo el sistema. */
+  color?: string | null;
+}
+
+export type GrupoDelBuscador = "marcas" | "propiedades" | "campanas" | "sectores" | "personas";
+
+export interface RespuestaDelBuscador {
+  texto: string;
+  resultados: Record<GrupoDelBuscador, ResultadoDelBuscador[]>;
+}
+
+/** Cuántas marcas hay en cada estado. */
+export interface ContadoresDeEstado {
+  caliente: number;
+  tibia: number;
+  fria: number;
+}
+
 export interface Marca {
   id: string;
 
@@ -325,6 +453,32 @@ export interface Marca {
   etapa: EtapaDeMarca;
   /** Qué datos faltan para cerrar la prospección, en palabras. */
   datosQueFaltan: string[];
+
+  // --- Caliente, tibia o fría (todo resuelto en el servidor) ---
+  /** El que se enseña: el fijado a mano o, si no hay, el calculado. */
+  estado: EstadoDeMarca;
+  /** El que diría el sistema sin lo fijado a mano. */
+  estadoAutomatico: EstadoDeMarca;
+  /** Quién lo fijó a mano y cuándo; null si va en automático. */
+  estadoFijado: { porNombre: string | null; en: string | null } | null;
+  ultimoMovimiento: {
+    /** El día, AAAA-MM-DD, en el calendario del equipo. */
+    el: string;
+    /** 0 = hoy, 1 = ayer. Ya contado por el servidor. */
+    haceDias: number;
+    motivo: MotivoDeMovimiento;
+    etiqueta: string;
+  };
+  /** La próxima acción de campaña (hoy o por delante), AAAA-MM-DD. */
+  proximaAccionEl: string | null;
+  /** Cuántos días faltan para ella (0 = hoy). Contado por el servidor. */
+  proximaAccionEnDias: number | null;
+
+  // --- Recordatorios (solo en el tablero, acotados a quien mira) ---
+  /** Mi próximo recordatorio pendiente en esta marca, para cumplirlo desde la tarjeta. */
+  miProximoRecordatorio?: ProximoRecordatorio | null;
+  /** Cuántos recordatorios pendientes tengo yo en esta marca. */
+  misRecordatoriosPendientes?: number;
 
   // --- Checklist de propiedades (los productos IOP) ---
   /** Qué propiedades se le están ofreciendo, con su pronóstico. */
@@ -441,6 +595,13 @@ export interface FiltrosDeMarcas {
   propiedad: string;
   /** Si invierte hoy en marketing deportivo. */
   invierte: InversionEnPatrocinios | "";
+  /** Caliente, tibia o fría, contando lo fijado a mano. */
+  estado: EstadoDeMarca | "";
+  /**
+   * "sin": las que no tienen ni recordatorio pendiente ni acción de
+   * campaña por delante. Llega al pulsar «Sin siguiente paso» del panel.
+   */
+  siguientePaso: "sin" | "";
   /**
    * `ovp_propiedad` ordena por lo que se pronostica de la propiedad
    * filtrada, de más a menos. Sin `propiedad`, el servidor lo ignora.
@@ -531,6 +692,8 @@ export interface ComentarioDeMarca {
   autorId: string | null;
   autorNombre: string;
   cuerpo: string;
+  /** Solo en las entradas que dejó «Contacté». */
+  tipoDeContacto: { valor: TipoDeContacto; etiqueta: string } | null;
 
   /**
    * Una entrada eliminada NO desaparece: se queda sin texto y diciendo
@@ -588,6 +751,8 @@ export interface EntradaDelHistorico {
   autorNombre: string;
   fecha: string | null;
   cuerpo: string;
+  /** «Llamada», «WhatsApp»… en las que dejó «Contacté». */
+  tipoDeContacto: string | null;
   editado: boolean;
   eliminado: boolean;
   eliminadoPorNombre: string | null;
@@ -672,6 +837,8 @@ export interface ContadoresDelPanel {
   conPropuesta: number;
   valorPropuestoAnual: number;
   sinAsignar: number;
+  /** Ni recordatorio pendiente ni acción por delante. */
+  sinSiguientePaso: number;
   /** Meta de venta de todo el catálogo: la suma de los forecast. */
   forecastDePropiedades: number;
   /** Lo que el equipo pronostica vender de esas propiedades (OVP). */
@@ -699,6 +866,8 @@ export interface ResumenDeVendedor {
   total: number;
   propuestas: number;
   valor: number;
+  /** Sus marcas sin nada por delante: si lleva la cartera al día. */
+  sinSiguientePaso: number;
 }
 
 export interface RegistroDeActividad {
@@ -783,6 +952,8 @@ export interface MisNumerosDelPanel {
   miPronostico: number;
   /** Acciones de campaña que tiene de hoy en adelante. */
   accionesPorDelante: number;
+  /** Sus marcas sin recordatorio pendiente ni acción por delante. */
+  sinSiguientePaso: number;
 }
 
 /** Una propiedad que el agente está ofreciendo, con SU pronóstico. */
@@ -808,10 +979,39 @@ export interface MiCampanaDelPanel {
  * El panel de quien ve las cifras de toda la agencia: admin y comercial.
  * Es el cuadro con el que se reparte el trabajo.
  */
+/** Cuántas marcas de las que se ven están calientes, tibias y frías. */
+export interface RepartoPorEstado extends ContadoresDeEstado {
+  umbrales: UmbralesDelEstado;
+}
+
+/**
+ * La meta del año de una persona y cuánto lleva, medido contra el OVP de
+ * sus marcas. El porcentaje lo calcula el servidor; null = sin meta.
+ */
+export interface MetaDeUnaPersona {
+  personaId: string;
+  nombre: string;
+  rolEtiqueta: string;
+  anio: number;
+  metaUsd: number | null;
+  ovpUsd: number;
+  porcentaje: number | null;
+  fijadaPorNombre: string | null;
+}
+
+/** Las metas del equipo, para quien reparte el trabajo. */
+export interface MetasDelEquipo {
+  anio: number;
+  personas: MetaDeUnaPersona[];
+}
+
 export interface ResumenDeLaEmpresa {
   alcance: "empresa";
   contadores: ContadoresDelPanel;
   misNumeros: MisNumerosDelPanel;
+  miMeta: MetaDeUnaPersona | null;
+  metasDelEquipo: MetasDelEquipo;
+  porEstado: RepartoPorEstado;
   porZona: ResumenDeZona[];
   porSector: ResumenDeSector[];
   porVendedor: ResumenDeVendedor[];
@@ -832,6 +1032,8 @@ export interface ResumenDeLaEmpresa {
 export interface ResumenDelAgente {
   alcance: "personal";
   misNumeros: MisNumerosDelPanel;
+  miMeta: MetaDeUnaPersona | null;
+  porEstado: RepartoPorEstado;
   misPropiedades: MiPropiedadDelPanel[];
   misCampanas: MiCampanaDelPanel[];
 }
@@ -1191,6 +1393,7 @@ export type TipoDeNotificacion =
   | "marca_asignada"
   | "mencion_en_bitacora"
   | "comentario_en_bitacora"
+  | "recordatorios_del_dia"
   | (string & {});
 
 /** Un aviso, tal como lo devuelve RecursoNotificacion y lo empuja Reverb. */

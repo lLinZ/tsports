@@ -12,8 +12,15 @@
  * `columnas` y `filas` dicen cuánto ocupa la caja dentro de la rejilla
  * de doce columnas de <RejillaBento>, sin que cada pantalla tenga que
  * recordar las clases de Tailwind correspondientes.
+ *
+ * `ayuda` pone un «?» junto al título que, al pulsarlo, explica cómo se
+ * lee la caja. Para las que no se entienden solo con el título (una
+ * barra con una raya, un tramo gris…). Es un Popover y no un Tooltip:
+ * en el móvil no hay ratón que pase por encima.
  * ---------------------------------------------------------------------
  */
+import { Popover, PopoverContent, PopoverTrigger } from "@heroui/react";
+import { CircleHelp } from "lucide-react";
 import type { ReactNode } from "react";
 
 /** Cuántas de las doce columnas ocupa la tarjeta en pantalla grande. */
@@ -33,6 +40,8 @@ interface PropiedadesDeTarjetaBento {
   accionDeCabecera?: ReactNode;
   /** Icono decorativo junto al título. */
   icono?: ReactNode;
+  /** Cómo se lee la caja, detrás de un «?» junto al título. */
+  ayuda?: ReactNode;
 
   columnas?: AnchoEnColumnas;
   filas?: AltoEnFilas;
@@ -85,6 +94,7 @@ export function TarjetaBento({
   descripcion,
   accionDeCabecera,
   icono,
+  ayuda,
   columnas = 12,
   filas = 1,
   esPulsable = false,
@@ -140,6 +150,7 @@ export function TarjetaBento({
             <h2 className="flex items-center gap-2 text-sm font-semibold tracking-tight text-foreground">
               {icono && <span className="text-primary">{icono}</span>}
               <span className="truncate">{titulo}</span>
+              {ayuda && <AyudaDeLaTarjeta titulo={titulo}>{ayuda}</AyudaDeLaTarjeta>}
             </h2>
 
             {descripcion && (
@@ -159,6 +170,29 @@ export function TarjetaBento({
         {children}
       </div>
     </section>
+  );
+}
+
+/** El «?» de la cabecera y su explicación. */
+function AyudaDeLaTarjeta({ titulo, children }: { titulo?: string; children: ReactNode }) {
+  return (
+    <Popover placement="bottom-start" radius="lg">
+      <PopoverTrigger>
+        <button
+          aria-label={titulo ? `Cómo se lee «${titulo}»` : "Cómo se lee esta caja"}
+          className="flex size-5 shrink-0 items-center justify-center rounded-full text-default-400 transition hover:bg-default-100 hover:text-primary"
+          type="button"
+          // Dentro de una tarjeta pulsable, el «?» no la activa.
+          onClick={(evento) => evento.stopPropagation()}
+        >
+          <CircleHelp className="size-3.5" />
+        </button>
+      </PopoverTrigger>
+
+      <PopoverContent className="max-w-xs px-4 py-3">
+        <div className="space-y-1.5 text-xs leading-relaxed text-default-600">{children}</div>
+      </PopoverContent>
+    </Popover>
   );
 }
 

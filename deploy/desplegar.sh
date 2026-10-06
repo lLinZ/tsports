@@ -242,6 +242,32 @@ fi
 ${COMO_ROOT} systemctl restart "${NOMBRE_DE_LA_INSTALACION}-reverb" 2>/dev/null || \
   aviso "No se pudo reiniciar ${NOMBRE_DE_LA_INSTALACION}-reverb (¿no está instalado aún?)."
 
+# Los temporizadores que viajan en el repositorio se instalan, o se ponen
+# al día si cambiaron, con la ruta de ESTA instalación. Producción y test
+# ya existían cuando llegó el primero (el aviso de los recordatorios), y
+# sin esto habría que acordarse de instalarlo a mano en cada una: el día
+# que se olvida, el aviso de la mañana no sale y nada lo dice.
+for TEMPORIZADOR in recordatorios; do
+  HAY_CAMBIOS=0
+
+  for PIEZA in service timer; do
+    DESTINO="/etc/systemd/system/${NOMBRE_DE_LA_INSTALACION}-${TEMPORIZADOR}.${PIEZA}"
+    CONTENIDO="$(sed -e "s|/var/www/tsports|${CARPETA_DEL_PROYECTO}|g" "${CARPETA_DEL_PROYECTO}/deploy/tsports-${TEMPORIZADOR}.${PIEZA}")"
+
+    if [[ ! -f "${DESTINO}" ]] || [[ "$(cat "${DESTINO}")" != "${CONTENIDO}" ]]; then
+      printf '%s\n' "${CONTENIDO}" | ${COMO_ROOT} tee "${DESTINO}" >/dev/null
+      HAY_CAMBIOS=1
+    fi
+  done
+
+  if [[ "${HAY_CAMBIOS}" -eq 1 ]]; then
+    { ${COMO_ROOT} systemctl daemon-reload \
+      && ${COMO_ROOT} systemctl enable --now "${NOMBRE_DE_LA_INSTALACION}-${TEMPORIZADOR}.timer" \
+      && echo "  temporizador ${NOMBRE_DE_LA_INSTALACION}-${TEMPORIZADOR} al día"; } || \
+      aviso "No se pudo activar ${NOMBRE_DE_LA_INSTALACION}-${TEMPORIZADOR}.timer: actívalo a mano."
+  fi
+done
+
 paso "Saliendo del modo mantenimiento"
 php "${CARPETA_BACKEND}/artisan" up
 

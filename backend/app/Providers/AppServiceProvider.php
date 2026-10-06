@@ -12,11 +12,14 @@ use App\Models\ComentarioMarca;
 use App\Models\Conversacion;
 use App\Models\EventoDeCampana;
 use App\Models\Marca;
+use App\Models\Meta;
 use App\Models\Notificacion;
 use App\Models\Propiedad;
 use App\Models\PropiedadDeMarca;
 use App\Models\ReaccionDeComentario;
+use App\Models\Recordatorio;
 use App\Models\Sector;
+use App\Models\UmbralesDelEstado;
 use App\Models\User;
 use App\Observers\ObservadorDeCambiosEnVivo;
 use App\Policies\CampanaPolicy;
@@ -141,6 +144,9 @@ class AppServiceProvider extends ServiceProvider
             Sector::class,
             User::class,
             CierreDeMes::class,
+            UmbralesDelEstado::class,
+            Recordatorio::class,
+            Meta::class,
         ];
 
         foreach ($modelosQueSeVenEnElPanel as $modelo) {

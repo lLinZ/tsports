@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Resources;
 
 use App\Models\Marca;
+use App\Support\EstadoDeLasMarcas;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -24,6 +25,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * Desde la segunda etapa lleva además el checklist de propiedades (los
  * productos IOP que se le están ofreciendo) con su pronóstico de venta
  * ya convertido a porcentaje del valor de cada propiedad.
+ *
+ * Y desde la Fase 4, su estado (caliente, tibia o fría) con el último
+ * movimiento que lo explica y la próxima acción agendada.
  *
  * Lo último es importante: la interfaz desactiva los botones con esas
  * banderas en vez de deducir permisos por su cuenta. Es lo que evita el
@@ -106,6 +110,31 @@ class RecursoMarca extends JsonResource
             'etapa' => $this->etapaResumida(),
             'datosQueFaltan' => $this->datosQueFaltanParaProspeccion(),
 
+            // --- Caliente, tibia o fría ---
+            // Todo resuelto aquí, días incluidos: si el navegador contase
+            // los días por su cuenta, la tarjeta podría decir «hace 5
+            // días» de una marca que el servidor ya cuenta como tibia.
+            ...$this->datosDelEstado(),
+
+            // --- Recordatorios ---
+            // Solo en el tablero, que los carga acotados a quien mira: su
+            // próximo pendiente, para cumplirlo sin abrir la ficha.
+            'miProximoRecordatorio' => $this->whenLoaded('recordatoriosPendientes', function (): ?array {
+                $proximo = $this->recordatoriosPendientes->first();
+
+                return $proximo === null ? null : [
+                    'id' => $proximo->id,
+                    'fecha' => $proximo->fecha->format('Y-m-d'),
+                    'cuando' => $proximo->cuando(),
+                    'diasHasta' => $proximo->diasHasta(),
+                    'nota' => $proximo->nota,
+                ];
+            }),
+            'misRecordatoriosPendientes' => $this->whenLoaded(
+                'recordatoriosPendientes',
+                fn (): int => $this->recordatoriosPendientes->count(),
+            ),
+
             // --- Checklist de propiedades (los productos IOP) ---
             // Cada línea trae ya el MTP de su propiedad y el porcentaje
             // que representa el pronóstico, para que la barra se pinte
@@ -139,6 +168,35 @@ class RecursoMarca extends JsonResource
 
             'creadaEn' => $this->created_at?->toIso8601String(),
             'actualizadaEn' => $this->updated_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * El estado de la marca y lo que lo explica.
+     *
+     * @return array<string,mixed>
+     */
+    private function datosDelEstado(): array
+    {
+        $ultimoMovimiento = $this->ultimoMovimiento();
+
+        return [
+            'estado' => $this->estado()->value,
+            'estadoAutomatico' => $this->estadoAutomatico()->value,
+            'estadoFijado' => $this->estado_fijado === null ? null : [
+                'porNombre' => $this->estado_fijado_por_nombre,
+                'en' => $this->estado_fijado_en?->toIso8601String(),
+            ],
+            'ultimoMovimiento' => [
+                'el' => $ultimoMovimiento['el']->format('Y-m-d'),
+                'haceDias' => EstadoDeLasMarcas::diasDesde($ultimoMovimiento['el']),
+                'motivo' => $ultimoMovimiento['motivo']->value,
+                'etiqueta' => $ultimoMovimiento['motivo']->etiqueta(),
+            ],
+            'proximaAccionEl' => $this->proximaAccionEl(),
+            'proximaAccionEnDias' => $this->proximaAccionEl() === null
+                ? null
+                : EstadoDeLasMarcas::diasHastaElDia($this->proximaAccionEl()),
         ];
     }
 }

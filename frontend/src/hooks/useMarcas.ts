@@ -33,6 +33,8 @@ import {
   listarMarcas,
   obtenerMarca,
   buscarSugerenciasDeMarcas,
+  fijarEstadoDeMarca,
+  guardarUmbralesDelEstado,
 } from "@/api/marcas";
 import { obtenerResumenDelPanel } from "@/api/sistema";
 import type {
@@ -40,6 +42,7 @@ import type {
   DatosDeComentario,
   PersonaMencionable,
   DatosDeMarcaParaGuardar,
+  EstadoDeMarca,
   FiltrosDeMarcas,
   Marca,
   ResumenDelPanel,
@@ -101,6 +104,8 @@ export function useListadoDeMarcas(filtros: Partial<FiltrosDeMarcas>) {
     total: consulta.data?.pages[0]?.total ?? 0,
     // Igual que el total: resume el listado entero, no lo cargado.
     resumenDeLaPropiedad: consulta.data?.pages[0]?.resumenDeLaPropiedad ?? null,
+    contadoresDeEstado: consulta.data?.pages[0]?.contadoresDeEstado ?? null,
+    umbralesDelEstado: consulta.data?.pages[0]?.umbralesDelEstado ?? null,
     estaCargando: consulta.isLoading,
     // `isFetching` se pone a cierto también al traer una página más, y
     // eso haría girar el botón de recargar en cada desplazamiento. Aquí
@@ -346,6 +351,38 @@ export function useAnotarAccionDeCampana() {
       // El calendario del panel es lo que de verdad enseña la acción.
       void clienteDeConsultas.invalidateQueries({ queryKey: ["panel", "calendario"] });
     },
+  });
+}
+
+/**
+ * Fija a mano el estado de una marca, o la devuelve al automático.
+ *
+ * Sin pintar de forma optimista: lo que se enseña al soltarla es el
+ * estado CALCULADO, y ese solo lo sabe el servidor.
+ */
+export function useFijarEstadoDeMarca() {
+  const invalidarMarcas = useInvalidarMarcas();
+
+  return useMutation({
+    mutationFn: ({
+      idDeLaMarca,
+      estado,
+    }: {
+      idDeLaMarca: string;
+      estado: EstadoDeMarca | null;
+    }) => fijarEstadoDeMarca(idDeLaMarca, estado),
+
+    onSuccess: invalidarMarcas,
+  });
+}
+
+/** Cambia los días que tarda una marca en enfriarse. Recolorea todo. */
+export function useGuardarUmbralesDelEstado() {
+  const invalidarMarcas = useInvalidarMarcas();
+
+  return useMutation({
+    mutationFn: guardarUmbralesDelEstado,
+    onSuccess: invalidarMarcas,
   });
 }
 

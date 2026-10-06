@@ -88,6 +88,15 @@ class UserPolicy
         return $usuario->activo && $usuario->rol->puedeEditarLaWeb();
     }
 
+    /**
+     * Poner o quitar la meta de venta de alguien. Es de quien reparte el
+     * trabajo (admin y comercial): la meta es parte de ese reparto.
+     */
+    public function fijarMetas(User $usuario): bool
+    {
+        return $usuario->activo && $usuario->rol->puedeAsignarVendedores();
+    }
+
     /** Consultar el registro de auditoría del sistema. */
     public function verAuditoria(User $usuario): bool
     {

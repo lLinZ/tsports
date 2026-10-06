@@ -9,6 +9,7 @@ use App\Jobs\EnviarAvisoPush;
 use App\Models\Marca;
 use App\Models\Notificacion;
 use App\Models\Propiedad;
+use App\Models\Recordatorio;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -205,6 +206,74 @@ class Notificador
     }
 
     /**
+     * El aviso de la mañana: lo que a esta persona le toca hoy.
+     *
+     * UN aviso con todos, no uno por recordatorio: cinco pitidos seguidos
+     * a las ocho de la mañana se apagan sin leerlos. Nombra las marcas
+     * para que se sepa de qué va sin abrir nada, y cuenta lo vencido, que
+     * es lo que más se olvida.
+     *
+     * Con uno solo lleva a su marca; con varios, al panel, donde salen
+     * juntos en «Para hoy».
+     *
+     * @param  Collection<int,Recordatorio>  $deHoy  con su marca cargada
+     */
+    public function avisarDeLosRecordatoriosDelDia(User $persona, Collection $deHoy, int $vencidos): void
+    {
+        if ($deHoy->isEmpty()) {
+            return;
+        }
+
+        $nombresDeLasMarcas = $deHoy->map(fn (Recordatorio $recordatorio): string => $recordatorio->marca->nombre_marca)
+            ->unique()
+            ->values();
+
+        $primero = $deHoy->first();
+
+        $titulo = $deHoy->count() === 1
+            ? 'Hoy toca: '.$primero->marca->nombre_marca
+            : sprintf('Hoy tienes %d recordatorios', $deHoy->count());
+
+        $cuerpo = $deHoy->count() === 1
+            ? ($primero->nota ?? 'Tienes un recordatorio para hoy.')
+            : $this->enumerarMarcas($nombresDeLasMarcas);
+
+        if ($vencidos > 0) {
+            $cuerpo .= sprintf(' Y %d %s de días anteriores.', $vencidos, $vencidos === 1 ? 'vencido' : 'vencidos');
+        }
+
+        $unaSolaMarca = $nombresDeLasMarcas->count() === 1;
+
+        $this->crearYEmpujarSobre(
+            collect([$persona]),
+            Notificacion::TIPO_RECORDATORIOS_DEL_DIA,
+            $titulo,
+            $cuerpo,
+            $unaSolaMarca ? 'marca' : 'recordatorios',
+            $unaSolaMarca ? $primero->marca_id : null,
+        );
+    }
+
+    /**
+     * «Pepsi, Banesco y Polar», o «Pepsi, Banesco, Polar y 2 más».
+     *
+     * @param  Collection<int,string>  $nombres
+     */
+    private function enumerarMarcas(Collection $nombres): string
+    {
+        $queSeNombran = $nombres->take(3)->all();
+        $restantes = $nombres->count() - count($queSeNombran);
+
+        if ($restantes > 0) {
+            return implode(', ', $queSeNombran).sprintf(' y %d más.', $restantes);
+        }
+
+        $ultimo = array_pop($queSeNombran);
+
+        return ($queSeNombran === [] ? '' : implode(', ', $queSeNombran).' y ').$ultimo.'.';
+    }
+
+    /**
      * Las primeras palabras del comentario, para que el aviso diga de
      * qué va sin tener que abrir la ficha.
      *
@@ -230,13 +299,31 @@ class Notificador
         string $cuerpo,
         Marca $marca,
     ): void {
+        $this->crearYEmpujarSobre($destinatarios, $tipo, $titulo, $cuerpo, 'marca', $marca->id);
+    }
+
+    /**
+     * Lo mismo, para un aviso que no es de una sola marca (el de los
+     * recordatorios del día). De qué es decide a dónde lleva al pulsarlo
+     * (Notificacion::enlaceEnElPanel).
+     *
+     * @param  Collection<int,User>  $destinatarios
+     */
+    private function crearYEmpujarSobre(
+        Collection $destinatarios,
+        string $tipo,
+        string $titulo,
+        string $cuerpo,
+        string $entidadTipo,
+        ?string $entidadId,
+    ): void {
         $notificaciones = $destinatarios->map(fn (User $destinatario): Notificacion => Notificacion::create([
             'destinatario_id' => $destinatario->id,
             'tipo' => $tipo,
             'titulo' => $titulo,
             'cuerpo' => $cuerpo,
-            'entidad_tipo' => 'marca',
-            'entidad_id' => $marca->id,
+            'entidad_tipo' => $entidadTipo,
+            'entidad_id' => $entidadId,
         ]));
 
         $this->empujarEnVivo($notificaciones);

@@ -4,8 +4,14 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\EstadoDeMarca;
 use App\Enums\InversionEnPatrocinios;
+use App\Enums\MotivoDeMovimiento;
 use App\Enums\OrigenMarca;
+use App\Support\EstadoDeLasMarcas;
+use App\Support\SiguientePasoDeLasMarcas;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -30,6 +36,10 @@ use Illuminate\Support\Facades\DB;
  *  · El VALOR solo cuenta si hay propuesta enviada. Sin propuesta el
  *    importe se pone a cero, para que el total del pipeline no infle
  *    cifras de marcas con las que aún no se ha hablado de dinero.
+ *
+ *  · El ÚLTIMO MOVIMIENTO solo avanza con lo que de verdad mueve una
+ *    marca (alta, fase, valor de la propuesta). Corregir el teléfono o el
+ *    logo no lo toca. De él sale si está caliente, tibia o fría.
  *
  * @property string $id
  * @property OrigenMarca $origen
@@ -78,8 +88,31 @@ class Marca extends Model
             'fecha_campana' => 'date',
             'invierte_actualmente' => InversionEnPatrocinios::class,
             'origen' => OrigenMarca::class,
+            'ultimo_movimiento_en' => 'datetime',
+            'ultimo_movimiento_motivo' => MotivoDeMovimiento::class,
+            'estado_fijado' => EstadoDeMarca::class,
+            'estado_fijado_en' => 'datetime',
         ];
     }
+
+    /**
+     * Los campos cuyo cambio cuenta como «se marcó una fase». La
+     * prospección entra aunque no se marque a mano: completarla (o
+     * perderla) también es moverse en esa fase.
+     */
+    private const CAMPOS_DE_FASE = [
+        'fase_prospeccion_completada',
+        'fase_aproximacion_completada',
+        'fase_propuesta_completada',
+    ];
+
+    /**
+     * Lo que se calculó del estado en la misma consulta (ver
+     * `scopeConEstado`), o null si esta marca todavía no lo tiene.
+     *
+     * @var array{automatico: EstadoDeMarca, proximaAccionEl: ?string, ultimaAccionEl: ?string}|null
+     */
+    private ?array $estadoCalculado = null;
 
     /**
      * Campos obligatorios para dar la prospección por cerrada. Se declara
@@ -108,7 +141,62 @@ class Marca extends Model
             if (! $marca->fase_propuesta_completada) {
                 $marca->valor_anual_usd = 0;
             }
+
+            // Va después de lo anterior a propósito: la prospección se
+            // acaba de recalcular, y completarla es un cambio de fase.
+            $marca->anotarElMovimientoSiLoHay();
         });
+    }
+
+    /**
+     * Apunta que la marca se movió, si lo que se está guardando es un
+     * movimiento. Una edición que solo corrige datos de contacto no lo es.
+     */
+    private function anotarElMovimientoSiLoHay(): void
+    {
+        $motivo = match (true) {
+            ! $this->exists => MotivoDeMovimiento::Alta,
+            $this->isDirty(self::CAMPOS_DE_FASE) => MotivoDeMovimiento::Fase,
+            $this->isDirty('valor_anual_usd') => MotivoDeMovimiento::Valor,
+            default => null,
+        };
+
+        if ($motivo === null) {
+            return;
+        }
+
+        $this->ultimo_movimiento_en = now();
+        $this->ultimo_movimiento_motivo = $motivo;
+    }
+
+    /**
+     * Apunta un movimiento que ocurrió FUERA de la ficha: un comentario o
+     * una acción de campaña. Lo llaman esos modelos al crearse.
+     *
+     * Solo avanza: si la marca ya tiene un movimiento más reciente, no se
+     * toca. Así un comentario importado con su fecha antigua no le quita
+     * el sitio a lo que se hizo ayer. La actividad nunca enfría.
+     *
+     * Se escribe directamente en la tabla, sin pasar por `save()`: no hay
+     * nada más de la marca que recalcular, y quien la creó ya avisa a las
+     * pantallas por su cuenta (ObservadorDeCambiosEnVivo).
+     */
+    public static function anotarMovimiento(
+        string $idDeLaMarca,
+        CarbonInterface $instante,
+        MotivoDeMovimiento $motivo,
+    ): void {
+        self::query()
+            ->whereKey($idDeLaMarca)
+            ->where(function (Builder $consulta) use ($instante): void {
+                $consulta->whereNull('ultimo_movimiento_en')
+                    ->orWhere('ultimo_movimiento_en', '<', $instante);
+            })
+            ->toBase()
+            ->update([
+                'ultimo_movimiento_en' => $instante,
+                'ultimo_movimiento_motivo' => $motivo->value,
+            ]);
     }
 
     /* ------------------------------------------------------------------
@@ -128,6 +216,25 @@ class Marca extends Model
     public function comentarios(): HasMany
     {
         return $this->hasMany(ComentarioMarca::class, 'marca_id');
+    }
+
+    /** Los recordatorios de seguimiento de todo el equipo con esta marca. */
+    public function recordatorios(): HasMany
+    {
+        return $this->hasMany(Recordatorio::class, 'marca_id');
+    }
+
+    /**
+     * Los que siguen pendientes, del más cercano al más lejano. El tablero
+     * los carga acotados a quien mira, para enseñar en la tarjeta su
+     * próximo recordatorio.
+     */
+    public function recordatoriosPendientes(): HasMany
+    {
+        return $this->recordatorios()
+            ->whereNull('cumplido_en')
+            ->orderBy('fecha')
+            ->orderBy('created_at');
     }
 
     /** Campaña comercial dentro de la que se trabaja esta marca. */
@@ -272,8 +379,150 @@ class Marca extends Model
     }
 
     /* ------------------------------------------------------------------
+     | Caliente, tibia o fría (la fórmula está en EstadoDeLasMarcas)
+     |-----------------------------------------------------------------*/
+
+    /** El estado que se enseña: el fijado a mano, o si no, el calculado. */
+    public function estado(): EstadoDeMarca
+    {
+        return $this->estado_fijado ?? $this->estadoAutomatico();
+    }
+
+    /** El que diría el sistema si nadie lo hubiera fijado. */
+    public function estadoAutomatico(): EstadoDeMarca
+    {
+        return $this->estadoCalculado()['automatico'];
+    }
+
+    /** La próxima acción de campaña (hoy o por delante), como día. */
+    public function proximaAccionEl(): ?string
+    {
+        return $this->estadoCalculado()['proximaAccionEl'];
+    }
+
+    /**
+     * Cuándo se movió la marca por última vez y por qué.
+     *
+     * Es el más reciente entre lo apuntado en la marca y la última acción
+     * de campaña ya pasada: una visita agendada hace un mes para ayer es
+     * un movimiento de ayer, aunque se anotara hace un mes.
+     *
+     * @return array{el: CarbonImmutable, motivo: MotivoDeMovimiento}
+     */
+    public function ultimoMovimiento(): array
+    {
+        $apuntado = CarbonImmutable::instance($this->ultimo_movimiento_en ?? $this->created_at ?? now());
+
+        $ultimaAccion = $this->estadoCalculado()['ultimaAccionEl'];
+
+        if ($ultimaAccion !== null) {
+            $diaDeLaAccion = CarbonImmutable::createFromFormat('Y-m-d', $ultimaAccion)->startOfDay();
+
+            if ($diaDeLaAccion->greaterThan($apuntado->startOfDay())) {
+                return ['el' => $diaDeLaAccion, 'motivo' => MotivoDeMovimiento::AccionDeCampana];
+            }
+        }
+
+        return [
+            'el' => $apuntado,
+            'motivo' => $this->ultimo_movimiento_motivo ?? MotivoDeMovimiento::Alta,
+        ];
+    }
+
+    /**
+     * Olvida el estado calculado. Lo llama quien acaba de cambiar algo que
+     * lo mueve y va a devolver esta misma marca.
+     */
+    public function olvidarElEstadoCalculado(): void
+    {
+        $this->estadoCalculado = null;
+        unset($this->attributes['estado_automatico'], $this->attributes['proxima_accion_el'], $this->attributes['ultima_accion_el']);
+    }
+
+    /**
+     * Lo que se calculó en SQL junto a la marca.
+     *
+     * El tablero lo trae en la misma consulta del listado
+     * (`scopeConEstado`). Una marca que llega sin ello —la ficha, la
+     * respuesta de un guardado— lo pide en una consulta aparte, con la
+     * MISMA fórmula: nunca se recalcula en PHP.
+     *
+     * @return array{automatico: EstadoDeMarca, proximaAccionEl: ?string, ultimaAccionEl: ?string}
+     */
+    private function estadoCalculado(): array
+    {
+        if ($this->estadoCalculado !== null) {
+            return $this->estadoCalculado;
+        }
+
+        $fila = array_key_exists('estado_automatico', $this->attributes)
+            ? $this->attributes
+            : (array) self::query()->conEstado()->whereKey($this->getKey())->toBase()->first();
+
+        return $this->estadoCalculado = [
+            'automatico' => EstadoDeMarca::tryFrom((string) ($fila['estado_automatico'] ?? '')) ?? EstadoDeMarca::Fria,
+            // MySQL devuelve el día; SQLite, el día con la hora a cero.
+            'proximaAccionEl' => isset($fila['proxima_accion_el']) ? substr((string) $fila['proxima_accion_el'], 0, 10) : null,
+            'ultimaAccionEl' => isset($fila['ultima_accion_el']) ? substr((string) $fila['ultima_accion_el'], 0, 10) : null,
+        ];
+    }
+
+    /* ------------------------------------------------------------------
      | Scopes de consulta (los usa el listado del tablero)
      |-----------------------------------------------------------------*/
+
+    /**
+     * Trae, junto a cada marca, lo necesario para pintar su estado: el
+     * calculado (sin contar lo fijado a mano), su próxima acción y su
+     * última acción ya pasada. Todo en la misma consulta, para que un
+     * tablero de sesenta tarjetas no haga sesenta consultas más.
+     */
+    public function scopeConEstado(Builder $consulta, ?EstadoDeLasMarcas $estados = null): Builder
+    {
+        $estados ??= EstadoDeLasMarcas::conLosUmbralesVigentes();
+        $hoy = $estados->hoy()->format('Y-m-d');
+
+        // `selectRaw` sobre una consulta sin columnas elegidas dejaría
+        // SOLO la columna nueva, sin los datos de la marca.
+        if ($consulta->getQuery()->columns === null) {
+            $consulta->select('marcas.*');
+        }
+
+        [$columnaDelEstado, $valores] = $estados->columnaSql(contandoLoFijado: false);
+
+        return $consulta
+            ->selectRaw("{$columnaDelEstado} as estado_automatico", $valores)
+            ->selectSub(
+                DB::table('eventos_de_campana')
+                    ->selectRaw('MIN(fecha)')
+                    ->whereColumn('eventos_de_campana.marca_id', 'marcas.id')
+                    ->where('fecha', '>=', $hoy),
+                'proxima_accion_el',
+            )
+            ->selectSub(
+                DB::table('eventos_de_campana')
+                    ->selectRaw('MAX(fecha)')
+                    ->whereColumn('eventos_de_campana.marca_id', 'marcas.id')
+                    ->where('fecha', '<', $hoy),
+                'ultima_accion_el',
+            );
+    }
+
+    /**
+     * Filtra por estado contando lo fijado a mano, que es lo que se ve en
+     * la tarjeta y lo que se espera encontrar al filtrar.
+     */
+    public function scopeEnEstado(Builder $consulta, ?string $estado, ?EstadoDeLasMarcas $estados = null): Builder
+    {
+        if (EstadoDeMarca::tryFrom((string) $estado) === null) {
+            return $consulta;
+        }
+
+        $estados ??= EstadoDeLasMarcas::conLosUmbralesVigentes();
+        [$columnaDelEstado, $valores] = $estados->columnaSql();
+
+        return $consulta->whereRaw("({$columnaDelEstado}) = ?", [...$valores, $estado]);
+    }
 
     /**
      * Solo las marcas que esta persona puede ver: todas para quien
@@ -505,6 +754,22 @@ class Marca extends Model
         }
 
         return $consulta->where('invierte_actualmente', $inversion);
+    }
+
+    /**
+     * `?siguientePaso=sin`: las que no tienen ni un recordatorio pendiente
+     * ni una acción de campaña por delante. La condición es la de
+     * SiguientePasoDeLasMarcas, la misma con la que cuenta el resumen.
+     */
+    public function scopeSinSiguientePaso(Builder $consulta, ?string $filtro): Builder
+    {
+        if ($filtro !== SiguientePasoDeLasMarcas::FILTRO_SIN) {
+            return $consulta;
+        }
+
+        [$falta, $valores] = SiguientePasoDeLasMarcas::faltaSql();
+
+        return $consulta->whereRaw($falta, $valores);
     }
 
     /** Filtra por la etapa resumida, replicando en SQL etapaResumida(). */

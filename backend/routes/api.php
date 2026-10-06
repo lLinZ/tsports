@@ -28,23 +28,27 @@ use App\Http\Controllers\Api\AccesoDeInvitadosController;
 use App\Http\Controllers\Api\AdjuntoController;
 use App\Http\Controllers\Api\AuditoriaController;
 use App\Http\Controllers\Api\AutenticacionController;
+use App\Http\Controllers\Api\BuscadorController;
 use App\Http\Controllers\Api\CalendarioController;
 use App\Http\Controllers\Api\CampanaController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\CierreDeMesController;
 use App\Http\Controllers\Api\CatalogoController;
 use App\Http\Controllers\Api\ComentarioMarcaController;
+use App\Http\Controllers\Api\ContactoController;
 use App\Http\Controllers\Api\ContenidoSitioController;
 use App\Http\Controllers\Api\LeadPublicoController;
 use App\Http\Controllers\Api\EventoDeCampanaController;
 use App\Http\Controllers\Api\GaleriaDePropiedadController;
 use App\Http\Controllers\Api\MarcaController;
 use App\Http\Controllers\Api\MediaController;
+use App\Http\Controllers\Api\MetaController;
 use App\Http\Controllers\Api\MiPerfilController;
 use App\Http\Controllers\Api\NotificacionController;
 use App\Http\Controllers\Api\PanelController;
 use App\Http\Controllers\Api\PropiedadController;
 use App\Http\Controllers\Api\PropiedadesEnLaWebController;
+use App\Http\Controllers\Api\RecordatorioController;
 use App\Http\Controllers\Api\ReporteDePronosticoController;
 use App\Http\Controllers\Api\SectorController;
 use App\Http\Controllers\Api\ExportacionDeBitacoraController;
@@ -135,6 +139,14 @@ Route::middleware('auth:sanctum')->group(function (): void {
     /* ---------- Listas cerradas para poblar los selectores ---------- */
     Route::get('/catalogos', [CatalogoController::class, 'index']);
 
+    // La meta de venta de una persona para un año (la pone quien
+    // reparte). Se leen en el resumen del panel.
+    Route::put('/metas/{usuario}', [MetaController::class, 'guardar']);
+
+    // El buscador único de la barra superior: marcas, propiedades,
+    // campañas, sectores y personas, cada quien lo que ya puede ver.
+    Route::get('/buscar', [BuscadorController::class, 'buscar']);
+
     /* ---------- Tablero y métricas ---------- */
     Route::get('/panel/resumen', [PanelController::class, 'resumen']);
     // El calendario de acciones de campaña, semana a semana.
@@ -160,10 +172,15 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // Buscador corto de marcas para elegir una (etiquetar en el chat,
     // acotar un reporte). Solo devuelve las que quien busca puede ver.
     Route::get('/marcas/sugerencias', [MarcaController::class, 'sugerencias']);
+    // El tablero entero con sus filtros, para llevarlo a Excel. Va antes
+    // de /marcas/{marca} para que «exportacion» no se lea como un id.
+    Route::get('/marcas/exportacion', [MarcaController::class, 'exportar']);
 
     Route::get('/marcas/{marca}', [MarcaController::class, 'show']);
     Route::put('/marcas/{marca}', [MarcaController::class, 'update']);
     Route::delete('/marcas/{marca}', [MarcaController::class, 'destroy']);
+    // La ficha completa para sacarla a PDF (queda en la auditoría).
+    Route::get('/marcas/{marca}/exportacion', [MarcaController::class, 'exportarFicha']);
     // Marcar/desmarcar una fase desde la tarjeta, sin abrir la ficha.
     Route::patch('/marcas/{marca}/fase', [MarcaController::class, 'alternarFase']);
     // Anotar una acción de campaña en el calendario al momento, sin
@@ -172,6 +189,22 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // Repartir trabajo desde la propia tarjeta. Es permiso de comercial,
     // no de quien edita la marca: un vendedor no reasigna lo suyo.
     Route::patch('/marcas/{marca}/vendedor', [MarcaController::class, 'asignarVendedor']);
+    // Caliente, tibia o fría: fijarlo a mano (o soltarlo, con null), y
+    // los días que tarda en enfriarse, que solo cambia el administrador.
+    Route::patch('/marcas/{marca}/estado', [MarcaController::class, 'fijarEstado']);
+    Route::put('/umbrales-del-estado', [MarcaController::class, 'guardarUmbralesDelEstado']);
+
+    /* ---------- Recordatorios de seguimiento ----------
+     | Los de una marca en su ficha; los de quien pregunta, en el panel.
+     | Los permisos salen de los de la marca (RecordatorioController). */
+    Route::get('/marcas/{marca}/recordatorios', [RecordatorioController::class, 'deLaMarca']);
+    Route::post('/marcas/{marca}/recordatorios', [RecordatorioController::class, 'store']);
+    Route::get('/recordatorios/mios', [RecordatorioController::class, 'mios']);
+    Route::patch('/recordatorios/{recordatorio}', [RecordatorioController::class, 'update']);
+    Route::delete('/recordatorios/{recordatorio}', [RecordatorioController::class, 'destroy']);
+
+    // «Contacté»: la entrada en la bitácora y el siguiente paso, de una vez.
+    Route::post('/marcas/{marca}/contactos', [ContactoController::class, 'store']);
 
     /* ---------- Propiedades: los productos IOP que se venden ----------
      | El catálogo lo consulta todo el equipo (hace falta para pintar el

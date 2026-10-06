@@ -11,10 +11,13 @@ use App\Models\CierreDeMes;
 use App\Models\ComentarioMarca;
 use App\Models\EventoDeCampana;
 use App\Models\Marca;
+use App\Models\Meta;
 use App\Models\Propiedad;
 use App\Models\PropiedadDeMarca;
 use App\Models\ReaccionDeComentario;
+use App\Models\Recordatorio;
 use App\Models\Sector;
+use App\Models\UmbralesDelEstado;
 use App\Models\User;
 use App\Support\CambiosEnVivo;
 use Illuminate\Database\Eloquent\Model;
@@ -68,7 +71,8 @@ final class ObservadorDeCambiosEnVivo
                 $this->quienLaLlevabaAntes($modelo),
             ),
             $modelo instanceof PropiedadDeMarca,
-            $modelo instanceof EventoDeCampana => $this->cambios->enLaMarca($modelo->marca_id),
+            $modelo instanceof EventoDeCampana,
+            $modelo instanceof Recordatorio => $this->cambios->enLaMarca($modelo->marca_id),
             $modelo instanceof ComentarioMarca => $this->cambios->enLaMarca($modelo->marca_id, CambiosEnVivo::BITACORA),
             $modelo instanceof ReaccionDeComentario => $this->cambios->enElComentario($modelo->comentario_id),
             $modelo instanceof Propiedad,
@@ -77,6 +81,8 @@ final class ObservadorDeCambiosEnVivo
             $modelo instanceof Campana => $this->cambios->paraTodoElEquipo(CambiosEnVivo::CAMPANAS),
             $modelo instanceof Sector => $this->cambios->paraTodoElEquipo(CambiosEnVivo::SECTORES),
             $modelo instanceof CierreDeMes => $this->cambios->paraTodoElEquipo(CambiosEnVivo::CIERRES_DE_MES),
+            $modelo instanceof UmbralesDelEstado => $this->cambios->paraTodoElEquipo(CambiosEnVivo::UMBRALES_DEL_ESTADO),
+            $modelo instanceof Meta => $this->cambios->paraTodoElEquipo(CambiosEnVivo::METAS),
             $modelo instanceof User => $this->siSeVeDesdeFuera($modelo, $seBorro),
             default => null,
         };

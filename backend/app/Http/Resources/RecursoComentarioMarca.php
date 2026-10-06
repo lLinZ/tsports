@@ -50,6 +50,12 @@ class RecursoComentarioMarca extends JsonResource
 
             'cuerpo' => $this->cuerpo,
 
+            // Solo en las entradas que dejó «Contacté»: llamada, WhatsApp…
+            'tipoDeContacto' => $this->tipo_de_contacto === null ? null : [
+                'valor' => $this->tipo_de_contacto->value,
+                'etiqueta' => $this->tipo_de_contacto->etiqueta(),
+            ],
+
             'eliminado' => $this->estaEliminado(),
             'eliminadoPorNombre' => $this->eliminado_por_nombre,
             'eliminadoEn' => $this->eliminado_en?->toIso8601String(),

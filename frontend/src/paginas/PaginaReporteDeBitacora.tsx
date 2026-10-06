@@ -57,6 +57,7 @@ import {
   imprimirElReporteDeBitacora,
 } from "@/utilidades/exportarBitacora";
 import {
+  diaLocal,
   formatearFecha,
   formatearFechaYHora,
   formatearNumero,
@@ -496,6 +497,10 @@ function EntradaEnElReporte({ entrada }: { entrada: EntradaDelReporte }) {
         ) : (
           entrada.cuerpo !== "" && (
             <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-default-700">
+              {/* Las que dejó «Contacté» dicen cómo fue. */}
+              {entrada.tipoDeContacto && (
+                <strong className="font-semibold text-foreground">{entrada.tipoDeContacto} · </strong>
+              )}
               {entrada.cuerpo}
             </p>
           )
@@ -540,17 +545,6 @@ function EntradaEnElReporte({ entrada }: { entrada: EntradaDelReporte }) {
 /* ==================================================================== */
 /* Fechas                                                               */
 /* ==================================================================== */
-
-/**
- * Un día del calendario LOCAL como AAAA-MM-DD. No se usa toISOString():
- * da el día en UTC, y a las nueve de la noche en Caracas ya sería mañana.
- */
-function diaLocal(fecha: Date): string {
-  const mes = String(fecha.getMonth() + 1).padStart(2, "0");
-  const dia = String(fecha.getDate()).padStart(2, "0");
-
-  return `${fecha.getFullYear()}-${mes}-${dia}`;
-}
 
 function primerDiaDelMes(fecha: Date): string {
   return diaLocal(new Date(fecha.getFullYear(), fecha.getMonth(), 1));

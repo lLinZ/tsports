@@ -1,0 +1,29 @@
+# =====================================================================
+#  TS SPORTS — Cuándo sale el aviso de los recordatorios del día
+#  ---------------------------------------------------------------------
+#  A las 08:00 de Venezuela, al empezar la jornada. La zona va escrita en
+#  la línea: el servidor está en UTC, y un «08:00» a secas serían las
+#  04:00 en Caracas.
+#
+#  Persistent=true: si el servidor estaba apagado a esa hora, el aviso
+#  sale al volver a arrancar en vez de perderse ese día. No se duplica:
+#  el comando marca lo que ya avisó.
+#
+#  INSTALACIÓN (la hacen instalar-vps.sh y desplegar.sh; a mano sería así)
+#    sudo cp deploy/tsports-recordatorios.service deploy/tsports-recordatorios.timer /etc/systemd/system/
+#    sudo systemctl daemon-reload
+#    sudo systemctl enable --now tsports-recordatorios.timer
+#
+#  CUÁNDO TOCA EL SIGUIENTE
+#    systemctl list-timers tsports-recordatorios
+# =====================================================================
+
+[Unit]
+Description=TS Sports — aviso de los recordatorios, cada mañana
+
+[Timer]
+OnCalendar=*-*-* 08:00:00 America/Caracas
+Persistent=true
+
+[Install]
+WantedBy=timers.target

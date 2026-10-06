@@ -159,7 +159,8 @@ async function escribirLaHoja(
  * decir a quién contestaba o no se entiende sola.
  */
 function tipoDeLaEntrada(entrada: EntradaDelHistorico | EntradaDelReporte): string {
-  if (!entrada.esRespuesta) return "Entrada";
+  // Las que dejó «Contacté» dicen cómo fue: «Entrada · Llamada».
+  if (!entrada.esRespuesta) return entrada.tipoDeContacto ? `Entrada · ${entrada.tipoDeContacto}` : "Entrada";
 
   if ("respondeA" in entrada && entrada.respondeA !== null) {
     return `Respuesta a ${entrada.respondeA.autorNombre}`;
@@ -304,7 +305,7 @@ function entradaImprimible(
   // desapareciera, bastaría con borrar lo incómodo antes de exportar.
   const texto = entrada.eliminado
     ? `Entrada eliminada por ${escapar(entrada.eliminadoPorNombre ?? "alguien")}.`
-    : escapar(entrada.cuerpo);
+    : `${entrada.tipoDeContacto ? `<strong>${escapar(entrada.tipoDeContacto)} · </strong>` : ""}${escapar(entrada.cuerpo)}`;
 
   return `<article class="${clases}">
   <div class="cabecera-entrada">
@@ -541,7 +542,7 @@ function entradaDelReporteImprimible(entrada: EntradaDelReporte): string {
 
   const texto = entrada.eliminado
     ? `Entrada eliminada por ${escapar(entrada.eliminadoPorNombre ?? "alguien")}.`
-    : escapar(entrada.cuerpo);
+    : `${entrada.tipoDeContacto ? `<strong>${escapar(entrada.tipoDeContacto)} · </strong>` : ""}${escapar(entrada.cuerpo)}`;
 
   const contexto =
     entrada.respondeA === null

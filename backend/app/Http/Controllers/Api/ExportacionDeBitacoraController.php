@@ -131,11 +131,10 @@ class ExportacionDeBitacoraController extends Controller
      *   · `marcas[]`       → opcional; sin él, todas las que quien pide
      *                        puede ver.
      *   · `zona`           → la zona horaria del navegador. Un día es un
-     *                        día DE QUIEN MIRA: el 25 de septiembre en
-     *                        Caracas empieza a las 04:00 en UTC, que es
-     *                        como se guardan las fechas. Sin esto, lo que
-     *                        se comentó a las nueve de la noche saldría al
-     *                        día siguiente.
+     *                        día DE QUIEN MIRA. El sistema va en hora de
+     *                        Caracas; desde otra zona, el 25 de septiembre
+     *                        empieza a otra hora de Caracas, y sin esto lo
+     *                        comentado al final de su día saldría en otro.
      *
      * QUÉ MARCAS ENTRAN lo decide lo que cada quien ve (regla 6):
      *
@@ -204,7 +203,12 @@ class ExportacionDeBitacoraController extends Controller
                 'adjuntos',
                 'padre:id,autor_nombre,cuerpo,created_at,eliminado_en',
             ])
-            ->whereBetween('created_at', [$inicio->utc(), $fin->utc()])
+            // A la hora del sistema, que es en la que se guardan las fechas:
+            // la consulta compara el texto de la fecha, no el instante.
+            ->whereBetween('created_at', [
+                $inicio->setTimezone(config('app.timezone')),
+                $fin->setTimezone(config('app.timezone')),
+            ])
             ->when($marcasElegidas !== null, fn ($consulta) => $consulta->whereIn('marca_id', $idsDeMarcas))
             // Sin marcas elegidas, las que ve. Para quien las ve todas no
             // hace falta filtrar nada.
@@ -401,6 +405,8 @@ class ExportacionDeBitacoraController extends Controller
             'autorNombre' => $entrada->autor_nombre ?? 'Usuario dado de baja',
             'fecha' => $entrada->created_at?->toIso8601String(),
             'cuerpo' => $entrada->cuerpo,
+            // «Llamada», «WhatsApp»… en las que dejó «Contacté».
+            'tipoDeContacto' => $entrada->tipo_de_contacto?->etiqueta(),
             'editado' => $entrada->editado_en !== null,
             'eliminado' => $entrada->estaEliminado(),
             'eliminadoPorNombre' => $entrada->eliminado_por_nombre,

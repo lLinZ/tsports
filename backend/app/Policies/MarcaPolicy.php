@@ -87,6 +87,15 @@ class MarcaPolicy
     }
 
     /**
+     * Cambiar los días que tarda una marca en pasar a tibia y a fría.
+     * Solo el administrador: recolorea el tablero de todo el equipo.
+     */
+    public function ajustarUmbralesDelEstado(User $usuario): bool
+    {
+        return $usuario->activo && $usuario->esAdministrador();
+    }
+
+    /**
      * Escribir en la bitácora. Si puede ver la marca, puede comentarla:
      * la bitácora es justamente el sitio donde se avisa a quien la
      * trabaja de algo que uno ha averiguado.

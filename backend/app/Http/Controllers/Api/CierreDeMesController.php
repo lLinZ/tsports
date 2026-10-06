@@ -88,7 +88,7 @@ class CierreDeMesController extends Controller
 
         // Un reporte de un mes que todavía no ha empezado es un error al
         // elegirlo; el del mes en curso sí vale (hay quien lo adelanta).
-        if ($mes->greaterThan(CarbonImmutable::now('America/Caracas')->startOfMonth())) {
+        if ($mes->greaterThan(CarbonImmutable::now()->startOfMonth())) {
             return response()->json([
                 'mensaje' => 'Ese mes todavía no ha empezado.',
                 'errores' => ['mes' => ['Ese mes todavía no ha empezado.']],

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\MotivoDeMovimiento;
+use App\Enums\TipoDeContacto;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -54,6 +56,7 @@ class ComentarioMarca extends Model
         'autor_id',
         'autor_nombre',
         'cuerpo',
+        'tipo_de_contacto',
         'editado_en',
         'eliminado_en',
         'eliminado_por_id',
@@ -63,9 +66,30 @@ class ComentarioMarca extends Model
     protected function casts(): array
     {
         return [
+            // Solo lo llevan las entradas que dejó «Contacté».
+            'tipo_de_contacto' => TipoDeContacto::class,
             'editado_en' => 'datetime',
             'eliminado_en' => 'datetime',
         ];
+    }
+
+    /**
+     * Escribir en la bitácora mueve la marca: la deja caliente (ver
+     * App\Support\EstadoDeLasMarcas). Una entrada o una respuesta, sí;
+     * editarla, reaccionar o eliminarla, no: no es actividad nueva con la
+     * marca, y si eliminar contase, borrar algo la volvería a calentar.
+     */
+    protected static function booted(): void
+    {
+        static::created(function (ComentarioMarca $comentario): void {
+            Marca::anotarMovimiento(
+                $comentario->marca_id,
+                $comentario->created_at ?? now(),
+                $comentario->tipo_de_contacto === null
+                    ? MotivoDeMovimiento::Comentario
+                    : MotivoDeMovimiento::Contacto,
+            );
+        });
     }
 
     /* ================================================================ */

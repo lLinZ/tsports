@@ -19,7 +19,8 @@
  * final, para que no queden fichas a medio rellenar por accidente.
  *
  * La bitácora aparece a la derecha solo en marcas ya guardadas: no tiene
- * sentido comentar algo que todavía no existe. En pantalla estrecha
+ * sentido comentar algo que todavía no existe. Encima de ella van los
+ * recordatorios de seguimiento de la marca. En pantalla estrecha
  * (móvil, tableta, ventana a media pantalla) no cabe al lado, y se
  * alterna con la ficha desde un selector «Ficha / Bitácora». Antes
  * simplemente se escondía, y quien trabajaba desde el móvil no tenía
@@ -52,6 +53,7 @@ import {
   CalendarPlus,
   Check,
   ClipboardList,
+  FileDown,
   Megaphone,
   MessageCircle,
   MessageSquare,
@@ -61,12 +63,13 @@ import {
   UserRound,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { AccionVigenteDeLaMarca } from "@/api/marcas";
+import { exportarLaFicha, type AccionVigenteDeLaMarca } from "@/api/marcas";
 import { BarraDeScrollDibujada } from "@/componentes/comunes/BarraDeScrollDibujada";
 import { CampoDeImagen } from "@/componentes/comunes/CampoDeImagen";
 import { ChecklistDePropiedades } from "@/componentes/crm/ChecklistDePropiedades";
 import { HistorialDeCampanas } from "@/componentes/crm/HistorialDeCampanas";
 import { PanelDeComentarios } from "@/componentes/crm/PanelDeComentarios";
+import { RecordatoriosDeLaMarca } from "@/componentes/crm/Recordatorios";
 import { useCampanasActivas } from "@/hooks/useCampanas";
 import { useCatalogos } from "@/hooks/useCatalogos";
 import { useVendedores } from "@/hooks/useVendedores";
@@ -80,6 +83,7 @@ import {
 import { useChat } from "@/providers/ProveedorChat";
 import { useUsuarioAutenticado } from "@/providers/ProveedorSesion";
 import { avisarDeError, avisarDeExito } from "@/utilidades/avisos";
+import { imprimirLaFichaDeLaMarca } from "@/utilidades/fichaEnPdf";
 import {
   enumerarEnEspanol,
   formatearDiaConSuNombre,
@@ -231,6 +235,28 @@ export function ModalDeMarca({
   const [pasoActual, establecerPasoActual] = useState(1);
   const [erroresPorCampo, establecerErroresPorCampo] = useState<Record<string, string>>({});
   const [estaConfirmandoBorrado, establecerConfirmandoBorrado] = useState(false);
+  const [estaSacandoElPdf, establecerSacandoElPdf] = useState(false);
+
+  /**
+   * Pide la ficha completa al servidor (que deja la salida en la
+   * auditoría) y la abre en el diálogo de imprimir, desde donde se guarda
+   * en PDF.
+   */
+  async function sacarLaFichaEnPdf() {
+    if (marcaEnEdicion === null) return;
+
+    establecerSacandoElPdf(true);
+
+    try {
+      const { marca, recordatorios, generadoEn } = await exportarLaFicha(marcaEnEdicion.id);
+
+      await imprimirLaFichaDeLaMarca({ marca, recordatorios, generadoEn, generadoPor: usuario.nombre });
+    } catch (error) {
+      avisarDeError(error, "No se pudo sacar la ficha en PDF");
+    } finally {
+      establecerSacandoElPdf(false);
+    }
+  }
   // Solo cuenta en pantalla estrecha: en una ancha se ven las dos a la vez.
   const [vistaEnPantallaEstrecha, establecerVistaEnPantallaEstrecha] =
     useState<"ficha" | "bitacora">("ficha");
@@ -582,6 +608,22 @@ export function ModalDeMarca({
                       </Button>
                     )}
 
+                    {/* La ficha en PDF, para adjuntarla en un correo. Lleva
+                        lo guardado, no lo que se esté escribiendo ahora. */}
+                    {estamosEditando && (
+                      <Button
+                        aria-label="Sacar la ficha en PDF"
+                        isLoading={estaSacandoElPdf}
+                        radius="full"
+                        size="sm"
+                        startContent={!estaSacandoElPdf && <FileDown className="size-3.5" />}
+                        variant="flat"
+                        onPress={() => void sacarLaFichaEnPdf()}
+                      >
+                        <span className="hidden sm:inline">PDF</span>
+                      </Button>
+                    )}
+
                     {!laMarcaEsEditable && (
                       <Chip color="warning" radius="lg" size="sm" variant="flat">
                         Solo lectura
@@ -759,7 +801,10 @@ export function ModalDeMarca({
               {/* La bitácora en pantalla estrecha, en lugar de la ficha. */}
               {estamosEditando && vistaEnPantallaEstrecha === "bitacora" && (
                 <div className="flex min-h-0 flex-1 flex-col px-4 py-5 sm:px-6 lg:hidden">
-                  <PanelDeComentarios idDeLaMarca={marcaEnEdicion.id} />
+                  <RecordatoriosDeLaMarca marca={marcaEnEdicion} />
+                  <div className="min-h-0 flex-1">
+                    <PanelDeComentarios idDeLaMarca={marcaEnEdicion.id} />
+                  </div>
                 </div>
               )}
 
@@ -851,10 +896,19 @@ export function ModalDeMarca({
               </footer>
             </div>
 
-            {/* ---------- Columna derecha: la bitácora ---------- */}
+            {/* ---------- Columna derecha: recordatorios y bitácora ----------
+                Los recordatorios van encima porque nacen de lo que se
+                anota debajo: «llamé, quedamos en hablar el jueves». */}
             {estamosEditando && (
-              <div className="hidden h-full min-h-0 border-l border-default-100 bg-default-50/50 p-5 lg:block">
-                <PanelDeComentarios idDeLaMarca={marcaEnEdicion.id} />
+              <div className="hidden h-full min-h-0 flex-col border-l border-default-100 bg-default-50/50 p-5 lg:flex">
+                {/* Bajado para no quedar debajo de la X de cerrar la ventana,
+                    que está en esta misma esquina. */}
+                <div className="mt-5 shrink-0">
+                  <RecordatoriosDeLaMarca marca={marcaEnEdicion} />
+                </div>
+                <div className="min-h-0 flex-1">
+                  <PanelDeComentarios idDeLaMarca={marcaEnEdicion.id} />
+                </div>
               </div>
             )}
           </div>

@@ -4,12 +4,14 @@
  * Cada marca del tablero.
  *
  * Muestra de un vistazo lo que el equipo necesita saber sin abrir la
- * ficha: logo, nombre, sector, campaña, en qué fases va, qué propiedades
- * se le están ofreciendo y con qué pronóstico, cuánto vale la propuesta
- * y quién la lleva.
+ * ficha: logo, nombre, sector, campaña, si está caliente, tibia o fría
+ * (y por qué), en qué fases va, qué propiedades se le están ofreciendo
+ * y con qué pronóstico, cuánto vale la propuesta y quién la lleva.
  *
  * Las tres fases son pulsables: se pueden marcar y desmarcar sin abrir
- * nada, que es el gesto más repetido del día. Con dos salvedades que
+ * nada, que es el gesto más repetido del día. Y «Contacté», en el pie,
+ * anota una llamada y su siguiente paso sin abrir la ficha
+ * (VentanaDeContacto). Con dos salvedades que
  * están puestas a propósito:
  *
  *   · La PROSPECCIÓN no se puede pulsar: la calcula el servidor a
@@ -22,6 +24,7 @@
  * ---------------------------------------------------------------------
  */
 import {
+  Button,
   Listbox,
   ListboxItem,
   ListboxSection,
@@ -36,11 +39,17 @@ import {
   Lock,
   MessageSquare,
   Package,
+  PhoneCall,
   UserMinus,
   UserPlus,
 } from "lucide-react";
 import { useState } from "react";
 import { BarraDeProporcion } from "@/componentes/comunes/BarraDeProporcion";
+import {
+  DistintivoDeEstado,
+  LineaDelUltimoMovimiento,
+} from "@/componentes/crm/EstadoDeLaMarca";
+import { RecordatorioDeLaTarjeta } from "@/componentes/crm/Recordatorios";
 import { useAsignarVendedor } from "@/hooks/useMarcas";
 import { useVendedores } from "@/hooks/useVendedores";
 import { avisarDeError, avisarDeExito } from "@/utilidades/avisos";
@@ -49,7 +58,7 @@ import {
   formatearPorcentaje,
   inicialesDe,
 } from "@/utilidades/formato";
-import type { Marca } from "@/tipos/modelos";
+import type { Marca, UmbralesDelEstado } from "@/tipos/modelos";
 
 /**
  * Cuántas propiedades del checklist se nombran en la tarjeta. Más de dos
@@ -83,8 +92,12 @@ interface PropiedadesDeTarjetaDeMarca {
    * el total mezcla lo de las demás y no dice lo que se quiere saber.
    */
   idDeLaPropiedadEnFoco?: string;
+  /** Para explicar los días del estado al pulsar su distintivo. */
+  umbralesDelEstado?: UmbralesDelEstado | null;
   /** Abre la ficha completa. */
   alAbrirFicha: (marca: Marca) => void;
+  /** Abre «Contacté» para esta marca. Sin él, el botón no sale. */
+  alAnotarContacto?: (marca: Marca) => void;
   /** Marca o desmarca una fase sin abrir la ficha. */
   alAlternarFase: (
     marca: Marca,
@@ -96,7 +109,9 @@ interface PropiedadesDeTarjetaDeMarca {
 export function TarjetaDeMarca({
   marca,
   idDeLaPropiedadEnFoco,
+  umbralesDelEstado,
   alAbrirFicha,
+  alAnotarContacto,
   alAlternarFase,
 }: PropiedadesDeTarjetaDeMarca) {
   // El checklist solo llega en el listado y en la ficha; en cualquier
@@ -161,8 +176,12 @@ export function TarjetaDeMarca({
         if (evento.key === "Enter") alAbrirFicha(marca);
       }}
     >
-      {/* Distintivos de la esquina: origen web y bloqueo por permisos. */}
-      <div className="absolute right-3 top-3 flex gap-1">
+      {/* Caliente, tibia o fría: asoma por la esquina de la tarjeta. */}
+      <DistintivoDeEstado marca={marca} umbrales={umbralesDelEstado} />
+
+      {/* Distintivos de origen web y bloqueo por permisos. Se apartan de
+          la esquina para no quedar debajo del estado. */}
+      <div className="absolute right-7 top-3 flex gap-1">
         {marca.origen === "web" && (
           <Tooltip content="Llegó por el formulario de la web">
             <span className="flex size-6 items-center justify-center rounded-lg bg-primary-100 text-primary dark:bg-primary-100/20">
@@ -181,7 +200,7 @@ export function TarjetaDeMarca({
       </div>
 
       {/* Logo y nombre */}
-      <div className="flex items-start gap-3 pr-12">
+      <div className="flex items-start gap-3 pr-14">
         <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-default-100">
           {marca.logoUrl ? (
             <img
@@ -228,6 +247,12 @@ export function TarjetaDeMarca({
           )}
         </div>
       </div>
+
+      {/* Por qué está caliente, tibia o fría. */}
+      <LineaDelUltimoMovimiento marca={marca} />
+
+      {/* Mi próximo recordatorio, para cumplirlo sin abrir la ficha. */}
+      <RecordatorioDeLaTarjeta marca={marca} />
 
       {/* Con el tablero filtrado por una propiedad, la cifra grande es
           la de ESA propiedad, con su barra sobre el MTP; el total de la
@@ -372,6 +397,29 @@ export function TarjetaDeMarca({
         </span>
 
         <div className="flex items-center gap-1.5">
+          {/* Solo a quien puede editarla: deja un recordatorio, y los
+              recordatorios son de quien trabaja la marca. */}
+          {alAnotarContacto !== undefined && marca.puedeEditarla && (
+            <span
+              role="presentation"
+              // El botón no puede abrir además la ficha.
+              onClick={(evento) => evento.stopPropagation()}
+              onKeyDown={(evento) => evento.stopPropagation()}
+            >
+              <Button
+                className="h-7 gap-1 px-2.5 text-[11px] font-semibold"
+                color="primary"
+                radius="full"
+                size="sm"
+                startContent={<PhoneCall className="size-3" />}
+                variant="flat"
+                onPress={() => alAnotarContacto(marca)}
+              >
+                Contacté
+              </Button>
+            </span>
+          )}
+
           {(marca.totalComentarios ?? 0) > 0 && (
             <span className="flex items-center gap-1 text-[11px] text-default-400">
               <MessageSquare className="size-3" />

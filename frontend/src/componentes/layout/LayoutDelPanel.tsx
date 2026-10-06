@@ -53,6 +53,7 @@ import {
 } from "@/componentes/comunes/ControlesDeApariencia";
 import { AvisoDeVersionNueva } from "@/componentes/layout/AvisoDeVersionNueva";
 import { BotonDeInstalacion } from "@/componentes/layout/BotonDeInstalacion";
+import { BuscadorUnico } from "@/componentes/layout/BuscadorUnico";
 import { CampanitaDeNotificaciones } from "@/componentes/layout/CampanitaDeNotificaciones";
 import { ChatFlotante } from "@/componentes/chat/ChatFlotante";
 import { IndicadorDeConexion } from "@/componentes/layout/IndicadorDeConexion";
@@ -454,6 +455,7 @@ function BarraSuperior({
       </h1>
 
       <div className="flex items-center gap-1">
+        <BuscadorUnico />
         <IndicadorDeConexion />
         <CampanitaDeNotificaciones />
         <MenuDeColorAcento coloresDisponibles={catalogos?.coloresDeAcento} />

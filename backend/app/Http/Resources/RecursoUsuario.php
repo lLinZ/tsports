@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Models\Marca;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -67,6 +68,8 @@ class RecursoUsuario extends JsonResource
                 // que lo comprueba al pedirlo, para que no puedan discrepar.
                 'sacaLaBitacoraCompleta' => $this->resource->can('verAuditoria', User::class),
                 'veLosCierresDeMes' => $this->rol->veLosCierresDeMes(),
+                'ajustaLosUmbralesDelEstado' => $this->resource->can('ajustarUmbralesDelEstado', Marca::class),
+                'fijaLasMetas' => $this->resource->can('fijarMetas', User::class),
             ],
 
             'creadoEn' => $this->created_at?->toIso8601String(),

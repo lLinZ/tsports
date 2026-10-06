@@ -552,6 +552,25 @@ ${COMO_ROOT} systemctl enable --now "${NOMBRE_DE_LA_INSTALACION}-copia.timer"
 echo "  Copias en /var/backups/${NOMBRE_DE_LA_INSTALACION}/automaticas, cada día a las 03:30 de Caracas."
 
 # ---------------------------------------------------------------------
+# 6e) Aviso de los recordatorios del día
+# ---------------------------------------------------------------------
+# Cada mañana, a cada persona, lo que le toca hoy. Ver la cabecera de
+# deploy/tsports-recordatorios.service.
+paso "Programando el aviso de los recordatorios del día"
+
+for PIEZA in service timer; do
+  ${COMO_ROOT} sed \
+    -e "s|/var/www/tsports|${CARPETA_DEL_PROYECTO}|g" \
+    "${CARPETA_DEL_PROYECTO}/deploy/tsports-recordatorios.${PIEZA}" \
+    | ${COMO_ROOT} tee "/etc/systemd/system/${NOMBRE_DE_LA_INSTALACION}-recordatorios.${PIEZA}" >/dev/null
+done
+
+${COMO_ROOT} systemctl daemon-reload
+${COMO_ROOT} systemctl enable --now "${NOMBRE_DE_LA_INSTALACION}-recordatorios.timer"
+
+echo "  Aviso de los recordatorios cada día a las 08:00 de Caracas."
+
+# ---------------------------------------------------------------------
 # 7) Resumen
 # ---------------------------------------------------------------------
 echo -e "\n${VERDE}═══════════════════════════════════════════════════════${SIN_COLOR}"

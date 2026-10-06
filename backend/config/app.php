@@ -65,7 +65,14 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // TS Sports: el sistema entero va en hora de Venezuela. «Hoy», los
+    // cortes de cada día y las horas que se guardan son los de Caracas.
+    // Hasta el 2026-10-05 aquí ponía 'UTC' escrito a mano, y el
+    // APP_TIMEZONE del .env no se leía: desde las 20:00 de Caracas el
+    // calendario ya marcaba el día siguiente como «hoy». Va de la mano
+    // de DB_TIMEZONE (config/database.php): cambiar uno sin el otro
+    // corre cuatro horas todo lo guardado.
+    'timezone' => env('APP_TIMEZONE', 'America/Caracas'),
 
     /*
     |--------------------------------------------------------------------------

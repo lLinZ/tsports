@@ -304,6 +304,28 @@ de verdad está en la cabecera de `deploy/comprobar-copia.sh`.
 > Las copias están en el mismo disco que el sitio: salvan de un error,
 > no de perder el servidor.
 
+### Aviso de los recordatorios del día
+
+Cada día a las 08:00 (hora de Caracas) cada persona recibe un aviso con
+los recordatorios que le tocan hoy: en la campanita, en vivo y en el
+móvil. Lo lanza el temporizador `tsports-recordatorios`, que
+`desplegar.sh` instala solo la primera vez que despliega esta versión.
+
+```bash
+systemctl list-timers tsports-recordatorios
+```
+
+```bash
+journalctl -u tsports-recordatorios -n 40
+```
+
+El primero dice cuándo toca el siguiente; el segundo, cómo fue el
+último. Lanzarlo a mano no repite avisos: lo ya avisado queda marcado.
+
+```bash
+sudo systemctl start tsports-recordatorios
+```
+
 > **Al actualizar a la segunda etapa** (propiedades y campañas), después
 > de migrar hay que sembrar una sola vez los dos catálogos:
 >

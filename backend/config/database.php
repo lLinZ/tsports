@@ -59,6 +59,14 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
+            // La zona de la conexión, la misma que la de la aplicación
+            // (config/app.php). Las columnas de hora son TIMESTAMP: la base
+            // las guarda en UTC y las convierte a esta zona al leerlas, así
+            // que lo guardado antes del 2026-10-05 (con la conexión en UTC)
+            // se lee bien sin tocarlo. Va como desfase y no como nombre de
+            // zona: MariaDB solo entiende nombres si se le cargan sus
+            // tablas, y Venezuela está en -04:00 fijo desde 2016.
+            'timezone' => env('DB_TIMEZONE', '-04:00'),
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
@@ -79,6 +87,8 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
+            // Ver el bloque de mysql: la misma zona que la aplicación.
+            'timezone' => env('DB_TIMEZONE', '-04:00'),
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],

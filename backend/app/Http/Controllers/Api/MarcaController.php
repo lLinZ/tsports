@@ -4,18 +4,23 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\EstadoDeMarca;
 use App\Enums\OrigenMarca;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\GuardarMarcaRequest;
 use App\Http\Resources\RecursoMarca;
+use App\Http\Resources\RecursoRecordatorio;
 use App\Models\ComentarioMarca;
 use App\Models\Marca;
 use App\Models\Propiedad;
 use App\Models\PropiedadDeMarca;
 use App\Models\RegistroActividad;
+use App\Models\UmbralesDelEstado;
 use App\Models\User;
+use App\Support\EstadoDeLasMarcas;
 use App\Support\Notificador;
 use App\Support\RegistradorDeEventosDeCampana;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -39,6 +44,19 @@ use Illuminate\Validation\ValidationException;
 class MarcaController extends Controller
 {
     /**
+     * Cuántas marcas caben en una exportación del tablero. La cartera
+     * entera son unos cientos; el tope solo protege de una petición que se
+     * llevase la base de una vez.
+     */
+    private const TOPE_DE_MARCAS_EXPORTADAS = 5000;
+
+    /** Los filtros del tablero, para dejarlos anotados al exportar. */
+    private const FILTROS_DEL_TABLERO = [
+        'busqueda', 'etapa', 'fase', 'vendedor', 'zona', 'campana',
+        'propiedad', 'invierte', 'sector', 'estado', 'siguientePaso', 'orden',
+    ];
+
+    /**
      * GET /api/marcas
      * Listado del tablero, con búsqueda, filtros y orden.
      */
@@ -49,16 +67,154 @@ class MarcaController extends Controller
         /** @var User $usuarioQueMira */
         $usuarioQueMira = $peticion->user();
 
-        $consulta = Marca::query()
-            // Un agente solo recibe su cartera. Se acota aquí, en la
-            // consulta, y no al pintar: así las marcas de sus compañeros
-            // ni siquiera salen del servidor.
-            ->quePuedeVer($usuarioQueMira)
+        $consulta = $this->marcasDelTablero($peticion, $usuarioQueMira)
             ->withCount('comentarios')
             // El checklist viaja con cada marca porque la tarjeta del
             // tablero enseña el pronóstico acumulado sin abrir la ficha.
             // Son dos consultas más para toda la página, no una por fila.
             ->with(['campana', 'propiedadesOfrecidas.propiedad'])
+            // El próximo recordatorio de QUIEN MIRA, para cumplirlo desde
+            // la tarjeta. Los de los demás se ven en la ficha.
+            ->with(['recordatoriosPendientes' => fn ($recordatorios) => $recordatorios
+                ->where('persona_id', $usuarioQueMira->id)]);
+
+        // Una sola foto de los umbrales y del día para toda la petición:
+        // los contadores, el filtro y cada tarjeta cuentan con la misma.
+        $estados = EstadoDeLasMarcas::conLosUmbralesVigentes();
+
+        // Los contadores de «Calientes · 12» se cuentan con todos los
+        // filtros MENOS el de estado: cada uno dice cuántas saldrían al
+        // pulsarlo, también con otro estado ya elegido.
+        $contadoresDeEstado = $estados->contarPorEstado($consulta);
+
+        $consulta->enEstado($peticion->query('estado'), $estados);
+
+        $idDeLaPropiedad = $peticion->query('propiedad');
+
+        // Se calcula ANTES de ordenar y paginar: resume todas las marcas
+        // que cumplen los filtros, no solo las sesenta de la primera página.
+        $resumenDeLaPropiedad = is_string($idDeLaPropiedad) && $idDeLaPropiedad !== ''
+            ? $this->resumenDeLaPropiedadFiltrada($idDeLaPropiedad, clone $consulta)
+            : null;
+
+        $consulta = $this->aplicarOrden(
+            $consulta->conEstado($estados),
+            (string) $peticion->query('orden', 'recientes'),
+            $idDeLaPropiedad,
+        );
+
+        // Paginación generosa: el tablero se pinta como cuadrícula y el
+        // equipo prefiere desplazarse a saltar de página.
+        $marcasPorPagina = min((int) $peticion->query('porPagina', 60), 200);
+
+        return RecursoMarca::collection($consulta->paginate($marcasPorPagina))
+            ->additional([
+                'resumenDeLaPropiedad' => $resumenDeLaPropiedad,
+                'contadoresDeEstado' => $contadoresDeEstado,
+                'umbralesDelEstado' => $estados->umbrales(),
+            ]);
+    }
+
+    /**
+     * GET /api/marcas/exportacion
+     * El tablero entero, sin páginas, con los MISMOS filtros y el mismo
+     * orden que la pantalla: es lo que se lleva a Excel para una reunión.
+     *
+     * Sale de `marcasDelTablero`, igual que el listado. Si cada uno armara
+     * sus filtros, tarde o temprano el Excel diría otra cosa que la
+     * pantalla de la que se descargó. Y un agente se lleva solo su
+     * cartera, por la misma consulta.
+     *
+     * Queda anotado en la auditoría con los filtros: es sacar del sistema
+     * la cartera, con contactos e importes (como la bitácora, regla 19).
+     */
+    public function exportar(Request $peticion): AnonymousResourceCollection
+    {
+        $this->authorize('viewAny', Marca::class);
+
+        /** @var User $quienExporta */
+        $quienExporta = $peticion->user();
+
+        $estados = EstadoDeLasMarcas::conLosUmbralesVigentes();
+
+        $consulta = $this->marcasDelTablero($peticion, $quienExporta)
+            ->enEstado($peticion->query('estado'), $estados)
+            ->with(['campana', 'propiedadesOfrecidas.propiedad']);
+
+        $marcas = $this->aplicarOrden(
+            $consulta->conEstado($estados),
+            (string) $peticion->query('orden', 'recientes'),
+            $peticion->query('propiedad'),
+        )->limit(self::TOPE_DE_MARCAS_EXPORTADAS)->get();
+
+        RegistroActividad::anotar(
+            $quienExporta,
+            RegistroActividad::ACCION_EXPORTO,
+            'marca',
+            null,
+            sprintf('Exportó el tablero a Excel (%d %s)', $marcas->count(), $marcas->count() === 1 ? 'marca' : 'marcas'),
+            ['filtros' => array_filter($peticion->only(self::FILTROS_DEL_TABLERO), fn ($valor) => $valor !== null && $valor !== '')],
+        );
+
+        return RecursoMarca::collection($marcas)->additional([
+            'generadoEn' => now()->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * GET /api/marcas/{marca}/exportacion
+     * La ficha completa de una marca para sacarla a PDF: lo de la ficha,
+     * su historial de campañas y sus recordatorios pendientes.
+     *
+     * La bitácora no va aquí: tiene su propia exportación, con sus reglas
+     * (regla 19). Esta queda anotada en la auditoría igual que aquella,
+     * porque también saca del sistema los contactos y los importes.
+     */
+    public function exportarFicha(Request $peticion, Marca $marca): JsonResponse
+    {
+        $this->authorize('view', $marca);
+
+        $marca->loadCount('comentarios')->load([
+            'campana',
+            'propiedadesOfrecidas.propiedad',
+            'eventosDeCampana.marca',
+        ]);
+
+        // Los de todo el equipo, pedidos aparte: colgados de la marca, el
+        // recurso los leería como «mi próximo recordatorio».
+        $recordatorios = $marca->recordatoriosPendientes()->with('persona')->get();
+
+        RegistroActividad::anotar(
+            $peticion->user(),
+            RegistroActividad::ACCION_EXPORTO,
+            'marca',
+            $marca->id,
+            'Exportó la ficha de '.$marca->nombre_marca.' a PDF',
+        );
+
+        return response()->json([
+            'data' => (new RecursoMarca($marca))->resolve($peticion),
+            'recordatorios' => RecursoRecordatorio::collection(
+                $recordatorios->each->setRelation('marca', $marca),
+            )->resolve($peticion),
+            'generadoEn' => now()->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * Las marcas del tablero con los filtros de la petición puestos,
+     * todos menos el de estado (ese se cuenta aparte, ver `index`).
+     *
+     * Lo usan el listado y la exportación a Excel, para que los dos digan
+     * siempre lo mismo.
+     */
+    private function marcasDelTablero(Request $peticion, User $usuarioQueMira): Builder
+    {
+        $consulta = Marca::query()
+            // Un agente solo recibe su cartera. Se acota aquí, en la
+            // consulta, y no al pintar: así las marcas de sus compañeros
+            // ni siquiera salen del servidor.
+            ->quePuedeVer($usuarioQueMira)
             ->buscarTexto($peticion->query('busqueda'))
             ->enEtapa($peticion->query('etapa'))
             // Filtro por una fase suelta. Es el que usan los contadores
@@ -72,33 +228,16 @@ class MarcaController extends Controller
             // rompa un enlace guardado de entonces.
             ->deCampana($peticion->query('campana') ?: $peticion->query('campanaAlcanzada'))
             ->queOfrecenLaPropiedad($peticion->query('propiedad'))
-            ->conInversion($peticion->query('invierte'));
+            ->conInversion($peticion->query('invierte'))
+            // A donde lleva «Sin siguiente paso» del resumen.
+            ->sinSiguientePaso($peticion->query('siguientePaso'));
 
         // Filtro por sector, si se pidió uno concreto.
         if ($sectorPedido = $peticion->query('sector')) {
             $consulta->where('sector', $sectorPedido);
         }
 
-        $idDeLaPropiedad = $peticion->query('propiedad');
-
-        // Se calcula ANTES de ordenar y paginar: resume todas las marcas
-        // que cumplen los filtros, no solo las sesenta de la primera página.
-        $resumenDeLaPropiedad = is_string($idDeLaPropiedad) && $idDeLaPropiedad !== ''
-            ? $this->resumenDeLaPropiedadFiltrada($idDeLaPropiedad, clone $consulta)
-            : null;
-
-        $consulta = $this->aplicarOrden(
-            $consulta,
-            (string) $peticion->query('orden', 'recientes'),
-            $idDeLaPropiedad,
-        );
-
-        // Paginación generosa: el tablero se pinta como cuadrícula y el
-        // equipo prefiere desplazarse a saltar de página.
-        $marcasPorPagina = min((int) $peticion->query('porPagina', 60), 200);
-
-        return RecursoMarca::collection($consulta->paginate($marcasPorPagina))
-            ->additional(['resumenDeLaPropiedad' => $resumenDeLaPropiedad]);
+        return $consulta;
     }
 
     /**
@@ -504,6 +643,111 @@ class MarcaController extends Controller
         return new RecursoMarca(
             $marca->fresh()->load(['campana', 'propiedadesOfrecidas.propiedad', 'eventosDeCampana.marca']),
         );
+    }
+
+    /**
+     * PATCH /api/marcas/{marca}/estado
+     * Fija a mano el estado de una marca, o la devuelve al automático
+     * (`estado: null`).
+     *
+     * Existe porque quien trabaja la marca sabe cosas que el sistema no
+     * puede saber: una cuenta puede llevar tres semanas quieta esperando
+     * una firma y ser la más caliente que tiene. Lo fijado manda hasta que
+     * alguien lo suelta, y por eso se guarda quién y cuándo lo fijó.
+     *
+     * Lo puede hacer quien pueda editar la marca. Fijarlo no cuenta como
+     * movimiento: si contase, fijar «fría» la dejaría caliente por debajo
+     * y al soltarla volvería caliente sin que nadie la hubiera tocado.
+     */
+    public function fijarEstado(Request $peticion, Marca $marca): RecursoMarca
+    {
+        $this->authorize('update', $marca);
+
+        $datos = $peticion->validate([
+            'estado' => ['present', 'nullable', Rule::enum(EstadoDeMarca::class)],
+        ], [
+            'estado.present' => 'Indica el estado, o null para volver al automático.',
+            'estado.enum' => 'El estado tiene que ser caliente, tibia o fría.',
+        ]);
+
+        /** @var User $quienLoFija */
+        $quienLoFija = $peticion->user();
+
+        $estadoElegido = $datos['estado'] === null ? null : EstadoDeMarca::from($datos['estado']);
+
+        $marca->estado_fijado = $estadoElegido;
+        $marca->estado_fijado_por_nombre = $estadoElegido === null ? null : $quienLoFija->nombreParaMostrar();
+        $marca->estado_fijado_en = $estadoElegido === null ? null : now();
+        $marca->save();
+
+        RegistroActividad::anotar(
+            $quienLoFija,
+            RegistroActividad::ACCION_ACTUALIZO,
+            'marca',
+            $marca->id,
+            $estadoElegido === null
+                ? 'Devolvió '.$marca->nombre_marca.' al estado automático'
+                : sprintf('Fijó %s como %s', $marca->nombre_marca, mb_strtolower($estadoElegido->etiqueta())),
+        );
+
+        return new RecursoMarca(
+            $marca->fresh()->load(['campana', 'propiedadesOfrecidas.propiedad', 'eventosDeCampana.marca']),
+        );
+    }
+
+    /**
+     * PUT /api/umbrales-del-estado
+     * Cambia los días que tarda una marca en pasar a tibia y a fría.
+     *
+     * Solo el administrador: mover un umbral recolorea el tablero de todo
+     * el equipo de golpe. Se guarda quién lo cambió por la misma razón.
+     */
+    public function guardarUmbralesDelEstado(Request $peticion): JsonResponse
+    {
+        $this->authorize('ajustarUmbralesDelEstado', Marca::class);
+
+        $maximo = UmbralesDelEstado::DIAS_MAXIMOS;
+
+        $datos = $peticion->validate([
+            'diasCaliente' => ['required', 'integer', 'min:1', 'max:'.($maximo - 1)],
+            'diasTibia' => ['required', 'integer', 'gt:diasCaliente', 'max:'.$maximo],
+        ], [
+            'diasCaliente.required' => 'Indica hasta cuántos días está caliente una marca.',
+            'diasCaliente.min' => 'Una marca tiene que estar caliente al menos un día.',
+            'diasCaliente.max' => 'Caliente puede durar como mucho :max días.',
+            'diasTibia.required' => 'Indica hasta cuántos días está tibia una marca.',
+            'diasTibia.gt' => 'Tibia tiene que durar más días que caliente.',
+            'diasTibia.max' => 'Tibia puede durar como mucho :max días.',
+        ]);
+
+        /** @var User $quienLosCambia */
+        $quienLosCambia = $peticion->user();
+
+        $umbrales = UmbralesDelEstado::query()->oldest('id')->first() ?? new UmbralesDelEstado();
+
+        $comoEstaban = sprintf('%d/%d', $umbrales->dias_caliente ?? UmbralesDelEstado::DIAS_CALIENTE_POR_DEFECTO, $umbrales->dias_tibia ?? UmbralesDelEstado::DIAS_TIBIA_POR_DEFECTO);
+
+        $umbrales->fill([
+            'dias_caliente' => (int) $datos['diasCaliente'],
+            'dias_tibia' => (int) $datos['diasTibia'],
+            'cambiado_por_id' => $quienLosCambia->id,
+            'cambiado_por_nombre' => $quienLosCambia->nombreParaMostrar(),
+        ])->save();
+
+        RegistroActividad::anotar(
+            $quienLosCambia,
+            RegistroActividad::ACCION_ACTUALIZO,
+            'umbrales_del_estado',
+            (string) $umbrales->id,
+            sprintf(
+                'Cambió los días del estado de las marcas: caliente hasta %d, tibia hasta %d (antes %s)',
+                $umbrales->dias_caliente,
+                $umbrales->dias_tibia,
+                $comoEstaban,
+            ),
+        );
+
+        return response()->json(['data' => EstadoDeLasMarcas::conLosUmbralesVigentes()->umbrales()]);
     }
 
     /**
