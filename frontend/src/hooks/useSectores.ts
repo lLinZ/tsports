@@ -9,12 +9,13 @@
  * encuentra en el desplegable hasta recargar la página.
  * ---------------------------------------------------------------------
  */
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   actualizarSector,
   crearSector,
   eliminarSector,
   listarSectores,
+  obtenerCampanasPorSector,
 } from "@/api/sectores";
 import { CLAVE_DE_CATALOGOS } from "@/hooks/useCatalogos";
 import type { CatalogoDeSectores, Sector } from "@/tipos/modelos";
@@ -39,6 +40,29 @@ export function useSectores(): {
     sectores: consulta.data?.sectores ?? [],
     sinSector: consulta.data?.sinSector ?? null,
     totalValorPropuestoUsd: consulta.data?.totalValorPropuestoUsd ?? null,
+    estaCargando: consulta.isLoading,
+    error: errorSoloSiNoHayNadaQueEnsenar(consulta),
+    recargar: () => void consulta.refetch(),
+  };
+}
+
+/**
+ * Las campañas por sector de un mes (null = el que dice el servidor que
+ * es el actual). La clave cuelga de la del catálogo, así que todo lo que
+ * refresca los sectores —una marca, una acción de campaña, un renombrado—
+ * la refresca también.
+ */
+export function useCampanasPorSector(mes: string | null) {
+  const consulta = useQuery({
+    queryKey: [...CLAVE_DE_SECTORES, "campanas", mes ?? "actual"],
+    queryFn: () => obtenerCampanasPorSector(mes),
+    // Al pasar de mes, el anterior se queda a la vista hasta que llega el
+    // nuevo: sin esto la rejilla parpadea vacía en cada flecha.
+    placeholderData: keepPreviousData,
+  });
+
+  return {
+    datos: consulta.data ?? null,
     estaCargando: consulta.isLoading,
     error: errorSoloSiNoHayNadaQueEnsenar(consulta),
     recargar: () => void consulta.refetch(),

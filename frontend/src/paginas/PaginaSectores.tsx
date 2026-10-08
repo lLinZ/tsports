@@ -26,6 +26,12 @@
  * tienen sector y el total, que es el mismo valor propuesto del resumen.
  * Lo suma el servidor y solo se lo manda a quien ve las cifras de toda la
  * empresa; sin él, la columna no sale.
+ *
+ * «Campañas por sector» (desde el 2026-10-08, pedido por LinZ con un
+ * boceto): en cada fila, una tarta por semana del mes con el reparto de
+ * las acciones de campaña de ese rubro, y arriba el mes con sus flechas y
+ * la leyenda de colores. Las semanas y los meses vecinos los pone el
+ * servidor (regla 16); un agente recibe solo lo de sus marcas (regla 6).
  * ---------------------------------------------------------------------
  */
 import {
@@ -42,8 +48,17 @@ import {
   Tabs,
   Tooltip,
 } from "@heroui/react";
-import { Pencil, Plus, RefreshCw, Save, Shapes, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Save,
+  Shapes,
+  Trash2,
+} from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { mensajeDeError } from "@/api/clienteHttp";
 import {
@@ -51,16 +66,18 @@ import {
   BloqueDeError,
   EstadoVacio,
 } from "@/componentes/comunes/EstadosDePantalla";
+import { TartaDeCampanas } from "@/componentes/comunes/TartaDeCampanas";
 import {
   useActualizarSector,
+  useCampanasPorSector,
   useCrearSector,
   useEliminarSector,
   useSectores,
 } from "@/hooks/useSectores";
 import { useUsuarioAutenticado } from "@/providers/ProveedorSesion";
 import { avisarDeError, avisarDeExito } from "@/utilidades/avisos";
-import { formatearDinero, formatearNumero } from "@/utilidades/formato";
-import type { Sector } from "@/tipos/modelos";
+import { formatearDinero, formatearNumero, formatearPeriodo } from "@/utilidades/formato";
+import type { CampanasPorSector, Sector, SemanaDeCampanas } from "@/tipos/modelos";
 
 export function PaginaSectores() {
   const usuario = useUsuarioAutenticado();
@@ -79,6 +96,18 @@ export function PaginaSectores() {
           (uno, otro) => (otro.valorPropuestoUsd ?? 0) - (uno.valorPropuestoUsd ?? 0),
         )
       : catalogo.sectores;
+
+  // null = el mes en curso, el que diga el servidor (hora de Caracas).
+  const [mesElegido, establecerMesElegido] = useState<string | null>(null);
+  const campanas = useCampanasPorSector(mesElegido);
+  const semanasDeCadaSector = new Map(
+    (campanas.datos?.sectores ?? []).map((fila) => [fila.sector, fila.semanas]),
+  );
+  const semanasSinSector = campanas.datos?.sinSector ?? null;
+
+  // «Sin sector» sale si tiene dinero que enseñar o acciones de campaña.
+  const hayDineroSinSector =
+    conDinero && catalogo.sinSector !== null && catalogo.sinSector.totalMarcas > 0;
 
   const crearSector = useCrearSector();
   const actualizarSector = useActualizarSector();
@@ -243,13 +272,20 @@ export function PaginaSectores() {
         </div>
       ) : (
         <div className="bento-card divide-y divide-default-100 p-2">
-          {conDinero && (
-            <div className="hidden items-center gap-3 px-3 pb-2 pt-1 text-[11px] font-semibold uppercase tracking-wide text-default-400 sm:flex">
-              <span className="flex-1">Sector</span>
-              <span className="w-44 text-right">Dinero por sector</span>
-              <span className={puedeEditar ? "w-[4.5rem]" : "hidden"} />
-            </div>
-          )}
+          <div className="flex flex-wrap items-end gap-3 px-3 pb-2 pt-1 text-[11px] font-semibold uppercase tracking-wide text-default-400">
+            <span className="hidden flex-1 pb-0.5 sm:block">Sector</span>
+            <CabeceraDeLasSemanas alCambiarDeMes={establecerMesElegido} datos={campanas.datos} />
+            {conDinero && (
+              <span className="hidden w-44 pb-0.5 text-right sm:block">Dinero por sector</span>
+            )}
+            {puedeEditar && <span aria-hidden className="hidden w-[4.5rem] sm:block" />}
+          </div>
+
+          <LeyendaDeCampanas
+            alReintentar={campanas.recargar}
+            datos={campanas.datos}
+            error={campanas.error}
+          />
 
           {sectoresEnOrden.map((sector) => (
             <div
@@ -290,6 +326,12 @@ export function PaginaSectores() {
                   </Link>
                 </div>
               </div>
+
+              <TartasDeLasSemanas
+                datos={campanas.datos}
+                nombre={sector.nombre}
+                semanas={semanasDeCadaSector.get(sector.nombre)}
+              />
 
               {conDinero && (
                 <DineroDelSector
@@ -345,18 +387,30 @@ export function PaginaSectores() {
           {/* Lo que no está en ningún sector y el total de la columna,
               que es el valor propuesto de toda la agencia: el mismo
               número que el resumen. */}
-          {conDinero && catalogo.sinSector !== null && catalogo.sinSector.totalMarcas > 0 && (
+          {(hayDineroSinSector || semanasSinSector !== null) && (
             <FilaDeTotales
               conBotones={puedeEditar}
-              detalle={`${formatearNumero(catalogo.sinSector.totalMarcas)} ${
-                catalogo.sinSector.totalMarcas === 1 ? "marca" : "marcas"
-              } sin sector${
-                // `?? []`: una copia guardada de antes de esta versión no lo trae.
-                (catalogo.sinSector.nombresFueraDelCatalogo ?? []).length > 0
-                  ? ` o con uno que no está en la lista: ${catalogo.sinSector.nombresFueraDelCatalogo.join(", ")}`
-                  : ""
-              }`}
-              importe={catalogo.sinSector.valorPropuestoUsd}
+              conDinero={conDinero}
+              detalle={
+                hayDineroSinSector && catalogo.sinSector !== null
+                  ? `${formatearNumero(catalogo.sinSector.totalMarcas)} ${
+                      catalogo.sinSector.totalMarcas === 1 ? "marca" : "marcas"
+                    } sin sector${
+                      // `?? []`: una copia guardada de antes de esta versión no lo trae.
+                      (catalogo.sinSector.nombresFueraDelCatalogo ?? []).length > 0
+                        ? ` o con uno que no está en la lista: ${catalogo.sinSector.nombresFueraDelCatalogo.join(", ")}`
+                        : ""
+                    }`
+                  : "Marcas sin sector o con uno que no está en la lista"
+              }
+              importe={catalogo.sinSector?.valorPropuestoUsd ?? 0}
+              semanas={
+                <TartasDeLasSemanas
+                  datos={campanas.datos}
+                  nombre="Sin sector"
+                  semanas={semanasSinSector ?? undefined}
+                />
+              }
               titulo="Sin sector"
               total={catalogo.totalValorPropuestoUsd ?? 0}
             />
@@ -366,8 +420,10 @@ export function PaginaSectores() {
             <FilaDeTotales
               destacada
               conBotones={puedeEditar}
+              conDinero={conDinero}
               detalle="Valor de las propuestas enviadas"
               importe={catalogo.totalValorPropuestoUsd ?? 0}
+              semanas={<TartasDeLasSemanas soloHueco datos={campanas.datos} nombre="Total" />}
               titulo="Total"
             />
           )}
@@ -487,6 +543,8 @@ function FilaDeTotales({
   total,
   destacada = false,
   conBotones,
+  conDinero,
+  semanas,
 }: {
   titulo: string;
   detalle: string;
@@ -496,6 +554,10 @@ function FilaDeTotales({
   destacada?: boolean;
   /** Si las filas de arriba llevan botones, para dejar su hueco. */
   conBotones: boolean;
+  /** Sin dinero (un agente), la fila solo lleva las tartas. */
+  conDinero: boolean;
+  /** Las tartas de la fila, o su hueco para que las columnas cuadren. */
+  semanas: ReactNode;
 }) {
   return (
     <div
@@ -511,7 +573,9 @@ function FilaDeTotales({
         <p className="text-[11px] text-default-500">{detalle}</p>
       </div>
 
-      {total !== undefined ? (
+      {semanas}
+
+      {!conDinero ? null : total !== undefined ? (
         <DineroDelSector importe={importe} total={total} />
       ) : (
         <p className="w-full shrink-0 pl-11 text-base font-bold tabular-nums text-primary sm:w-44 sm:pl-0 sm:text-right">
@@ -520,6 +584,216 @@ function FilaDeTotales({
       )}
 
       {conBotones && <span aria-hidden className="hidden w-[4.5rem] shrink-0 sm:block" />}
+    </div>
+  );
+}
+
+/* ==================================================================== */
+/* Campañas por sector                                                   */
+/* ==================================================================== */
+
+/*
+  El ancho de cada semana, igual en la cabecera y en las filas: si no
+  coinciden, las tartas no caen bajo su «Semana N». En el teléfono, más
+  estrecho para que quepan seis semanas.
+*/
+const ANCHO_DE_SEMANA = "w-11 sm:w-16";
+
+/*
+  Dónde van las semanas: en pantalla grande, entre el nombre y el dinero;
+  más estrecha, en su propia línea debajo, con la sangría del icono.
+*/
+const COLOCACION_DE_LAS_SEMANAS =
+  "order-last w-full shrink-0 pl-11 lg:order-none lg:w-auto lg:pl-0";
+
+/** "1–6", o "31" si la semana es un solo día. */
+function diasDeLaSemana(semana: CampanasPorSector["semanas"][number]): string {
+  const desde = Number(semana.desde.slice(8));
+  const hasta = Number(semana.hasta.slice(8));
+
+  return desde === hasta ? `${desde}` : `${desde}–${hasta}`;
+}
+
+/** El mes con sus flechas y, debajo, una columna por semana. */
+function CabeceraDeLasSemanas({
+  datos,
+  alCambiarDeMes,
+}: {
+  datos: CampanasPorSector | null;
+  alCambiarDeMes: (mes: string | null) => void;
+}) {
+  // Hasta pantalla grande las tartas van en su propia línea, debajo del
+  // nombre y con la sangría de su icono; la cabecera se coloca igual.
+  return (
+    <div className={`${COLOCACION_DE_LAS_SEMANAS} flex`}>
+      <div className="w-fit">
+        <div className="mb-1 flex items-center justify-center gap-1 normal-case tracking-normal">
+          <Button
+            isIconOnly
+            aria-label="Mes anterior"
+            isDisabled={datos === null}
+            radius="full"
+            size="sm"
+            variant="light"
+            onPress={() => datos && alCambiarDeMes(datos.periodo.anterior)}
+          >
+            <ChevronLeft className="size-4" />
+          </Button>
+          <span className="min-w-32 text-center text-xs font-semibold text-foreground">
+            {datos?.periodo.etiqueta ?? "…"}
+          </span>
+          <Button
+            isIconOnly
+            aria-label="Mes siguiente"
+            isDisabled={datos === null}
+            radius="full"
+            size="sm"
+            variant="light"
+            onPress={() => datos && alCambiarDeMes(datos.periodo.siguiente)}
+          >
+            <ChevronRight className="size-4" />
+          </Button>
+          {datos !== null && !datos.periodo.esElMesActual && (
+            <Button
+              className="h-6 min-w-0 px-2 text-[11px]"
+              radius="full"
+              size="sm"
+              variant="flat"
+              onPress={() => alCambiarDeMes(null)}
+            >
+              Este mes
+            </Button>
+          )}
+        </div>
+
+        <div className="flex">
+          {(datos?.semanas ?? []).map((semana) => (
+            <div
+              key={semana.numero}
+              className={[
+                ANCHO_DE_SEMANA,
+                "text-center leading-tight normal-case tracking-normal",
+                semana.esLaActual ? "text-primary" : "",
+              ].join(" ")}
+              title={formatearPeriodo(semana.desde, semana.hasta)}
+            >
+              <span className="block font-semibold">
+                <span className="sm:hidden">S{semana.numero}</span>
+                <span className="hidden sm:inline">Semana {semana.numero}</span>
+              </span>
+              <span className="block font-normal tabular-nums">
+                {diasDeLaSemana(semana)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Qué campaña es cada color, con sus acciones del mes. Sin ninguna, lo
+ * dice: una franja que desaparece hace pensar que la pantalla no carga.
+ */
+function LeyendaDeCampanas({
+  datos,
+  error,
+  alReintentar,
+}: {
+  datos: CampanasPorSector | null;
+  error: unknown;
+  alReintentar: () => void;
+}) {
+  if (error) {
+    return (
+      <p className="px-3 py-2 text-xs text-danger">
+        No se pudieron cargar las campañas por sector.{" "}
+        <button
+          className="font-semibold underline"
+          type="button"
+          onClick={alReintentar}
+        >
+          Reintentar
+        </button>
+      </p>
+    );
+  }
+
+  if (datos === null) return null;
+
+  if (datos.campanas.length === 0) {
+    return (
+      <p className="px-3 py-2 text-xs text-default-400">
+        Ninguna acción de campaña en {datos.periodo.etiqueta.toLowerCase()}.
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 text-xs text-default-600">
+      <span className="text-default-400">
+        {formatearNumero(datos.totalDeAcciones)}{" "}
+        {datos.totalDeAcciones === 1 ? "acción" : "acciones"} de campaña:
+      </span>
+      {datos.campanas.map((campana) => (
+        <span key={campana.etiqueta} className="flex items-center gap-1.5">
+          <span
+            aria-hidden
+            className="size-2.5 rounded-full"
+            style={{ backgroundColor: campana.color }}
+          />
+          {campana.etiqueta}
+          <span className="font-semibold tabular-nums text-foreground">
+            {formatearNumero(campana.total)}
+          </span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Una tarta por semana en la fila de un sector. Una semana sin acciones
+ * deja su hueco vacío, para que la siguiente siga bajo su columna.
+ */
+function TartasDeLasSemanas({
+  datos,
+  nombre,
+  semanas,
+  soloHueco = false,
+}: {
+  datos: CampanasPorSector | null;
+  nombre: string;
+  /** Sin acciones en el mes, el sector no viene en la respuesta. */
+  semanas?: SemanaDeCampanas[];
+  /** Para la fila del total: ocupa el sitio y no pinta nada. */
+  soloHueco?: boolean;
+}) {
+  if (datos === null) return null;
+
+  return (
+    <div
+      className={[
+        COLOCACION_DE_LAS_SEMANAS,
+        // En su propia línea, una fila sin tartas no gasta una en blanco.
+        soloHueco || semanas === undefined ? "hidden lg:flex" : "flex",
+      ].join(" ")}
+    >
+      {datos.semanas.map((semana, posicion) => (
+        <div
+          key={semana.numero}
+          className={`${ANCHO_DE_SEMANA} flex justify-center`}
+        >
+          {!soloHueco && semanas?.[posicion] && (
+            <TartaDeCampanas
+              porciones={semanas[posicion].porCampana}
+              subtitulo={formatearPeriodo(semana.desde, semana.hasta)}
+              titulo={`${nombre} · Semana ${semana.numero}`}
+            />
+          )}
+        </div>
+      ))}
     </div>
   );
 }

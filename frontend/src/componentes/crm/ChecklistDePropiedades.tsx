@@ -296,6 +296,8 @@ export function ChecklistDePropiedades({
             {/* El pronóstico y su proporción, solo si está marcada. */}
             {estaMarcada && lineaDeEstaPropiedad && (
               <div className="mt-3 space-y-2 pl-9">
+                {/* Sin `step`, que redondea lo escrito al múltiplo más
+                    cercano al salir del campo: el OVP es cualquier cifra. */}
                 <NumberInput
                   aria-label={`Pronóstico de venta para ${propiedad.nombre}`}
                   description="Lo que estimas venderle a esta marca dentro de la propiedad."
@@ -306,7 +308,6 @@ export function ChecklistDePropiedades({
                   radius="lg"
                   size="sm"
                   startContent={<span className="text-xs text-default-400">$</span>}
-                  step={100}
                   value={lineaDeEstaPropiedad.ovpUsd}
                   variant="bordered"
                   onValueChange={(valor) => cambiarElPronostico(propiedad.id, valor)}

@@ -13,7 +13,7 @@
  * ---------------------------------------------------------------------
  */
 import { clienteHttp } from "@/api/clienteHttp";
-import type { CatalogoDeSectores, Sector } from "@/tipos/modelos";
+import type { CampanasPorSector, CatalogoDeSectores, Sector } from "@/tipos/modelos";
 
 /**
  * Trae el catálogo completo, con cuántas marcas hay en cada rubro y, a
@@ -39,6 +39,19 @@ export async function listarSectores(
     sinSector: data.sinSector ?? null,
     totalValorPropuestoUsd: data.totalValorPropuestoUsd ?? null,
   };
+}
+
+/**
+ * Las acciones de campaña de cada rubro, semana a semana, de un mes
+ * ("2026-09"; sin él, el mes en curso). Cada quien recibe lo de las
+ * marcas que ve.
+ */
+export async function obtenerCampanasPorSector(mes: string | null): Promise<CampanasPorSector> {
+  const { data } = await clienteHttp.get<CampanasPorSector>("/sectores/campanas", {
+    params: mes === null ? {} : { mes },
+  });
+
+  return data;
 }
 
 export async function crearSector(nombre: string): Promise<Sector> {

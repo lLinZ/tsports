@@ -1721,6 +1721,8 @@ function PasoAvance({
               onValueChange={(valor) => cambiarCampo("descripcionPropuesta", valor)}
             />
 
+            {/* Sin `step`: con él, el campo redondea al salir lo escrito
+                al múltiplo más cercano (1.234 se guardaba como 1.000). */}
             <NumberInput
               description="El 100 % del valor de la propuesta enviada."
               isDisabled={!esEditable}
@@ -1730,7 +1732,6 @@ function PasoAvance({
               radius="lg"
               size="sm"
               startContent={<span className="text-xs text-default-400">$</span>}
-              step={500}
               value={formulario.valorAnualUsd}
               variant="bordered"
               onValueChange={(valor) =>

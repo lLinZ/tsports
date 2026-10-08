@@ -246,7 +246,6 @@ function EditorDeMeta({ persona, anio }: { persona: MetaDeUnaPersona; anio: numb
             radius="lg"
             size="sm"
             startContent={<span className="text-xs text-default-400">$</span>}
-            step={1000}
             value={monto}
             variant="bordered"
             onValueChange={establecerMonto}

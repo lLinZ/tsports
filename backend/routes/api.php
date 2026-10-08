@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\AuditoriaController;
 use App\Http\Controllers\Api\AutenticacionController;
 use App\Http\Controllers\Api\BuscadorController;
 use App\Http\Controllers\Api\CalendarioController;
+use App\Http\Controllers\Api\CampanasPorSectorController;
 use App\Http\Controllers\Api\CampanaController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\CierreDeMesController;
@@ -243,6 +244,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
      | selector de la ficha; crearlos y retirarlos lo decide quien
      | gestiona el catálogo comercial, y eso lo aplica SectorPolicy.     */
     Route::get('/sectores', [SectorController::class, 'index']);
+    // Las acciones de campaña de cada rubro, semana a semana.
+    Route::get('/sectores/campanas', [CampanasPorSectorController::class, 'index']);
     Route::post('/sectores', [SectorController::class, 'store']);
     Route::put('/sectores/{sector}', [SectorController::class, 'update']);
     Route::delete('/sectores/{sector}', [SectorController::class, 'destroy']);

@@ -682,6 +682,43 @@ export interface CatalogoDeSectores {
   totalValorPropuestoUsd: number | null;
 }
 
+/** Una campaña con su color y cuántas acciones suma en un tramo. */
+export interface PorcionDeCampana {
+  etiqueta: string;
+  color: string;
+  total: number;
+}
+
+/** Las acciones de campaña de un rubro en una semana: una tarta. */
+export interface SemanaDeCampanas {
+  total: number;
+  /** En el orden de la leyenda del mes, para que el color no baile. */
+  porCampana: PorcionDeCampana[];
+}
+
+/**
+ * Las campañas por sector de un mes (`GET /sectores/campanas`). Las
+ * semanas son las del calendario, recortadas al mes; las pone el servidor.
+ */
+export interface CampanasPorSector {
+  periodo: {
+    /** "2026-09" */
+    mes: string;
+    etiqueta: string;
+    anterior: string;
+    siguiente: string;
+    esElMesActual: boolean;
+  };
+  semanas: { numero: number; desde: string; hasta: string; esLaActual: boolean }[];
+  /** La leyenda del mes, de más a menos acciones. */
+  campanas: PorcionDeCampana[];
+  totalDeAcciones: number;
+  /** Solo los sectores con alguna acción en el mes. */
+  sectores: { sector: string; semanas: SemanaDeCampanas[] }[];
+  /** Lo de marcas sin sector o con uno fuera del catálogo. */
+  sinSector: SemanaDeCampanas[] | null;
+}
+
 /**
  * Una persona tal y como sale en el filtro por agente del tablero.
  *

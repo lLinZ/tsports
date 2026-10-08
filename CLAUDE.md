@@ -506,6 +506,21 @@ Salieron del cliente y están implementadas a propósito así:
     y solo para quien ve las cifras de toda la empresa; a un agente no le
     llega (`valorPropuestoUsd` null).
 
+    **«Campañas por sector»** (desde el 2026-10-08, pedido por LinZ con
+    un boceto): en cada fila de Sectores, una tarta por semana del mes con
+    las acciones de campaña de ese rubro (`eventos_de_campana`, regla 13,
+    con el nombre y el color copiados en el evento). Lo arma
+    `CampanasPorSectorController` (`/api/sectores/campanas?mes=AAAA-MM`):
+    las semanas son las del calendario, de lunes a domingo, recortadas al
+    mes, y el mes y sus vecinos los pone el servidor (regla 16). El sector
+    es el que la marca tiene hoy; lo que no está en el catálogo va a «Sin
+    sector». Cada quien cuenta lo de las marcas que ve (regla 6).
+
+    **Los campos de dinero no llevan `step`** (desde el 2026-10-08): en el
+    `NumberInput` de HeroUI, `step` redondea lo escrito al múltiplo más
+    cercano al salir del campo, y el valor de la propuesta y el OVP se
+    guardaban de 500 en 500 y de 100 en 100.
+
 16. **Las fechas sin hora se construyen como fecha local.** Una cadena
     "2026-09-20" la interpreta el navegador como medianoche UTC, y en
     Venezuela (UTC-4) se ve como el 19. `utilidades/formato.ts` las
@@ -1121,3 +1136,5 @@ VPS usa **MySQL**: la plantilla es `backend/.env.example`.
   servidor (regla 30).
 - Mandar a un agente el dinero de la agencia por sector, o la agenda de
   otra persona (reglas 15 y 30).
+- Poner `step` en un campo de dinero: redondea lo escrito al múltiplo
+  (regla 15).
