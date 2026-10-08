@@ -145,6 +145,43 @@ class ContactoYSiguientePasoTest extends TestCase
             ->assertJsonPath('paraHoy.0.marca.nombre', 'Otra');
     }
 
+    public function test_el_siguiente_paso_dice_que_toca_y_a_que_hora(): void
+    {
+        $agente = $this->crearUsuario(RolUsuario::Vendedor);
+        $marca = Marca::create(['nombre_marca' => 'Pepsi', 'vendedor_asignado_id' => $agente->id]);
+
+        // Sin decir otro, toca lo mismo que se acaba de hacer.
+        $this->actingAs($agente)
+            ->postJson("/api/marcas/{$marca->id}/contactos", ['tipo' => 'whatsapp', 'cuerpo' => 'Le escribí', 'retomarEnDias' => 1])
+            ->assertCreated()
+            ->assertJsonPath('recordatorio.tipo.valor', 'whatsapp')
+            ->assertJsonPath('recordatorio.nota', 'Volver a escribir por WhatsApp')
+            ->assertJsonPath('recordatorio.hora', null);
+
+        // Después de una llamada, una reunión el martes a las diez: la
+        // nota por defecto es la de lo que toca, no la de lo que se hizo.
+        $this->actingAs($agente)
+            ->postJson("/api/marcas/{$marca->id}/contactos", [
+                'tipo' => 'llamada',
+                'cuerpo' => 'Aceptó vernos',
+                'retomarEl' => '2026-10-13',
+                'tipoDelSiguientePaso' => 'reunion',
+                'horaDelSiguientePaso' => '10:00',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('recordatorio.fecha', '2026-10-13')
+            ->assertJsonPath('recordatorio.hora', '10:00')
+            ->assertJsonPath('recordatorio.tipo.etiqueta', 'Reunión')
+            ->assertJsonPath('recordatorio.nota', 'Reunión de seguimiento');
+
+        $this->actingAs($agente)
+            ->postJson("/api/marcas/{$marca->id}/contactos", [
+                'tipo' => 'llamada', 'cuerpo' => 'x', 'retomarEnDias' => 1, 'horaDelSiguientePaso' => '10h',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('horaDelSiguientePaso', 'errores');
+    }
+
     public function test_no_se_acepta_un_dia_pasado_ni_las_dos_formas_a_la_vez(): void
     {
         $comercial = $this->crearUsuario(RolUsuario::Comercial);

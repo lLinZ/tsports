@@ -316,7 +316,11 @@ export interface ProximoRecordatorio {
   cuando: CuandoDelRecordatorio;
   /** 0 hoy, 1 mañana, negativo si ya pasó. Contado por el servidor. */
   diasHasta: number;
+  /** «10:30», o null si es «ese día». */
+  hora: string | null;
   nota: string | null;
+  /** Qué toca: llamada, WhatsApp, reunión o correo; null si es otra cosa. */
+  tipo: { valor: TipoDeContacto; etiqueta: string } | null;
 }
 
 /** Un recordatorio de seguimiento, tal como lo devuelve RecursoRecordatorio. */
@@ -359,17 +363,121 @@ export interface DatosDeContacto {
   /** AAAA-MM-DD, hoy o por delante. */
   retomarEl?: string | null;
   notaDelSiguientePaso?: string | null;
+  /** Qué toca después; sin decirlo, lo mismo que se acaba de hacer. */
+  tipoDelSiguientePaso?: TipoDeContacto | null;
+  /** «10:30»; opcional. */
+  horaDelSiguientePaso?: string | null;
   /** El recordatorio de hoy (o vencido) que este contacto ya cumple. */
   recordatorioCumplidoId?: string | null;
+}
+
+/** Lo que se puede cambiar de un recordatorio que ya existe. */
+export interface CambiosDeRecordatorio {
+  cumplido?: boolean;
+  fecha?: string;
+  hora?: string | null;
+  nota?: string | null;
+  tipo?: TipoDeContacto | null;
 }
 
 /** Lo que se envía al dejar un recordatorio. */
 export interface DatosDeRecordatorio {
   /** AAAA-MM-DD, hoy o por delante. */
   fecha: string;
+  /** «10:30»; opcional. */
+  hora?: string | null;
   nota?: string | null;
+  tipo?: TipoDeContacto | null;
   /** Para otra persona; solo lo acepta el servidor de quien reparte. */
   personaId?: string | null;
+}
+
+/* -------------------------------------------------------------------- */
+/* El reporte «Lo que viene»                                             */
+/* -------------------------------------------------------------------- */
+
+/** Los periodos que calcula el servidor con el día de Caracas. */
+export type PeriodoDeLoQueViene = "esta_semana" | "proxima_semana" | "este_mes" | "proximo_mes" | "otro";
+
+interface MarcaDeLoQueViene {
+  id: string;
+  nombre: string;
+  logoUrl: string | null;
+}
+
+/** Un recordatorio dentro del reporte. */
+export interface RecordatorioDeLoQueViene {
+  clase: "recordatorio";
+  id: string;
+  fecha: string;
+  hora: string | null;
+  tipo: { valor: TipoDeContacto; etiqueta: string } | null;
+  nota: string | null;
+  cumplido: boolean;
+  cumplidoPorNombre: string | null;
+  /** Ya tenía que estar hecho y no lo está. */
+  vencido: boolean;
+  persona: { id: string; nombre: string };
+  creadoPorNombre: string | null;
+  marca: MarcaDeLoQueViene;
+}
+
+/** Una acción de campaña del calendario dentro del reporte. */
+export interface AccionDeLoQueViene {
+  clase: "campana";
+  id: string;
+  fecha: string;
+  hora: null;
+  campana: { nombre: string; color: string };
+  nota: string | null;
+  agenteNombre: string | null;
+  registradoPorNombre: string | null;
+  marca: MarcaDeLoQueViene;
+}
+
+export type CosaDeLoQueViene = RecordatorioDeLoQueViene | AccionDeLoQueViene;
+
+export interface PersonaEnLoQueViene {
+  /** Null en «Sin agente»: acciones de marcas que no lleva nadie. */
+  personaId: string | null;
+  nombre: string;
+  porHacer: number;
+  porTipo: Record<TipoDeContacto, number>;
+  acciones: number;
+  atrasados: number;
+}
+
+export interface ReporteDeLoQueViene {
+  /** "empresa": la agencia entera; "personal": la cartera de un agente. */
+  alcance: "empresa" | "personal";
+  generadoEn: string;
+  generadoPor: string;
+  periodo: {
+    clave: PeriodoDeLoQueViene;
+    desde: string;
+    hasta: string;
+    /** «del 12 al 18 de octubre de 2026». */
+    etiqueta: string;
+    /** El día de hoy en Caracas. */
+    hoy: string;
+  };
+  persona: { id: string; nombre: string } | null;
+  resumen: {
+    porHacer: number;
+    hechos: number;
+    acciones: number;
+    atrasados: number;
+    marcas: number;
+    sinSiguientePaso: number;
+    porTipo: Array<{ tipo: TipoDeContacto | null; etiqueta: string; total: number }>;
+    porPersona: PersonaEnLoQueViene[];
+  };
+  /** Solo los días que tienen algo, en orden. */
+  dias: Array<{ fecha: string; etiqueta: string; esHoy: boolean; cosas: CosaDeLoQueViene[] }>;
+  /** Lo pendiente de antes del periodo. */
+  atrasados: RecordatorioDeLoQueViene[];
+  /** Para el filtro por persona; vacío para quien no puede usarlo. */
+  personas: Array<{ id: string; nombre: string; rol: string }>;
 }
 
 /* -------------------------------------------------------------------- */
@@ -553,6 +661,25 @@ export interface Sector {
   orden: number;
   activo: boolean;
   totalMarcas: number;
+  /**
+   * «Dinero por sector»: el valor de las propuestas enviadas de sus
+   * marcas (regla 4). Null para quien no ve las cifras de toda la empresa.
+   */
+  valorPropuestoUsd: number | null;
+}
+
+/** La pantalla de Sectores: el catálogo y, a quien ve las cifras, los totales. */
+export interface CatalogoDeSectores {
+  sectores: Sector[];
+  /** Las marcas sin sector (o con uno que ya no está en el catálogo). */
+  sinSector: {
+    totalMarcas: number;
+    valorPropuestoUsd: number;
+    /** Los sectores que llevan algunas marcas y no están en la lista. */
+    nombresFueraDelCatalogo: string[];
+  } | null;
+  /** La suma de la columna: el valor propuesto de toda la agencia. */
+  totalValorPropuestoUsd: number | null;
 }
 
 /**

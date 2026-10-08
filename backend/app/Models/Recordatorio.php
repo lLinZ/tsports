@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\TipoDeContacto;
 use App\Support\EstadoDeLasMarcas;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -25,6 +27,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *     (RecordatorioController). La persona tiene que poder ver la marca:
  *     si se la quitan, el recordatorio deja de salirle, porque llevaría
  *     dentro el nombre de una marca que ya no es suya (regla 6).
+ *
+ * QUÉ TOCA Y A QUÉ HORA (desde el 2026-10-07): `tipo` es la misma lista
+ * que el contacto de la bitácora (llamada, WhatsApp, reunión, correo) y
+ * `hora` es opcional. Con los dos, el reporte «Lo que viene» puede decir
+ * «el martes, reunión a las 10:00 con Pepsi» en vez de «el martes, Pepsi».
  *
  * Cumplirlo NO calienta la marca: el estado (regla 26) se mueve con una
  * lista cerrada de cosas, y esta no está. Si de la llamada sale algo, se
@@ -47,7 +54,9 @@ class Recordatorio extends Model
         'marca_id',
         'persona_id',
         'fecha',
+        'hora',
         'nota',
+        'tipo',
         'creado_por_id',
         'creado_por_nombre',
         'cumplido_en',
@@ -59,9 +68,23 @@ class Recordatorio extends Model
     {
         return [
             'fecha' => 'date',
+            'tipo' => TipoDeContacto::class,
             'cumplido_en' => 'datetime',
             'avisado_en' => 'datetime',
         ];
+    }
+
+    /**
+     * La hora se lee siempre como «10:00»: MariaDB la devuelve con
+     * segundos y SQLite tal cual se guardó, y la interfaz no tiene por
+     * qué saber de dónde sale.
+     */
+    protected function hora(): Attribute
+    {
+        return Attribute::make(
+            get: fn (?string $valor): ?string => $valor === null || $valor === '' ? null : substr($valor, 0, 5),
+            set: fn (?string $valor): ?string => $valor === null || $valor === '' ? null : substr($valor, 0, 5).':00',
+        );
     }
 
     /* ------------------------------------------------------------------

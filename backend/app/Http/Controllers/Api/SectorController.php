@@ -9,6 +9,7 @@ use App\Http\Resources\RecursoSector;
 use App\Models\Marca;
 use App\Models\RegistroActividad;
 use App\Models\Sector;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -32,6 +33,14 @@ use Illuminate\Validation\ValidationException;
  *     catálogo: desaparecerían del reparto por sector del resumen.
  *   · BORRAR un sector EN USO se rechaza. Se ofrece desactivarlo, que
  *     lo quita del selector sin tocar las marcas que ya lo llevan.
+ *
+ * DINERO POR SECTOR (desde el 2026-10-07, a petición de LinZ): la suma
+ * del valor de las propuestas enviadas de las marcas de cada sector. Es
+ * la misma cuenta que el reparto por sector del resumen y la del
+ * pipeline (regla 4: sin propuesta el valor no cuenta), así que la suma
+ * de la columna, con la fila «Sin sector», da el valor propuesto de la
+ * agencia. Solo se calcula para quien ve las cifras de toda la empresa:
+ * un agente no tiene por qué saber cuánto mueve la agencia en cada rubro.
  */
 class SectorController extends Controller
 {
@@ -54,20 +63,61 @@ class SectorController extends Controller
 
         $sectores = $consulta->get();
 
+        /** @var User $usuario */
+        $usuario = $peticion->user();
+        $conDinero = $usuario->rol->veLasCifrasDeTodaLaEmpresa();
+
         // Los totales, en UNA consulta agrupada y no una por fila. Con
         // doce sectores la diferencia no se nota, pero el catálogo está
-        // pensado para que el equipo lo haga crecer.
-        $marcasPorSector = Marca::query()
-            ->selectRaw('sector, COUNT(*) as total')
-            ->whereNotNull('sector')
-            ->groupBy('sector')
-            ->pluck('total', 'sector');
+        // pensado para que el equipo lo haga crecer. Las marcas sin
+        // sector salen en su propio grupo (clave vacía).
+        $porSector = Marca::query()
+            ->selectRaw("COALESCE(sector, '') as sector_de_la_marca")
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw('SUM(CASE WHEN fase_propuesta_completada = 1 THEN valor_anual_usd ELSE 0 END) as valor')
+            ->groupByRaw("COALESCE(sector, '')")
+            ->get()
+            ->keyBy('sector_de_la_marca');
 
-        $sectores->each(static function (Sector $sector) use ($marcasPorSector): void {
-            $sector->setAttribute('total_marcas', (int) ($marcasPorSector[$sector->nombre] ?? 0));
+        $sectores->each(static function (Sector $sector) use ($porSector, $conDinero): void {
+            $fila = $porSector->get($sector->nombre);
+
+            $sector->setAttribute('total_marcas', (int) ($fila->total ?? 0));
+
+            if ($conDinero) {
+                $sector->setAttribute('valor_propuesto_usd', round((float) ($fila->valor ?? 0), 2));
+            }
         });
 
-        return RecursoSector::collection($sectores);
+        $respuesta = RecursoSector::collection($sectores);
+
+        if (! $conDinero) {
+            return $respuesta;
+        }
+
+        // Lo que no cae en ningún sector del catálogo: sin sector, o con
+        // un nombre que ya no está (no debería quedar ninguna, porque
+        // renombrar arrastra, pero lo importado de Supabase no pasó por
+        // aquí). Sin esta fila la columna no sumaría el total.
+        $nombresDelCatalogo = Sector::query()->pluck('nombre')->all();
+        $fueraDelCatalogo = $porSector->reject(
+            fn ($fila): bool => in_array($fila->sector_de_la_marca, $nombresDelCatalogo, true),
+        );
+
+        return $respuesta->additional([
+            'sinSector' => [
+                'totalMarcas' => (int) $fueraDelCatalogo->sum('total'),
+                'valorPropuestoUsd' => round((float) $fueraDelCatalogo->sum('valor'), 2),
+                // Los nombres que llevan esas marcas y no están en la
+                // lista: es la pista para añadirlos al catálogo.
+                'nombresFueraDelCatalogo' => $fueraDelCatalogo->keys()
+                    ->reject(fn (string $nombre): bool => $nombre === '')
+                    ->sort()
+                    ->values()
+                    ->all(),
+            ],
+            'totalValorPropuestoUsd' => round((float) $porSector->sum('valor'), 2),
+        ]);
     }
 
     /**

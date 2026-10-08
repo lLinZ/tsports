@@ -49,6 +49,7 @@ use App\Http\Controllers\Api\PanelController;
 use App\Http\Controllers\Api\PropiedadController;
 use App\Http\Controllers\Api\PropiedadesEnLaWebController;
 use App\Http\Controllers\Api\RecordatorioController;
+use App\Http\Controllers\Api\ReporteDeLoQueVieneController;
 use App\Http\Controllers\Api\ReporteDePronosticoController;
 use App\Http\Controllers\Api\SectorController;
 use App\Http\Controllers\Api\ExportacionDeBitacoraController;
@@ -154,6 +155,10 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // En qué marcas está el pronóstico (OVP): por marca y por propiedad.
     // Cada quien, de las marcas que ve.
     Route::get('/reportes/pronostico', [ReporteDePronosticoController::class, 'porMarca']);
+    // Lo planificado entre dos días: recordatorios del equipo (también
+    // los que deja «Contacté») y acciones de campaña. Cada quien, de las
+    // marcas que ve.
+    Route::get('/reportes/lo-que-viene', [ReporteDeLoQueVieneController::class, 'delPeriodo']);
 
     /* ---------- Corregir el historial de acciones de campaña ----------
      | Los eventos se crean solos al asignar campaña en la ficha; estas

@@ -51,6 +51,7 @@ class AvisarDeLosRecordatoriosDelDia extends Command
             ->whereDate('fecha', $hoy)
             ->whereNull('avisado_en')
             ->with(['marca', 'persona'])
+            ->orderBy('hora')
             ->orderBy('created_at')
             ->get()
             ->groupBy('persona_id');

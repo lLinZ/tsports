@@ -58,6 +58,7 @@ import { PaginaSectores } from "@/paginas/PaginaSectores";
 import { PaginaPerfil } from "@/paginas/PaginaPerfil";
 import { PaginaBrochure } from "@/paginas/PaginaBrochure";
 import { PaginaReporteDeBitacora } from "@/paginas/PaginaReporteDeBitacora";
+import { PaginaReporteDeLoQueViene } from "@/paginas/PaginaReporteDeLoQueViene";
 import { PaginaReporteDePronostico } from "@/paginas/PaginaReporteDePronostico";
 import { PaginaCatalogoWeb } from "@/paginas/PaginaCatalogoWeb";
 import { PaginaCierreDeMes } from "@/paginas/PaginaCierreDeMes";
@@ -257,6 +258,18 @@ function RutasDeLaAplicacion() {
           </RutaProtegida>
         }
         path="/reportes/bitacora"
+      />
+
+      {/* Lo planificado día por día (recordatorios y acciones de campaña).
+          Todo el equipo: cada quien, de las marcas que ve; la agenda de
+          otra persona, solo quien reparte (lo decide el servidor). */}
+      <Route
+        element={
+          <RutaProtegida>
+            <PaginaReporteDeLoQueViene />
+          </RutaProtegida>
+        }
+        path="/reportes/lo-que-viene"
       />
 
       {/* En qué marcas está el pronóstico (OVP). Todo el equipo: cada

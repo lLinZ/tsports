@@ -316,6 +316,16 @@ export function PaginaPanel() {
           <MisRecordatoriosDelPanel />
           <CalendarioDeCampanas />
         </RejillaBento>
+
+        {/* Lo de hoy es lo propio; lo del equipo para la semana o el mes
+            que viene está en su reporte, con PDF y hoja de cálculo. */}
+        <Link
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+          to="/reportes/lo-que-viene"
+        >
+          <CalendarClock className="size-3.5" />
+          Ver todo lo planificado del equipo, día por día (Reportes › Lo que viene)
+        </Link>
       </SeccionDePantalla>
 
       {/* ============================================================

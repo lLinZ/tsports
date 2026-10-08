@@ -38,7 +38,14 @@ class RecursoRecordatorio extends JsonResource
             'fecha' => $this->fecha->format('Y-m-d'),
             'cuando' => $this->cuando(),
             'diasHasta' => $this->diasHasta(),
+            'hora' => $this->hora,
             'nota' => $this->nota,
+            // Qué toca: llamada, WhatsApp, reunión o correo. Null es «algo
+            // que hacer» sin más.
+            'tipo' => $this->tipo === null ? null : [
+                'valor' => $this->tipo->value,
+                'etiqueta' => $this->tipo->etiqueta(),
+            ],
 
             'personaId' => $this->persona_id,
             'personaNombre' => $this->whenLoaded('persona', fn () => $this->persona?->nombreParaMostrar()),

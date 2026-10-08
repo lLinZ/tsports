@@ -35,6 +35,10 @@ use Illuminate\Validation\ValidationException;
  *     anota el contacto, para dentro de N días o para un día concreto.
  *     «No hace falta» es una respuesta válida (la marca dijo que no, o
  *     ya tiene una acción de campaña agendada).
+ *     Desde el 2026-10-07 el siguiente paso dice también QUÉ toca y, si
+ *     se quiere, A QUÉ HORA: después de una llamada se agenda una reunión
+ *     el martes a las 10:00, y eso es lo que lee el reporte «Lo que
+ *     viene». Sin elegir otro, toca lo mismo que se acaba de hacer.
  *   · EL RECORDATORIO QUE TOCABA, cumplido. Si se llamó porque hoy había
  *     que llamar, ese recordatorio ya está hecho: sin esto se quedaba en
  *     «Para hoy» junto al nuevo. La interfaz lo propone marcado cuando el
@@ -67,6 +71,8 @@ class ContactoController extends Controller
             'retomarEnDias' => ['nullable', 'integer', 'min:1', 'max:'.self::MAXIMO_DE_DIAS_PARA_RETOMAR],
             'retomarEl' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:'.$hoy->toDateString(), 'prohibits:retomarEnDias'],
             'notaDelSiguientePaso' => ['nullable', 'string', 'max:300'],
+            'tipoDelSiguientePaso' => ['nullable', Rule::enum(TipoDeContacto::class)],
+            'horaDelSiguientePaso' => ['nullable', 'date_format:H:i'],
             'recordatorioCumplidoId' => ['nullable', 'uuid'],
         ], [
             'tipo.required' => 'Elige cómo fue el contacto.',
@@ -77,6 +83,8 @@ class ContactoController extends Controller
             'retomarEl.after_or_equal' => 'El siguiente paso tiene que ser para hoy o para un día por delante.',
             'retomarEl.prohibits' => 'Elige «en N días» o un día concreto, no las dos cosas.',
             'notaDelSiguientePaso.max' => 'La nota del siguiente paso puede tener como mucho :max caracteres.',
+            'tipoDelSiguientePaso.enum' => 'Elige llamada, WhatsApp, reunión o correo para el siguiente paso.',
+            'horaDelSiguientePaso.date_format' => 'La hora debe tener el formato HH:MM, por ejemplo 10:30.',
         ]);
 
         $texto = trim($datos['cuerpo']);
@@ -88,6 +96,11 @@ class ContactoController extends Controller
         /** @var User $autor */
         $autor = $peticion->user();
         $tipo = TipoDeContacto::from($datos['tipo']);
+
+        // Lo que toca después; si no se dice, lo mismo que se acaba de hacer.
+        $tipoDelSiguientePaso = isset($datos['tipoDelSiguientePaso'])
+            ? TipoDeContacto::from($datos['tipoDelSiguientePaso'])
+            : $tipo;
 
         // El que se da por hecho tiene que ser de ESTA marca y estar
         // pendiente: con el id de otro se cumpliría algo ajeno.
@@ -109,7 +122,7 @@ class ContactoController extends Controller
             default => null,
         };
 
-        [$comentario, $recordatorio] = DB::transaction(function () use ($marca, $autor, $tipo, $texto, $diaDelSiguientePaso, $datos, $recordatorioQueTocaba): array {
+        [$comentario, $recordatorio] = DB::transaction(function () use ($marca, $autor, $tipo, $texto, $diaDelSiguientePaso, $tipoDelSiguientePaso, $datos, $recordatorioQueTocaba): array {
             $recordatorioQueTocaba?->forceFill([
                 'cumplido_en' => now(),
                 'cumplido_por_nombre' => $autor->nombreParaMostrar(),
@@ -126,7 +139,9 @@ class ContactoController extends Controller
                 'marca_id' => $marca->id,
                 'persona_id' => $autor->id,
                 'fecha' => $diaDelSiguientePaso,
-                'nota' => $this->notaDelSiguientePaso($datos['notaDelSiguientePaso'] ?? null, $tipo),
+                'hora' => $datos['horaDelSiguientePaso'] ?? null,
+                'tipo' => $tipoDelSiguientePaso,
+                'nota' => $this->notaDelSiguientePaso($datos['notaDelSiguientePaso'] ?? null, $tipoDelSiguientePaso),
                 'creado_por_id' => $autor->id,
                 'creado_por_nombre' => $autor->nombreParaMostrar(),
             ]);
@@ -160,7 +175,7 @@ class ContactoController extends Controller
         ], 201);
     }
 
-    /** La nota escrita o, si no hay, la de su tipo («Volver a llamar»). */
+    /** La nota escrita o, si no hay, la de lo que toca («Volver a llamar»). */
     private function notaDelSiguientePaso(?string $nota, TipoDeContacto $tipo): string
     {
         $limpia = trim((string) $nota);

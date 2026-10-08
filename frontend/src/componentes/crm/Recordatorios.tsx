@@ -14,13 +14,17 @@
  * Si un recordatorio es de hoy, vencido o de más adelante lo dice el
  * servidor (`cuando`), con el día de Caracas: aquí no se comparan fechas.
  *
+ * Desde el 2026-10-07 cada uno puede llevar QUÉ TOCA (llamada, WhatsApp,
+ * reunión o correo) y LA HORA, las dos opcionales: se eligen al dejarlo y
+ * se enseñan junto al día («Mañana · 10:00 · Reunión»).
+ *
  * Quién puede tocar cada uno también viene resuelto (`puedoCambiarlo`, y
  * en la tarjeta `marca.puedeEditarla`). Dejárselo a otra persona solo lo
  * ofrece la interfaz a quien reparte (`permisos.asignaVendedores`), y la
  * lista sale de quién puede ver esa marca: la misma de las menciones.
  * ---------------------------------------------------------------------
  */
-import { Button, Input, Select, SelectItem, Tooltip } from "@heroui/react";
+import { Button, Chip, Input, Select, SelectItem, Tooltip } from "@heroui/react";
 import {
   AlarmClock,
   AlarmClockCheck,
@@ -34,6 +38,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { EstadoVacio } from "@/componentes/comunes/EstadosDePantalla";
 import { TarjetaBento } from "@/componentes/comunes/TarjetaBento";
+import { IconoDelTipo, TIPOS_DE_CONTACTO } from "@/componentes/crm/TiposDeContacto";
 import { useMencionablesDeMarca } from "@/hooks/useMarcas";
 import {
   useCambiarRecordatorio,
@@ -45,20 +50,40 @@ import {
 import { useUsuarioAutenticado } from "@/providers/ProveedorSesion";
 import { avisarDeError, avisarDeExito } from "@/utilidades/avisos";
 import { diaLocalDentroDe, formatearDiaAgendado, sumarDias } from "@/utilidades/formato";
-import type { Marca, ProximoRecordatorio, Recordatorio } from "@/tipos/modelos";
+import type { Marca, ProximoRecordatorio, Recordatorio, TipoDeContacto } from "@/tipos/modelos";
 
 /** El ancla de la caja «Para hoy», para llegar desde el aviso de la mañana. */
 export const ANCLA_DE_MIS_RECORDATORIOS = "mis-recordatorios";
 
-/** «Hoy», «Mañana», «Vencido · el 3 oct»… con el `cuando` del servidor. */
+/**
+ * «Hoy», «Mañana · 10:00», «Vencido · el 3 oct»… con el `cuando` del
+ * servidor y la hora si la tiene.
+ */
 function diaDelRecordatorio(recordatorio: ProximoRecordatorio): string {
-  if (recordatorio.cuando === "hoy") return "Hoy";
+  const conHora = (texto: string) => (recordatorio.hora ? `${texto} · ${recordatorio.hora}` : texto);
+
+  if (recordatorio.cuando === "hoy") return conHora("Hoy");
 
   const dia = formatearDiaAgendado(recordatorio.fecha, recordatorio.diasHasta);
 
-  if (recordatorio.cuando === "vencido") return `Vencido · ${dia}`;
+  if (recordatorio.cuando === "vencido") return conHora(`Vencido · ${dia}`);
 
-  return dia.charAt(0).toUpperCase() + dia.slice(1);
+  return conHora(dia.charAt(0).toUpperCase() + dia.slice(1));
+}
+
+/** «Reunión · Presentar la propuesta», o solo una de las dos. */
+function queToca(recordatorio: ProximoRecordatorio): string | null {
+  const partes = [recordatorio.tipo?.etiqueta, recordatorio.nota].filter(Boolean);
+
+  // La nota por defecto ya dice el tipo («Volver a llamar»): no hace falta
+  // repetirlo delante.
+  if (recordatorio.tipo && recordatorio.nota) {
+    const porDefecto = TIPOS_DE_CONTACTO.find((opcion) => opcion.valor === recordatorio.tipo?.valor)?.notaPorDefecto;
+
+    if (porDefecto === recordatorio.nota) return recordatorio.nota;
+  }
+
+  return partes.length > 0 ? partes.join(" · ") : null;
 }
 
 /** El color del día: lo vencido en rojo, lo de hoy con el acento. */
@@ -170,14 +195,19 @@ function FilaDeRecordatorio({
           )}
         </p>
 
-        {recordatorio.nota && (
+        {queToca(recordatorio) && (
           <p
             className={[
-              "mt-0.5 break-words text-xs text-default-600",
+              "mt-0.5 flex items-start gap-1 break-words text-xs text-default-600",
               recordatorio.cumplido ? "line-through" : "",
             ].join(" ")}
           >
-            {recordatorio.nota}
+            {recordatorio.tipo && (
+              <span className="mt-px shrink-0 text-default-400">
+                <IconoDelTipo className="size-3" tipo={recordatorio.tipo.valor} />
+              </span>
+            )}
+            <span className="min-w-0">{queToca(recordatorio)}</span>
           </p>
         )}
 
@@ -288,7 +318,7 @@ export function RecordatoriosDeLaMarca({ marca }: { marca: Marca }) {
   );
 }
 
-/** Para qué día, una nota corta y, a quien reparte, para quién. */
+/** Para qué día, a qué hora, qué toca, una nota corta y, a quien reparte, para quién. */
 function FormularioDeRecordatorio({
   marca,
   alTerminar,
@@ -304,6 +334,8 @@ function FormularioDeRecordatorio({
 
   // Mañana, de partida: es lo más habitual al colgar una llamada.
   const [fecha, establecerFecha] = useState(diaLocalDentroDe(1));
+  const [hora, establecerHora] = useState("");
+  const [tipo, establecerTipo] = useState<TipoDeContacto | null>(null);
   const [nota, establecerNota] = useState("");
   const [idDeLaPersona, establecerIdDeLaPersona] = useState(usuario.id);
 
@@ -311,6 +343,8 @@ function FormularioDeRecordatorio({
     crear.mutate(
       {
         fecha,
+        hora: hora || null,
+        tipo,
         nota: nota.trim() || null,
         personaId: idDeLaPersona === usuario.id ? null : idDeLaPersona,
       },
@@ -332,7 +366,9 @@ function FormularioDeRecordatorio({
         guardar();
       }}
     >
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[10rem_1fr]">
+      {/* La hora, con sitio para «04:00 p. m.»: en Venezuela el navegador
+          la enseña en 12 horas. */}
+      <div className="grid grid-cols-[1fr_8.5rem] gap-2">
         <Input
           aria-label="Día del recordatorio"
           min={diaLocalDentroDe(0)}
@@ -344,16 +380,48 @@ function FormularioDeRecordatorio({
           onValueChange={establecerFecha}
         />
         <Input
-          aria-label="Qué hay que hacer"
-          maxLength={300}
-          placeholder="Qué hay que hacer (opcional)"
+          aria-label="Hora (opcional)"
           radius="lg"
           size="sm"
-          value={nota}
+          type="time"
+          value={hora}
           variant="bordered"
-          onValueChange={establecerNota}
+          onValueChange={establecerHora}
         />
       </div>
+
+      {/* Qué toca, opcional: se puede dejar sin ninguno («mandar el
+          dossier»). Pulsar el elegido lo quita. */}
+      <div aria-label="Qué toca" className="flex flex-wrap gap-1.5" role="group">
+        {TIPOS_DE_CONTACTO.map((opcion) => (
+          <Chip
+            key={opcion.valor}
+            aria-pressed={tipo === opcion.valor}
+            as="button"
+            className="cursor-pointer gap-1 px-2"
+            color={tipo === opcion.valor ? "primary" : "default"}
+            radius="full"
+            size="sm"
+            startContent={opcion.icono}
+            type="button"
+            variant={tipo === opcion.valor ? "solid" : "flat"}
+            onClick={() => establecerTipo((actual) => (actual === opcion.valor ? null : opcion.valor))}
+          >
+            {opcion.etiqueta}
+          </Chip>
+        ))}
+      </div>
+
+      <Input
+        aria-label="Qué hay que hacer"
+        maxLength={300}
+        placeholder="Qué hay que hacer (opcional)"
+        radius="lg"
+        size="sm"
+        value={nota}
+        variant="bordered"
+        onValueChange={establecerNota}
+      />
 
       {puedeElegirPersona && quienesPuedenVerla.length > 1 && (
         <Select
@@ -445,7 +513,7 @@ export function RecordatorioDeLaTarjeta({ marca }: { marca: Marca }) {
 
       <p className="min-w-0 flex-1 truncate text-[11px] text-default-600">
         <span className={`font-semibold ${colorDelDia(proximo)}`}>{diaDelRecordatorio(proximo)}</span>
-        {proximo.nota && ` · ${proximo.nota}`}
+        {queToca(proximo) && ` · ${queToca(proximo)}`}
       </p>
 
       {otros > 0 && <span className="shrink-0 text-[10px] text-default-400">+{otros}</span>}

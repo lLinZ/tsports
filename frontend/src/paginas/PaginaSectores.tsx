@@ -20,6 +20,12 @@
  * Verlo lo puede todo el equipo; editarlo, quien gestiona el catálogo
  * comercial. La bandera ya viene resuelta del servidor: aquí no se
  * compara ningún rol.
+ *
+ * «Dinero por sector» (desde el 2026-10-07): el valor de las propuestas
+ * enviadas de las marcas de cada rubro, con una fila para las que no
+ * tienen sector y el total, que es el mismo valor propuesto del resumen.
+ * Lo suma el servidor y solo se lo manda a quien ve las cifras de toda la
+ * empresa; sin él, la columna no sale.
  * ---------------------------------------------------------------------
  */
 import {
@@ -32,6 +38,8 @@ import {
   ModalFooter,
   ModalHeader,
   Switch,
+  Tab,
+  Tabs,
   Tooltip,
 } from "@heroui/react";
 import { Pencil, Plus, RefreshCw, Save, Shapes, Trash2 } from "lucide-react";
@@ -51,7 +59,7 @@ import {
 } from "@/hooks/useSectores";
 import { useUsuarioAutenticado } from "@/providers/ProveedorSesion";
 import { avisarDeError, avisarDeExito } from "@/utilidades/avisos";
-import { formatearNumero } from "@/utilidades/formato";
+import { formatearDinero, formatearNumero } from "@/utilidades/formato";
 import type { Sector } from "@/tipos/modelos";
 
 export function PaginaSectores() {
@@ -59,6 +67,18 @@ export function PaginaSectores() {
   const catalogo = useSectores();
 
   const puedeEditar = usuario.permisos.gestionaElCatalogoComercial;
+
+  // El dinero solo llega a quien ve las cifras de toda la empresa: si no
+  // viene, la columna no se pinta (aquí no se mira el rol).
+  const conDinero = catalogo.totalValorPropuestoUsd !== null;
+  const [orden, establecerOrden] = useState<"catalogo" | "dinero">("catalogo");
+
+  const sectoresEnOrden =
+    conDinero && orden === "dinero"
+      ? [...catalogo.sectores].sort(
+          (uno, otro) => (otro.valorPropuestoUsd ?? 0) - (uno.valorPropuestoUsd ?? 0),
+        )
+      : catalogo.sectores;
 
   const crearSector = useCrearSector();
   const actualizarSector = useActualizarSector();
@@ -148,11 +168,25 @@ export function PaginaSectores() {
           </h2>
           <p className="mt-0.5 text-sm text-default-500">
             El rubro de cada marca. Es con lo que el resumen contesta en qué
-            sectores se está concentrando el esfuerzo.
+            sectores se está concentrando el esfuerzo
+            {conDinero && " y cuánto dinero hay en cada uno"}.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {conDinero && (
+            <Tabs
+              aria-label="Orden de los sectores"
+              radius="lg"
+              selectedKey={orden}
+              size="sm"
+              onSelectionChange={(clave) => establecerOrden(clave as "catalogo" | "dinero")}
+            >
+              <Tab key="catalogo" title="Como el catálogo" />
+              <Tab key="dinero" title="Más dinero primero" />
+            </Tabs>
+          )}
+
           <Button
             isIconOnly
             aria-label="Actualizar el catálogo"
@@ -209,12 +243,20 @@ export function PaginaSectores() {
         </div>
       ) : (
         <div className="bento-card divide-y divide-default-100 p-2">
-          {catalogo.sectores.map((sector) => (
+          {conDinero && (
+            <div className="hidden items-center gap-3 px-3 pb-2 pt-1 text-[11px] font-semibold uppercase tracking-wide text-default-400 sm:flex">
+              <span className="flex-1">Sector</span>
+              <span className="w-44 text-right">Dinero por sector</span>
+              <span className={puedeEditar ? "w-[4.5rem]" : "hidden"} />
+            </div>
+          )}
+
+          {sectoresEnOrden.map((sector) => (
             <div
               key={sector.id}
               className="flex flex-wrap items-center justify-between gap-3 px-3 py-3"
             >
-              <div className="flex min-w-0 items-center gap-3">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
                 <span
                   className={[
                     "flex size-8 shrink-0 items-center justify-center rounded-xl",
@@ -227,8 +269,15 @@ export function PaginaSectores() {
                 </span>
 
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground">
-                    {sector.nombre}
+                  <p className="flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
+                    <span className="truncate">{sector.nombre}</span>
+                    {/* Junto al nombre y no con los botones: así la
+                        columna del dinero queda alineada en todas las filas. */}
+                    {!sector.activo && (
+                      <Chip className="shrink-0" radius="lg" size="sm" variant="flat">
+                        Retirado
+                      </Chip>
+                    )}
                   </p>
                   {/* El total es también el aviso de qué se arrastra al
                       renombrar y de por qué no se puede borrar. */}
@@ -242,13 +291,14 @@ export function PaginaSectores() {
                 </div>
               </div>
 
-              <div className="flex shrink-0 items-center gap-2">
-                {!sector.activo && (
-                  <Chip radius="lg" size="sm" variant="flat">
-                    Retirado
-                  </Chip>
-                )}
+              {conDinero && (
+                <DineroDelSector
+                  importe={sector.valorPropuestoUsd ?? 0}
+                  total={catalogo.totalValorPropuestoUsd ?? 0}
+                />
+              )}
 
+              <div className="flex shrink-0 items-center gap-2">
                 {puedeEditar && (
                   <>
                     <Button
@@ -291,6 +341,36 @@ export function PaginaSectores() {
               </div>
             </div>
           ))}
+
+          {/* Lo que no está en ningún sector y el total de la columna,
+              que es el valor propuesto de toda la agencia: el mismo
+              número que el resumen. */}
+          {conDinero && catalogo.sinSector !== null && catalogo.sinSector.totalMarcas > 0 && (
+            <FilaDeTotales
+              conBotones={puedeEditar}
+              detalle={`${formatearNumero(catalogo.sinSector.totalMarcas)} ${
+                catalogo.sinSector.totalMarcas === 1 ? "marca" : "marcas"
+              } sin sector${
+                // `?? []`: una copia guardada de antes de esta versión no lo trae.
+                (catalogo.sinSector.nombresFueraDelCatalogo ?? []).length > 0
+                  ? ` o con uno que no está en la lista: ${catalogo.sinSector.nombresFueraDelCatalogo.join(", ")}`
+                  : ""
+              }`}
+              importe={catalogo.sinSector.valorPropuestoUsd}
+              titulo="Sin sector"
+              total={catalogo.totalValorPropuestoUsd ?? 0}
+            />
+          )}
+
+          {conDinero && (
+            <FilaDeTotales
+              destacada
+              conBotones={puedeEditar}
+              detalle="Valor de las propuestas enviadas"
+              importe={catalogo.totalValorPropuestoUsd ?? 0}
+              titulo="Total"
+            />
+          )}
         </div>
       )}
 
@@ -362,6 +442,84 @@ export function PaginaSectores() {
           </ModalFooter>
         </ModalContent>
       </Modal>
+    </div>
+  );
+}
+
+/* ==================================================================== */
+/* La columna «Dinero por sector»                                       */
+/* ==================================================================== */
+
+/**
+ * El importe de un sector con una barra fina de su parte del total: de un
+ * vistazo se ve dónde está el dinero sin leer cifra por cifra.
+ */
+function DineroDelSector({ importe, total }: { importe: number; total: number }) {
+  const parte = total > 0 ? importe / total : 0;
+
+  return (
+    // En el teléfono va debajo, a lo ancho: el nombre y los botones
+    // se quedan en la primera línea.
+    <div className="order-last w-full shrink-0 pl-11 sm:order-none sm:w-44 sm:pl-0 sm:text-right">
+      <p
+        className={[
+          "text-sm font-semibold tabular-nums",
+          importe > 0 ? "text-foreground" : "text-default-400",
+        ].join(" ")}
+      >
+        {formatearDinero(importe)}
+      </p>
+      <div className="mt-1 h-1 overflow-hidden rounded-full bg-default-100 sm:ml-auto sm:w-32">
+        <div
+          className="h-full rounded-full bg-primary"
+          style={{ width: importe > 0 ? `${Math.max(parte * 100, 2)}%` : "0%" }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** «Sin sector» y «Total», debajo de la lista, alineados con la columna. */
+function FilaDeTotales({
+  titulo,
+  detalle,
+  importe,
+  total,
+  destacada = false,
+  conBotones,
+}: {
+  titulo: string;
+  detalle: string;
+  importe: number;
+  /** Con él se dibuja la barra de su parte; el total no la lleva. */
+  total?: number;
+  destacada?: boolean;
+  /** Si las filas de arriba llevan botones, para dejar su hueco. */
+  conBotones: boolean;
+}) {
+  return (
+    <div
+      className={[
+        "flex flex-wrap items-center justify-between gap-3 px-3 py-3",
+        destacada ? "rounded-xl bg-default-50" : "",
+      ].join(" ")}
+    >
+      <div className="min-w-0 flex-1 pl-11">
+        <p className={["text-sm text-foreground", destacada ? "font-bold" : "font-semibold italic"].join(" ")}>
+          {titulo}
+        </p>
+        <p className="text-[11px] text-default-500">{detalle}</p>
+      </div>
+
+      {total !== undefined ? (
+        <DineroDelSector importe={importe} total={total} />
+      ) : (
+        <p className="w-full shrink-0 pl-11 text-base font-bold tabular-nums text-primary sm:w-44 sm:pl-0 sm:text-right">
+          {formatearDinero(importe)}
+        </p>
+      )}
+
+      {conBotones && <span aria-hidden className="hidden w-[4.5rem] shrink-0 sm:block" />}
     </div>
   );
 }

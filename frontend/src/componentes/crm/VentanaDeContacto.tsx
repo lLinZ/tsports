@@ -24,6 +24,12 @@
  * Y si quien anota tenía un recordatorio de hoy (o vencido) con esta
  * marca, se propone darlo por cumplido: casi siempre es justo la llamada
  * que se acaba de hacer, y si no se cumple se queda en «Para hoy».
+ *
+ * Desde el 2026-10-07 el siguiente paso dice también QUÉ TOCA (de
+ * partida, lo mismo que se acaba de hacer) y, si se quiere, A QUÉ HORA.
+ * Es lo que convierte «Contacté» en la agenda del equipo: después de una
+ * llamada se deja «reunión el martes a las 10:00», y eso sale en el
+ * reporte «Lo que viene» del administrador.
  * ---------------------------------------------------------------------
  */
 import {
@@ -37,9 +43,10 @@ import {
   ModalHeader,
   Textarea,
 } from "@heroui/react";
-import { Mail, MessageCircle, Phone, PhoneCall, Users } from "lucide-react";
+import { Mail, MessageCircle, Phone, PhoneCall } from "lucide-react";
 import { useRef, useState, type ReactNode } from "react";
 import { BarraDeScrollDibujada } from "@/componentes/comunes/BarraDeScrollDibujada";
+import { TIPOS_DE_CONTACTO } from "@/componentes/crm/TiposDeContacto";
 import { useAnotarContacto } from "@/hooks/useRecordatorios";
 import { avisarDeError, avisarDeExito } from "@/utilidades/avisos";
 import {
@@ -49,25 +56,6 @@ import {
   numeroParaWhatsapp,
 } from "@/utilidades/formato";
 import type { Marca, TipoDeContacto } from "@/tipos/modelos";
-
-/** Los tipos de contacto, con su icono y la nota que deja si no se escribe otra. */
-const TIPOS_DE_CONTACTO: Array<{
-  valor: TipoDeContacto;
-  etiqueta: string;
-  icono: ReactNode;
-  /** La misma que pone el servidor (TipoDeContacto::notaDelSiguientePaso). */
-  notaPorDefecto: string;
-}> = [
-  { valor: "llamada", etiqueta: "Llamada", icono: <Phone className="size-3.5" />, notaPorDefecto: "Volver a llamar" },
-  {
-    valor: "whatsapp",
-    etiqueta: "WhatsApp",
-    icono: <MessageCircle className="size-3.5" />,
-    notaPorDefecto: "Volver a escribir por WhatsApp",
-  },
-  { valor: "reunion", etiqueta: "Reunión", icono: <Users className="size-3.5" />, notaPorDefecto: "Seguimiento de la reunión" },
-  { valor: "correo", etiqueta: "Correo", icono: <Mail className="size-3.5" />, notaPorDefecto: "Volver a escribir" },
-];
 
 /**
  * Cuándo se retoma. Un número son «N días desde hoy» (los cuenta el
@@ -122,6 +110,11 @@ function FormularioDeContacto({ marca, alTerminar }: { marca: Marca; alTerminar:
   const [siguientePaso, establecerSiguientePaso] = useState<SiguientePaso | null>(null);
   const [otroDia, establecerOtroDia] = useState("");
   const [nota, establecerNota] = useState("");
+  // Qué toca después. Null = «lo mismo que se acaba de hacer», y así
+  // cambiar el tipo del contacto arrastra el del siguiente paso mientras
+  // nadie lo haya tocado.
+  const [tipoDelPaso, establecerTipoDelPaso] = useState<TipoDeContacto | null>(null);
+  const [hora, establecerHora] = useState("");
 
   // Mi próximo recordatorio en esta marca, si ya tocaba (hoy o vencido).
   const recordatorioQueTocaba =
@@ -138,6 +131,9 @@ function FormularioDeContacto({ marca, alTerminar }: { marca: Marca; alTerminar:
   const faltaElPaso = siguientePaso === null || (siguientePaso === "otro" && otroDia === "");
 
   const tipoElegido = TIPOS_DE_CONTACTO.find((opcion) => opcion.valor === tipo) ?? TIPOS_DE_CONTACTO[0];
+  const tipoDelPasoElegido =
+    TIPOS_DE_CONTACTO.find((opcion) => opcion.valor === (tipoDelPaso ?? tipo)) ?? TIPOS_DE_CONTACTO[0];
+  const hayPaso = siguientePaso !== null && siguientePaso !== "ninguno";
   const numeroDeWhatsapp = numeroParaWhatsapp(marca.telefonoContacto);
 
   function guardar() {
@@ -151,7 +147,9 @@ function FormularioDeContacto({ marca, alTerminar }: { marca: Marca; alTerminar:
         cuerpo: texto.trim(),
         retomarEnDias: typeof siguientePaso === "number" ? siguientePaso : null,
         retomarEl: siguientePaso === "otro" ? otroDia : null,
-        notaDelSiguientePaso: siguientePaso === "ninguno" ? null : nota.trim() || null,
+        notaDelSiguientePaso: hayPaso ? nota.trim() || null : null,
+        tipoDelSiguientePaso: hayPaso ? tipoDelPasoElegido.valor : null,
+        horaDelSiguientePaso: hayPaso && hora !== "" ? hora : null,
         recordatorioCumplidoId: recordatorioQueTocaba !== null && cumplirElQueTocaba ? recordatorioQueTocaba.id : null,
       },
       {
@@ -161,7 +159,9 @@ function FormularioDeContacto({ marca, alTerminar }: { marca: Marca; alTerminar:
           avisarDeExito(
             recordatorio === null
               ? "Contacto anotado en la bitácora"
-              : `Contacto anotado · lo retomas ${formatearDiaAgendado(recordatorio.fecha, recordatorio.diasHasta)}`,
+              : `Contacto anotado · lo retomas ${formatearDiaAgendado(recordatorio.fecha, recordatorio.diasHasta)}${
+                  recordatorio.hora ? ` a las ${recordatorio.hora}` : ""
+                }`,
           );
           alTerminar();
         },
@@ -297,18 +297,48 @@ function FormularioDeContacto({ marca, alTerminar }: { marca: Marca; alTerminar:
             />
           )}
 
-          {siguientePaso !== null && siguientePaso !== "ninguno" && (
-            <Input
-              aria-label="Qué toca entonces"
-              className="mt-2"
-              maxLength={300}
-              placeholder={`Qué toca entonces (si no, «${tipoElegido.notaPorDefecto}»)`}
-              radius="lg"
-              size="sm"
-              value={nota}
-              variant="bordered"
-              onValueChange={establecerNota}
-            />
+          {hayPaso && (
+            <div className="mt-3 space-y-2.5 rounded-xl bg-default-50 p-2.5">
+              <div>
+                <p className="mb-1.5 text-[11px] font-medium text-default-500">Qué toca ese día</p>
+                <GrupoDeOpciones etiqueta="Qué toca ese día">
+                  {TIPOS_DE_CONTACTO.map((opcion) => (
+                    <Opcion
+                      key={opcion.valor}
+                      elegida={tipoDelPasoElegido.valor === opcion.valor}
+                      icono={opcion.icono}
+                      alElegir={() => establecerTipoDelPaso(opcion.valor)}
+                    >
+                      {opcion.etiqueta}
+                    </Opcion>
+                  ))}
+                </GrupoDeOpciones>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[8rem_1fr]">
+                <Input
+                  label="Hora (opcional)"
+                  labelPlacement="outside"
+                  radius="lg"
+                  size="sm"
+                  type="time"
+                  value={hora}
+                  variant="bordered"
+                  onValueChange={establecerHora}
+                />
+                <Input
+                  label="Nota (opcional)"
+                  labelPlacement="outside"
+                  maxLength={300}
+                  placeholder={`Si no, «${tipoDelPasoElegido.notaPorDefecto}»`}
+                  radius="lg"
+                  size="sm"
+                  value={nota}
+                  variant="bordered"
+                  onValueChange={establecerNota}
+                />
+              </div>
+            </div>
           )}
 
           <p

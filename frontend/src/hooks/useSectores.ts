@@ -17,13 +17,15 @@ import {
   listarSectores,
 } from "@/api/sectores";
 import { CLAVE_DE_CATALOGOS } from "@/hooks/useCatalogos";
-import type { Sector } from "@/tipos/modelos";
+import type { CatalogoDeSectores, Sector } from "@/tipos/modelos";
 import { errorSoloSiNoHayNadaQueEnsenar } from "@/utilidades/consultas";
 
 export const CLAVE_DE_SECTORES = ["sectores"] as const;
 
 export function useSectores(): {
   sectores: Sector[];
+  sinSector: CatalogoDeSectores["sinSector"];
+  totalValorPropuestoUsd: number | null;
   estaCargando: boolean;
   error: unknown;
   recargar: () => void;
@@ -34,7 +36,9 @@ export function useSectores(): {
   });
 
   return {
-    sectores: consulta.data ?? [],
+    sectores: consulta.data?.sectores ?? [],
+    sinSector: consulta.data?.sinSector ?? null,
+    totalValorPropuestoUsd: consulta.data?.totalValorPropuestoUsd ?? null,
     estaCargando: consulta.isLoading,
     error: errorSoloSiNoHayNadaQueEnsenar(consulta),
     recargar: () => void consulta.refetch(),

@@ -82,6 +82,63 @@ class CatalogoDeSectoresTest extends TestCase
     }
 
     /* ------------------------------------------------------------------
+     | Dinero por sector
+     |-----------------------------------------------------------------*/
+
+    public function test_cada_sector_suma_el_valor_de_sus_propuestas_y_la_columna_cuadra(): void
+    {
+        $comercial = $this->crearUsuario(RolUsuario::Comercial);
+
+        $conPropuesta = fn (string $nombre, ?string $sector, float $valor): Marca => Marca::create([
+            'nombre_marca' => $nombre,
+            'sector' => $sector,
+            'fase_propuesta_completada' => true,
+            'descripcion_propuesta' => 'Patrocinio anual',
+            'valor_anual_usd' => $valor,
+        ]);
+
+        $conPropuesta('Polar', 'Bebidas', 12000);
+        $conPropuesta('Pepsi', 'Bebidas', 8000);
+        $conPropuesta('Sin rubro', null, 3000);
+        // Un rubro que no está en el catálogo (lo importado no pasó por él).
+        $conPropuesta('Laboratorio', 'Farmacéutico', 1000);
+        // Sin propuesta el valor no cuenta (regla 4), pero la marca sí.
+        Marca::create(['nombre_marca' => 'Maltín', 'sector' => 'Bebidas', 'valor_anual_usd' => 99000]);
+
+        $respuesta = $this->actingAs($comercial)->getJson('/api/sectores')->assertOk();
+
+        $bebidas = collect($respuesta->json('data'))->firstWhere('nombre', 'Bebidas');
+        $this->assertSame(3, $bebidas['totalMarcas']);
+        $this->assertEquals(20000, $bebidas['valorPropuestoUsd']);
+
+        $respuesta
+            ->assertJsonPath('sinSector.totalMarcas', 2)
+            ->assertJsonPath('sinSector.valorPropuestoUsd', 4000)
+            ->assertJsonPath('sinSector.nombresFueraDelCatalogo', ['Farmacéutico'])
+            ->assertJsonPath('totalValorPropuestoUsd', 24000);
+
+        // Y es la misma cifra que el valor propuesto del resumen.
+        $this->actingAs($comercial)
+            ->getJson('/api/panel/resumen')
+            ->assertJsonPath('contadores.valorPropuestoAnual', 24000);
+    }
+
+    public function test_un_agente_no_recibe_el_dinero_de_la_agencia_por_sector(): void
+    {
+        $agente = $this->crearUsuario(RolUsuario::Vendedor);
+        Marca::create([
+            'nombre_marca' => 'Polar', 'sector' => 'Bebidas', 'fase_propuesta_completada' => true,
+            'descripcion_propuesta' => 'Patrocinio', 'valor_anual_usd' => 12000,
+        ]);
+
+        $respuesta = $this->actingAs($agente)->getJson('/api/sectores')->assertOk();
+
+        $this->assertNull(collect($respuesta->json('data'))->firstWhere('nombre', 'Bebidas')['valorPropuestoUsd']);
+        $respuesta->assertJsonMissingPath('totalValorPropuestoUsd');
+        $respuesta->assertJsonMissingPath('sinSector');
+    }
+
+    /* ------------------------------------------------------------------
      | Renombrar arrastra a las marcas
      |-----------------------------------------------------------------*/
 

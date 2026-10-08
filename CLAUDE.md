@@ -497,6 +497,15 @@ Salieron del cliente y están implementadas a propósito así:
       los activos (si no, editarle el teléfono a una de esas marcas
       fallaría por un campo que nadie tocó).
 
+    **«Dinero por sector»** (desde el 2026-10-07, pedido por LinZ) es la
+    suma del valor de las propuestas enviadas de cada rubro: la misma
+    cuenta que el reparto por sector del resumen (regla 4). La pantalla
+    lleva además la fila «Sin sector» (sin sector o con uno que no está
+    en el catálogo, y dice cuáles) y el total, que es el valor propuesto
+    del resumen: la columna tiene que cuadrar. Lo suma `SectorController`
+    y solo para quien ve las cifras de toda la empresa; a un agente no le
+    llega (`valorPropuestoUsd` null).
+
 16. **Las fechas sin hora se construyen como fecha local.** Una cadena
     "2026-09-20" la interpreta el navegador como medianoche UTC, y en
     Venezuela (UTC-4) se ve como el 19. `utilidades/formato.ts` las
@@ -878,6 +887,11 @@ Salieron del cliente y están implementadas a propósito así:
       marca para que avise el día nuevo.
     - **Cumplirlo no calienta la marca**: no está en la lista cerrada de
       la regla 26. Si de la llamada sale algo, va a la bitácora.
+    - **Qué toca y a qué hora** (desde el 2026-10-07): `tipo` es la misma
+      lista que el contacto de la bitácora (`TipoDeContacto`) y `hora` es
+      opcional («ese día»). Los dos se eligen al dejarlo, se corrigen
+      después y se enseñan junto al día («Mañana · 10:00 · Reunión»).
+      Dentro de un día, primero lo que no tiene hora y después por hora.
 
 28. **Las herramientas del día a día no enseñan más que el tablero.**
     Desde el 2026-10-06 (etapa 7).
@@ -921,6 +935,11 @@ Salieron del cliente y están implementadas a propósito así:
     - **«¿Cuándo lo retomas?» no trae nada elegido**: hay que contestar,
       aunque sea «No hace falta». «En N días» lo cuenta el servidor desde
       el día de Caracas (regla 27); solo «Otro día» manda una fecha.
+    - **El siguiente paso dice qué toca y, si se quiere, a qué hora**
+      (desde el 2026-10-07): de partida lo mismo que se acaba de hacer,
+      y su nota por defecto sale de lo que toca, no de lo que se hizo
+      (después de una llamada, «Reunión de seguimiento»). Así «Contacté»
+      alimenta la agenda del equipo (regla 30).
     - **Si quien anota tenía un recordatorio de hoy o vencido en esa
       marca, se propone darlo por cumplido** (marcado de partida): casi
       siempre es la llamada que se acaba de hacer, y si no, se quedaba en
@@ -935,6 +954,33 @@ Salieron del cliente y están implementadas a propósito así:
     - **El teléfono de la ficha se pasa a WhatsApp con su código de país**
       (`numeroParaWhatsapp`: «0414-1234567» → 584141234567). En la ficha
       se escribe como se marca en Venezuela, y `wa.me/0414…` no abre nada.
+
+30. **«Lo que viene» junta lo planificado, y los días los cuenta el
+    servidor.** Desde el 2026-10-07, a petición de LinZ: el administrador
+    tiene que poder ver qué hay planificado la semana o el mes que viene
+    y sacarlo en un reporte. Reportes › «Lo que viene»
+    (`/reportes/lo-que-viene`, `ReporteDeLoQueVieneController`).
+
+    - **Junta lo que el sistema sabe del futuro**: los recordatorios del
+      equipo (también los que deja «Contacté», con su tipo y hora) y las
+      acciones de campaña del calendario, día por día; lo ATRASADO (lo
+      pendiente de antes del periodo) aparte, y la cifra «sin siguiente
+      paso» de la regla 29.
+    - **El periodo lo calcula el servidor** con el día de Caracas
+      (`esta_semana` es de hoy al domingo, `proxima_semana` de lunes a
+      domingo, `este_mes` de hoy a fin de mes, `proximo_mes` entero, u
+      `otro` con desde y hasta, un año como mucho). El navegador solo dice
+      cuál (regla 16).
+    - **Cada quien, lo de las marcas que ve** (regla 6): la agencia entera
+      admin y comercial, su cartera el agente. Filtrar por persona es de
+      quien ve todas (`personas` solo le llega a él); un agente solo se
+      puede pedir a sí mismo (403 si no). Un recordatorio de alguien que ya
+      no ve la marca o cuya cuenta está desactivada no sale: nadie lo va a
+      hacer. Las acciones de campaña son del agente de su marca.
+    - **No queda en la auditoría**, como el pronóstico: no saca
+      conversaciones ni datos de contacto. Por eso se pide solo al cambiar
+      un filtro. El PDF y la hoja de cálculo los arma el navegador con la
+      misma respuesta (`utilidades/exportarLoQueViene.ts`).
 
 ---
 
@@ -1070,3 +1116,8 @@ VPS usa **MySQL**: la plantilla es `backend/.env.example`.
   cifra del resumen y la lista del tablero dejarían de coincidir (regla 29).
 - Añadir una caja al resumen fuera de la parte cuya pregunta contesta
   (ver 4.8).
+- Calcular en el navegador qué días son «esta semana» o «el próximo
+  mes» para un reporte: se manda el periodo y los días los pone el
+  servidor (regla 30).
+- Mandar a un agente el dinero de la agencia por sector, o la agenda de
+  otra persona (reglas 15 y 30).

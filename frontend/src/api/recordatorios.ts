@@ -11,6 +11,7 @@
  */
 import { clienteHttp } from "@/api/clienteHttp";
 import type {
+  CambiosDeRecordatorio,
   DatosDeContacto,
   DatosDeRecordatorio,
   MisRecordatorios,
@@ -48,7 +49,7 @@ export async function crearRecordatorio(
 /** Cumplirlo (o deshacerlo), posponerlo o corregir la nota. */
 export async function cambiarRecordatorio(
   idDelRecordatorio: string,
-  cambios: { cumplido?: boolean; fecha?: string; nota?: string | null },
+  cambios: CambiosDeRecordatorio,
 ): Promise<Recordatorio> {
   const { data } = await clienteHttp.patch<{ data: Recordatorio }>(
     `/recordatorios/${idDelRecordatorio}`,

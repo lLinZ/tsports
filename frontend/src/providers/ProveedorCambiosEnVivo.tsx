@@ -68,15 +68,18 @@ const CLAVE_DEL_EQUIPO: QueryKey = ["usuarios"]; // Equipo y los selectores de a
  */
 function clavesQueCambiaron({ entidad, id }: CambioEnLosDatos): QueryKey[] {
   switch (entidad) {
+    // Los sectores, porque su pantalla cuenta las marcas y el dinero de
+    // cada rubro: una propuesta nueva cambia la columna «Dinero por sector».
     case "marca":
       return id === null
-        ? [clavesDeMarcas.todas, CLAVE_DEL_PANEL, CLAVE_DE_LA_AUDITORIA]
+        ? [clavesDeMarcas.todas, CLAVE_DEL_PANEL, CLAVE_DE_SECTORES, CLAVE_DE_LA_AUDITORIA]
         : [
             ["marcas", "listado"],
             clavesDeMarcas.ficha(id),
             clavesDeMarcas.agentes,
             ["marcas", "sugerencias"],
             CLAVE_DEL_PANEL,
+            CLAVE_DE_SECTORES,
             CLAVE_DE_LA_AUDITORIA,
           ];
 

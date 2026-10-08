@@ -13,22 +13,32 @@
  * ---------------------------------------------------------------------
  */
 import { clienteHttp } from "@/api/clienteHttp";
-import type { Sector } from "@/tipos/modelos";
+import type { CatalogoDeSectores, Sector } from "@/tipos/modelos";
 
 /**
- * Trae el catálogo completo, con cuántas marcas hay en cada rubro.
+ * Trae el catálogo completo, con cuántas marcas hay en cada rubro y, a
+ * quien ve las cifras de toda la empresa, el dinero de cada uno y los
+ * totales de la columna.
  *
  * Por defecto vienen también los desactivados: la pantalla que los
  * administra tiene que poder volver a activarlos.
  */
 export async function listarSectores(
   opciones: { soloActivos?: boolean } = {},
-): Promise<Sector[]> {
-  const { data } = await clienteHttp.get<{ data: Sector[] }>("/sectores", {
+): Promise<CatalogoDeSectores> {
+  const { data } = await clienteHttp.get<{
+    data: Sector[];
+    sinSector?: CatalogoDeSectores["sinSector"];
+    totalValorPropuestoUsd?: number;
+  }>("/sectores", {
     params: opciones.soloActivos ? { soloActivos: 1 } : {},
   });
 
-  return data.data;
+  return {
+    sectores: data.data,
+    sinSector: data.sinSector ?? null,
+    totalValorPropuestoUsd: data.totalValorPropuestoUsd ?? null,
+  };
 }
 
 export async function crearSector(nombre: string): Promise<Sector> {

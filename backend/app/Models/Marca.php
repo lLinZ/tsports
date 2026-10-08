@@ -234,6 +234,9 @@ class Marca extends Model
         return $this->recordatorios()
             ->whereNull('cumplido_en')
             ->orderBy('fecha')
+            // Dentro del día, primero lo que no tiene hora («ese día») y
+            // después por hora: NULL va delante en MariaDB y en SQLite.
+            ->orderBy('hora')
             ->orderBy('created_at');
     }
 

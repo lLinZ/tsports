@@ -284,6 +284,93 @@ class RecordatoriosTest extends TestCase
     }
 
     /* ------------------------------------------------------------------
+     | Qué toca y a qué hora
+     |-----------------------------------------------------------------*/
+
+    public function test_un_recordatorio_lleva_que_toca_y_la_hora_y_se_ordena_por_ella(): void
+    {
+        $agente = $this->crearUsuario(RolUsuario::Vendedor);
+        $marca = Marca::create(['nombre_marca' => 'Pepsi', 'vendedor_asignado_id' => $agente->id]);
+
+        $this->actingAs($agente)
+            ->postJson("/api/marcas/{$marca->id}/recordatorios", [
+                'fecha' => '2026-10-06', 'hora' => '15:30', 'tipo' => 'reunion', 'nota' => 'Presentar la propuesta',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.hora', '15:30')
+            ->assertJsonPath('data.tipo.valor', 'reunion')
+            ->assertJsonPath('data.tipo.etiqueta', 'Reunión');
+
+        $this->actingAs($agente)
+            ->postJson("/api/marcas/{$marca->id}/recordatorios", ['fecha' => '2026-10-06', 'hora' => '09:00', 'tipo' => 'llamada'])
+            ->assertCreated();
+
+        // Sin hora, delante: es «ese día».
+        $this->actingAs($agente)
+            ->postJson("/api/marcas/{$marca->id}/recordatorios", ['fecha' => '2026-10-06', 'nota' => 'Mandar el dossier'])
+            ->assertCreated()
+            ->assertJsonPath('data.hora', null)
+            ->assertJsonPath('data.tipo', null);
+
+        $this->actingAs($agente)
+            ->getJson('/api/recordatorios/mios')
+            ->assertOk()
+            ->assertJsonPath('proximos.0.hora', null)
+            ->assertJsonPath('proximos.1.hora', '09:00')
+            ->assertJsonPath('proximos.2.hora', '15:30');
+
+        // La tarjeta enseña el primero, con su hora y su tipo.
+        $this->actingAs($agente)
+            ->getJson('/api/marcas')
+            ->assertOk()
+            ->assertJsonPath('data.0.miProximoRecordatorio.nota', 'Mandar el dossier');
+    }
+
+    public function test_la_hora_y_el_tipo_se_corrigen_y_se_validan(): void
+    {
+        $agente = $this->crearUsuario(RolUsuario::Vendedor);
+        $marca = Marca::create(['nombre_marca' => 'Pepsi', 'vendedor_asignado_id' => $agente->id]);
+        $recordatorio = Recordatorio::create(['marca_id' => $marca->id, 'persona_id' => $agente->id, 'fecha' => '2026-10-06']);
+
+        $this->actingAs($agente)
+            ->patchJson("/api/recordatorios/{$recordatorio->id}", ['hora' => '25:00'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('hora', 'errores');
+
+        $this->actingAs($agente)
+            ->patchJson("/api/recordatorios/{$recordatorio->id}", ['tipo' => 'fax'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('tipo', 'errores');
+
+        $this->actingAs($agente)
+            ->patchJson("/api/recordatorios/{$recordatorio->id}", ['hora' => '11:15', 'tipo' => 'whatsapp'])
+            ->assertOk()
+            ->assertJsonPath('data.hora', '11:15')
+            ->assertJsonPath('data.tipo.etiqueta', 'WhatsApp');
+
+        // Y se quitan igual.
+        $this->actingAs($agente)
+            ->patchJson("/api/recordatorios/{$recordatorio->id}", ['hora' => null, 'tipo' => null])
+            ->assertOk()
+            ->assertJsonPath('data.hora', null)
+            ->assertJsonPath('data.tipo', null);
+    }
+
+    public function test_el_aviso_de_la_manana_dice_la_hora_de_uno_solo(): void
+    {
+        $agente = $this->crearUsuario(RolUsuario::Vendedor);
+        $marca = Marca::create(['nombre_marca' => 'Pepsi', 'vendedor_asignado_id' => $agente->id]);
+        Recordatorio::create([
+            'marca_id' => $marca->id, 'persona_id' => $agente->id, 'fecha' => '2026-10-05',
+            'hora' => '10:00', 'tipo' => 'reunion', 'nota' => 'Reunión de seguimiento',
+        ]);
+
+        $this->artisan('recordatorios:avisar-del-dia')->assertSuccessful();
+
+        $this->assertSame('A las 10:00: Reunión de seguimiento', Notificacion::query()->sole()->cuerpo);
+    }
+
+    /* ------------------------------------------------------------------
      | Ayudantes
      |-----------------------------------------------------------------*/
 

@@ -35,6 +35,12 @@ class RecursoSector extends JsonResource
             // en el alta y la edición, que devuelven uno solo, se cuenta
             // aquí. `??` y no `?:` porque un cero es un total válido.
             'totalMarcas' => $this->total_marcas ?? $this->totalDeMarcas(),
+            // El valor de las propuestas enviadas de sus marcas. Solo lo
+            // trae el listado y solo para quien ve las cifras de toda la
+            // empresa (SectorController::index); si no, null.
+            // (`??` y no lectura a secas: el modelo no tiene esa columna, y
+            // en modo estricto leer un atributo que no está lanza.)
+            'valorPropuestoUsd' => $this->valor_propuesto_usd ?? null,
         ];
     }
 }

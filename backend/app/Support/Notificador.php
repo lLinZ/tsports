@@ -234,8 +234,11 @@ class Notificador
             ? 'Hoy toca: '.$primero->marca->nombre_marca
             : sprintf('Hoy tienes %d recordatorios', $deHoy->count());
 
+        // Con uno solo, qué toca y a qué hora, si la tiene: «A las 10:00:
+        // Reunión de seguimiento».
         $cuerpo = $deHoy->count() === 1
-            ? ($primero->nota ?? 'Tienes un recordatorio para hoy.')
+            ? ($primero->hora !== null ? 'A las '.$primero->hora.': ' : '')
+                .($primero->nota ?? $primero->tipo?->etiqueta() ?? 'Tienes un recordatorio para hoy.')
             : $this->enumerarMarcas($nombresDeLasMarcas);
 
         if ($vencidos > 0) {

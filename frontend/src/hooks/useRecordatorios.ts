@@ -26,6 +26,7 @@ import {
 } from "@/api/recordatorios";
 import { clavesDeMarcas } from "@/hooks/useMarcas";
 import type {
+  CambiosDeRecordatorio,
   DatosDeContacto,
   DatosDeRecordatorio,
   MisRecordatorios,
@@ -85,7 +86,7 @@ export function useCambiarRecordatorio() {
       cambios,
     }: {
       idDelRecordatorio: string;
-      cambios: { cumplido?: boolean; fecha?: string; nota?: string | null };
+      cambios: CambiosDeRecordatorio;
     }) => cambiarRecordatorio(idDelRecordatorio, cambios),
     onSuccess: invalidar,
   });

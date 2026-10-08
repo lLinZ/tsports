@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\TipoDeContacto;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\RecursoRecordatorio;
 use App\Models\Marca;
@@ -35,6 +36,10 @@ use Illuminate\Validation\ValidationException;
  *
  * Un día que ya pasó no se acepta, ni al crear ni al posponer: un
  * recordatorio para ayer nace vencido y no recuerda nada.
+ *
+ * Desde el 2026-10-07 llevan además QUÉ TOCA (llamada, WhatsApp, reunión
+ * o correo) y, si se quiere, LA HORA. Los dos son opcionales y los dos
+ * se pueden corregir después: es lo que lee el reporte «Lo que viene».
  */
 class RecordatorioController extends Controller
 {
@@ -61,6 +66,7 @@ class RecordatorioController extends Controller
             // Primero lo pendiente, por día; lo cumplido, debajo.
             ->orderByRaw('CASE WHEN cumplido_en IS NULL THEN 0 ELSE 1 END')
             ->orderBy('fecha')
+            ->orderBy('hora')
             ->orderBy('created_at')
             ->get();
 
@@ -89,6 +95,7 @@ class RecordatorioController extends Controller
             ->whereDate('fecha', '<=', $hoy->addDays(self::DIAS_POR_DELANTE_EN_EL_PANEL)->toDateString())
             ->with(['marca', 'persona'])
             ->orderBy('fecha')
+            ->orderBy('hora')
             ->orderBy('created_at')
             ->get()
             ->groupBy(fn (Recordatorio $recordatorio): string => $recordatorio->cuando());
@@ -112,7 +119,9 @@ class RecordatorioController extends Controller
 
         $datos = $peticion->validate([
             'fecha' => ['required', 'date_format:Y-m-d', 'after_or_equal:'.$this->hoy()],
+            'hora' => ['nullable', 'date_format:H:i'],
             'nota' => ['nullable', 'string', 'max:300'],
+            'tipo' => ['nullable', Rule::enum(TipoDeContacto::class)],
             'personaId' => ['nullable', 'uuid', Rule::exists('users', 'id')->where('activo', true)],
         ], $this->mensajes());
 
@@ -129,7 +138,9 @@ class RecordatorioController extends Controller
             'marca_id' => $marca->id,
             'persona_id' => $persona->id,
             'fecha' => $datos['fecha'],
+            'hora' => $datos['hora'] ?? null,
             'nota' => $this->notaLimpia($datos['nota'] ?? null),
+            'tipo' => $datos['tipo'] ?? null,
             'creado_por_id' => $quienLoDeja->id,
             'creado_por_nombre' => $quienLoDeja->nombreParaMostrar(),
         ]);
@@ -141,7 +152,8 @@ class RecordatorioController extends Controller
 
     /**
      * PATCH /api/recordatorios/{recordatorio}
-     * Cumplirlo (o deshacerlo), posponerlo a otro día o corregir la nota.
+     * Cumplirlo (o deshacerlo), posponerlo a otro día o corregir la nota,
+     * la hora o qué toca.
      */
     public function update(Request $peticion, Recordatorio $recordatorio): RecursoRecordatorio
     {
@@ -152,7 +164,9 @@ class RecordatorioController extends Controller
         $datos = $peticion->validate([
             'cumplido' => ['sometimes', 'boolean'],
             'fecha' => ['sometimes', 'date_format:Y-m-d', 'after_or_equal:'.$this->hoy()],
+            'hora' => ['sometimes', 'nullable', 'date_format:H:i'],
             'nota' => ['sometimes', 'nullable', 'string', 'max:300'],
+            'tipo' => ['sometimes', 'nullable', Rule::enum(TipoDeContacto::class)],
         ], $this->mensajes());
 
         /** @var User $quienLoCambia */
@@ -173,6 +187,14 @@ class RecordatorioController extends Controller
 
         if (array_key_exists('nota', $datos)) {
             $recordatorio->nota = $this->notaLimpia($datos['nota']);
+        }
+
+        if (array_key_exists('hora', $datos)) {
+            $recordatorio->hora = $datos['hora'];
+        }
+
+        if (array_key_exists('tipo', $datos)) {
+            $recordatorio->tipo = $datos['tipo'];
         }
 
         $recordatorio->save();
@@ -234,6 +256,8 @@ class RecordatorioController extends Controller
             'fecha.date_format' => 'La fecha debe tener el formato AAAA-MM-DD.',
             'fecha.after_or_equal' => 'El recordatorio tiene que ser para hoy o para un día por delante.',
             'nota.max' => 'La nota puede tener como mucho :max caracteres.',
+            'hora.date_format' => 'La hora debe tener el formato HH:MM, por ejemplo 10:30.',
+            'tipo.enum' => 'Elige llamada, WhatsApp, reunión o correo.',
             'personaId.exists' => 'Esa persona ya no tiene una cuenta activa.',
         ];
     }

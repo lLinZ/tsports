@@ -127,7 +127,12 @@ class RecursoMarca extends JsonResource
                     'fecha' => $proximo->fecha->format('Y-m-d'),
                     'cuando' => $proximo->cuando(),
                     'diasHasta' => $proximo->diasHasta(),
+                    'hora' => $proximo->hora,
                     'nota' => $proximo->nota,
+                    'tipo' => $proximo->tipo === null ? null : [
+                        'valor' => $proximo->tipo->value,
+                        'etiqueta' => $proximo->tipo->etiqueta(),
+                    ],
                 ];
             }),
             'misRecordatoriosPendientes' => $this->whenLoaded(
