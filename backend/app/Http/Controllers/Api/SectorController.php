@@ -41,6 +41,14 @@ use Illuminate\Validation\ValidationException;
  * de la columna, con la fila «Sin sector», da el valor propuesto de la
  * agencia. Solo se calcula para quien ve las cifras de toda la empresa:
  * un agente no tiene por qué saber cuánto mueve la agencia en cada rubro.
+ *
+ * Al lado, el PRONÓSTICO (desde el 2026-10-08, a petición de LinZ): la
+ * suma del OVP de las líneas del checklist de las marcas de cada sector.
+ * En producción nadie había puesto todavía el valor de una propuesta y la
+ * columna salía a cero; el dinero que el equipo sí carga es el OVP. Su
+ * total es el «Pronosticado por el equipo» de Propiedades y el
+ * `ovpPronosticado` del resumen: todas las líneas, también las de
+ * propiedades desactivadas (regla 8).
  */
 class SectorController extends Controller
 {
@@ -79,13 +87,26 @@ class SectorController extends Controller
             ->get()
             ->keyBy('sector_de_la_marca');
 
-        $sectores->each(static function (Sector $sector) use ($porSector, $conDinero): void {
+        // El OVP vive en las líneas del checklist, no en la marca: va en su
+        // propia consulta agrupada. Juntarlo a la de arriba con un JOIN
+        // contaría cada marca una vez por cada propiedad que tenga.
+        $pronosticoPorSector = $conDinero
+            ? DB::table('propiedades_de_marca')
+                ->join('marcas', 'marcas.id', '=', 'propiedades_de_marca.marca_id')
+                ->selectRaw("COALESCE(marcas.sector, '') as sector_de_la_marca")
+                ->selectRaw('SUM(propiedades_de_marca.ovp_usd) as ovp')
+                ->groupByRaw("COALESCE(marcas.sector, '')")
+                ->pluck('ovp', 'sector_de_la_marca')
+            : collect();
+
+        $sectores->each(static function (Sector $sector) use ($porSector, $pronosticoPorSector, $conDinero): void {
             $fila = $porSector->get($sector->nombre);
 
             $sector->setAttribute('total_marcas', (int) ($fila->total ?? 0));
 
             if ($conDinero) {
                 $sector->setAttribute('valor_propuesto_usd', round((float) ($fila->valor ?? 0), 2));
+                $sector->setAttribute('pronostico_usd', round((float) ($pronosticoPorSector->get($sector->nombre) ?? 0), 2));
             }
         });
 
@@ -103,11 +124,15 @@ class SectorController extends Controller
         $fueraDelCatalogo = $porSector->reject(
             fn ($fila): bool => in_array($fila->sector_de_la_marca, $nombresDelCatalogo, true),
         );
+        $pronosticoFueraDelCatalogo = $pronosticoPorSector->reject(
+            fn ($ovp, string $sector): bool => in_array($sector, $nombresDelCatalogo, true),
+        );
 
         return $respuesta->additional([
             'sinSector' => [
                 'totalMarcas' => (int) $fueraDelCatalogo->sum('total'),
                 'valorPropuestoUsd' => round((float) $fueraDelCatalogo->sum('valor'), 2),
+                'pronosticoUsd' => round((float) $pronosticoFueraDelCatalogo->sum(), 2),
                 // Los nombres que llevan esas marcas y no están en la
                 // lista: es la pista para añadirlos al catálogo.
                 'nombresFueraDelCatalogo' => $fueraDelCatalogo->keys()
@@ -117,6 +142,7 @@ class SectorController extends Controller
                     ->all(),
             ],
             'totalValorPropuestoUsd' => round((float) $porSector->sum('valor'), 2),
+            'totalPronosticoUsd' => round((float) $pronosticoPorSector->sum(), 2),
         ]);
     }
 

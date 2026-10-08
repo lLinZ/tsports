@@ -666,6 +666,11 @@ export interface Sector {
    * marcas (regla 4). Null para quien no ve las cifras de toda la empresa.
    */
   valorPropuestoUsd: number | null;
+  /**
+   * El pronóstico: la suma del OVP de las líneas del checklist de sus
+   * marcas (regla 8). Null igual que el anterior.
+   */
+  pronosticoUsd: number | null;
 }
 
 /** La pantalla de Sectores: el catálogo y, a quien ve las cifras, los totales. */
@@ -675,11 +680,14 @@ export interface CatalogoDeSectores {
   sinSector: {
     totalMarcas: number;
     valorPropuestoUsd: number;
+    pronosticoUsd: number;
     /** Los sectores que llevan algunas marcas y no están en la lista. */
     nombresFueraDelCatalogo: string[];
   } | null;
   /** La suma de la columna: el valor propuesto de toda la agencia. */
   totalValorPropuestoUsd: number | null;
+  /** El OVP de todo el equipo: el «pronosticado» del resumen. */
+  totalPronosticoUsd: number | null;
 }
 
 /** Una campaña con su color y cuántas acciones suma en un tramo. */

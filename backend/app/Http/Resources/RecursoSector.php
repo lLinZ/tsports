@@ -41,6 +41,9 @@ class RecursoSector extends JsonResource
             // (`??` y no lectura a secas: el modelo no tiene esa columna, y
             // en modo estricto leer un atributo que no está lanza.)
             'valorPropuestoUsd' => $this->valor_propuesto_usd ?? null,
+            // El OVP de las líneas del checklist de sus marcas, con la
+            // misma condición.
+            'pronosticoUsd' => $this->pronostico_usd ?? null,
         ];
     }
 }

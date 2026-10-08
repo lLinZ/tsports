@@ -27,6 +27,11 @@
  * Lo suma el servidor y solo se lo manda a quien ve las cifras de toda la
  * empresa; sin él, la columna no sale.
  *
+ * Al lado, el PRONÓSTICO (desde el 2026-10-08): el OVP de las líneas del
+ * checklist de sus marcas, con su total, que es el «pronosticado» del
+ * resumen. Se añadió porque en producción ninguna propuesta llevaba valor
+ * y la primera columna salía entera a cero.
+ *
  * «Campañas por sector» (desde el 2026-10-08, pedido por LinZ con un
  * boceto): en cada fila, una tarta por semana del mes con el reparto de
  * las acciones de campaña de ese rubro, y arriba el mes con sus flechas y
@@ -88,12 +93,19 @@ export function PaginaSectores() {
   // El dinero solo llega a quien ve las cifras de toda la empresa: si no
   // viene, la columna no se pinta (aquí no se mira el rol).
   const conDinero = catalogo.totalValorPropuestoUsd !== null;
-  const [orden, establecerOrden] = useState<"catalogo" | "dinero">("catalogo");
+  const [orden, establecerOrden] = useState<OrdenDeLosSectores>("catalogo");
+
+  const totales = {
+    propuestas: catalogo.totalValorPropuestoUsd ?? 0,
+    pronostico: catalogo.totalPronosticoUsd ?? 0,
+  };
 
   const sectoresEnOrden =
-    conDinero && orden === "dinero"
-      ? [...catalogo.sectores].sort(
-          (uno, otro) => (otro.valorPropuestoUsd ?? 0) - (uno.valorPropuestoUsd ?? 0),
+    conDinero && orden !== "catalogo"
+      ? [...catalogo.sectores].sort((uno, otro) =>
+          orden === "propuestas"
+            ? (otro.valorPropuestoUsd ?? 0) - (uno.valorPropuestoUsd ?? 0)
+            : (otro.pronosticoUsd ?? 0) - (uno.pronosticoUsd ?? 0),
         )
       : catalogo.sectores;
 
@@ -206,13 +218,16 @@ export function PaginaSectores() {
           {conDinero && (
             <Tabs
               aria-label="Orden de los sectores"
+              classNames={{ base: "max-w-full" }}
               radius="lg"
               selectedKey={orden}
               size="sm"
-              onSelectionChange={(clave) => establecerOrden(clave as "catalogo" | "dinero")}
+              onSelectionChange={(clave) => establecerOrden(clave as OrdenDeLosSectores)}
             >
-              <Tab key="catalogo" title="Como el catálogo" />
-              <Tab key="dinero" title="Más dinero primero" />
+              {/* En el teléfono, el nombre corto: los tres largos no caben. */}
+              <Tab key="catalogo" title={<TituloDeOrden corto="Catálogo" largo="Como el catálogo" />} />
+              <Tab key="propuestas" title={<TituloDeOrden corto="Propuestas" largo="Más en propuestas" />} />
+              <Tab key="pronostico" title={<TituloDeOrden corto="Pronóstico" largo="Más pronóstico" />} />
             </Tabs>
           )}
 
@@ -276,7 +291,13 @@ export function PaginaSectores() {
             <span className="hidden flex-1 pb-0.5 sm:block">Sector</span>
             <CabeceraDeLasSemanas alCambiarDeMes={establecerMesElegido} datos={campanas.datos} />
             {conDinero && (
-              <span className="hidden w-44 pb-0.5 text-right sm:block">Dinero por sector</span>
+              <div className="hidden shrink-0 pb-0.5 text-right sm:block">
+                <span className="block">Dinero por sector</span>
+                <span className="mt-1 flex gap-3 font-medium normal-case tracking-normal text-default-500">
+                  <span className={ANCHO_DEL_IMPORTE}>Propuestas enviadas</span>
+                  <span className={ANCHO_DEL_IMPORTE}>Pronóstico (OVP)</span>
+                </span>
+              </div>
             )}
             {puedeEditar && <span aria-hidden className="hidden w-[4.5rem] sm:block" />}
           </div>
@@ -335,8 +356,11 @@ export function PaginaSectores() {
 
               {conDinero && (
                 <DineroDelSector
-                  importe={sector.valorPropuestoUsd ?? 0}
-                  total={catalogo.totalValorPropuestoUsd ?? 0}
+                  // `?? 0`: una copia guardada de antes de esta versión no
+                  // trae el pronóstico.
+                  pronostico={sector.pronosticoUsd ?? 0}
+                  propuestas={sector.valorPropuestoUsd ?? 0}
+                  totales={totales}
                 />
               )}
 
@@ -403,7 +427,8 @@ export function PaginaSectores() {
                     }`
                   : "Marcas sin sector o con uno que no está en la lista"
               }
-              importe={catalogo.sinSector?.valorPropuestoUsd ?? 0}
+              pronostico={catalogo.sinSector?.pronosticoUsd ?? 0}
+              propuestas={catalogo.sinSector?.valorPropuestoUsd ?? 0}
               semanas={
                 <TartasDeLasSemanas
                   datos={campanas.datos}
@@ -412,7 +437,7 @@ export function PaginaSectores() {
                 />
               }
               titulo="Sin sector"
-              total={catalogo.totalValorPropuestoUsd ?? 0}
+              totales={totales}
             />
           )}
 
@@ -421,8 +446,9 @@ export function PaginaSectores() {
               destacada
               conBotones={puedeEditar}
               conDinero={conDinero}
-              detalle="Valor de las propuestas enviadas"
-              importe={catalogo.totalValorPropuestoUsd ?? 0}
+              detalle="Las propuestas enviadas y el pronóstico de todo el equipo"
+              pronostico={totales.pronostico}
+              propuestas={totales.propuestas}
               semanas={<TartasDeLasSemanas soloHueco datos={campanas.datos} nombre="Total" />}
               titulo="Total"
             />
@@ -503,20 +529,72 @@ export function PaginaSectores() {
 }
 
 /* ==================================================================== */
-/* La columna «Dinero por sector»                                       */
+/* Las columnas «Dinero por sector»                                      */
 /* ==================================================================== */
 
+type OrdenDeLosSectores = "catalogo" | "propuestas" | "pronostico";
+
+/** El ancho de cada columna de dinero, igual en la cabecera y en las filas. */
+const ANCHO_DEL_IMPORTE = "sm:w-36";
+
+/*
+  Dónde van las dos columnas: a la derecha de la fila y, en el teléfono,
+  debajo y a lo ancho, para que el nombre y los botones se queden en la
+  primera línea.
+*/
+const COLOCACION_DEL_DINERO =
+  "order-last flex w-full shrink-0 gap-4 pl-11 sm:order-none sm:w-auto sm:gap-3 sm:pl-0";
+
+function TituloDeOrden({ corto, largo }: { corto: string; largo: string }) {
+  return (
+    <>
+      <span className="sm:hidden">{corto}</span>
+      <span className="hidden sm:inline">{largo}</span>
+    </>
+  );
+}
+
+/** Las propuestas enviadas y el pronóstico de una fila, cada uno con su barra. */
+function DineroDelSector({
+  propuestas,
+  pronostico,
+  totales,
+}: {
+  propuestas: number;
+  pronostico: number;
+  totales: { propuestas: number; pronostico: number };
+}) {
+  return (
+    <div className={COLOCACION_DEL_DINERO}>
+      <ImporteConBarra color="bg-primary" importe={propuestas} rotulo="Propuestas" total={totales.propuestas} />
+      <ImporteConBarra color="bg-primary-300" importe={pronostico} rotulo="Pronóstico" total={totales.pronostico} />
+    </div>
+  );
+}
+
 /**
- * El importe de un sector con una barra fina de su parte del total: de un
- * vistazo se ve dónde está el dinero sin leer cifra por cifra.
+ * Un importe con una barra fina de su parte del total: de un vistazo se ve
+ * dónde está el dinero sin leer cifra por cifra.
  */
-function DineroDelSector({ importe, total }: { importe: number; total: number }) {
+function ImporteConBarra({
+  importe,
+  total,
+  rotulo,
+  color,
+}: {
+  importe: number;
+  total: number;
+  /** En el teléfono no hay cabecera: cada importe dice cuál es. */
+  rotulo: string;
+  color: string;
+}) {
   const parte = total > 0 ? importe / total : 0;
 
   return (
-    // En el teléfono va debajo, a lo ancho: el nombre y los botones
-    // se quedan en la primera línea.
-    <div className="order-last w-full shrink-0 pl-11 sm:order-none sm:w-44 sm:pl-0 sm:text-right">
+    <div className={`min-w-0 flex-1 sm:flex-none sm:text-right ${ANCHO_DEL_IMPORTE}`}>
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-default-400 sm:hidden">
+        {rotulo}
+      </p>
       <p
         className={[
           "text-sm font-semibold tabular-nums",
@@ -525,9 +603,9 @@ function DineroDelSector({ importe, total }: { importe: number; total: number })
       >
         {formatearDinero(importe)}
       </p>
-      <div className="mt-1 h-1 overflow-hidden rounded-full bg-default-100 sm:ml-auto sm:w-32">
+      <div className="mt-1 h-1 overflow-hidden rounded-full bg-default-100 sm:ml-auto sm:w-28">
         <div
-          className="h-full rounded-full bg-primary"
+          className={`h-full rounded-full ${color}`}
           style={{ width: importe > 0 ? `${Math.max(parte * 100, 2)}%` : "0%" }}
         />
       </div>
@@ -535,12 +613,13 @@ function DineroDelSector({ importe, total }: { importe: number; total: number })
   );
 }
 
-/** «Sin sector» y «Total», debajo de la lista, alineados con la columna. */
+/** «Sin sector» y «Total», debajo de la lista, alineados con las columnas. */
 function FilaDeTotales({
   titulo,
   detalle,
-  importe,
-  total,
+  propuestas,
+  pronostico,
+  totales,
   destacada = false,
   conBotones,
   conDinero,
@@ -548,9 +627,10 @@ function FilaDeTotales({
 }: {
   titulo: string;
   detalle: string;
-  importe: number;
-  /** Con él se dibuja la barra de su parte; el total no la lleva. */
-  total?: number;
+  propuestas: number;
+  pronostico: number;
+  /** Con ellos se dibuja la barra de su parte; el total no la lleva. */
+  totales?: { propuestas: number; pronostico: number };
   destacada?: boolean;
   /** Si las filas de arriba llevan botones, para dejar su hueco. */
   conBotones: boolean;
@@ -575,12 +655,24 @@ function FilaDeTotales({
 
       {semanas}
 
-      {!conDinero ? null : total !== undefined ? (
-        <DineroDelSector importe={importe} total={total} />
+      {!conDinero ? null : totales !== undefined ? (
+        <DineroDelSector pronostico={pronostico} propuestas={propuestas} totales={totales} />
       ) : (
-        <p className="w-full shrink-0 pl-11 text-base font-bold tabular-nums text-primary sm:w-44 sm:pl-0 sm:text-right">
-          {formatearDinero(importe)}
-        </p>
+        <div className={COLOCACION_DEL_DINERO}>
+          {[
+            { rotulo: "Propuestas", importe: propuestas },
+            { rotulo: "Pronóstico", importe: pronostico },
+          ].map(({ rotulo, importe }) => (
+            <div key={rotulo} className={`min-w-0 flex-1 sm:flex-none sm:text-right ${ANCHO_DEL_IMPORTE}`}>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-default-400 sm:hidden">
+                {rotulo}
+              </p>
+              <p className="text-base font-bold tabular-nums text-primary">
+                {formatearDinero(importe)}
+              </p>
+            </div>
+          ))}
+        </div>
       )}
 
       {conBotones && <span aria-hidden className="hidden w-[4.5rem] shrink-0 sm:block" />}
@@ -600,11 +692,13 @@ function FilaDeTotales({
 const ANCHO_DE_SEMANA = "w-11 sm:w-16";
 
 /*
-  Dónde van las semanas: en pantalla grande, entre el nombre y el dinero;
-  más estrecha, en su propia línea debajo, con la sangría del icono.
+  Dónde van las semanas: en pantalla muy ancha, entre el nombre y el
+  dinero; más estrecha, en su propia línea debajo, con la sangría del
+  icono. Desde que hay dos columnas de dinero (propuestas y pronóstico)
+  no caben en la misma fila hasta xl.
 */
 const COLOCACION_DE_LAS_SEMANAS =
-  "order-last w-full shrink-0 pl-11 lg:order-none lg:w-auto lg:pl-0";
+  "order-last w-full shrink-0 pl-11 xl:order-none xl:w-auto xl:pl-0";
 
 /** "1–6", o "31" si la semana es un solo día. */
 function diasDeLaSemana(semana: CampanasPorSector["semanas"][number]): string {
@@ -622,7 +716,7 @@ function CabeceraDeLasSemanas({
   datos: CampanasPorSector | null;
   alCambiarDeMes: (mes: string | null) => void;
 }) {
-  // Hasta pantalla grande las tartas van en su propia línea, debajo del
+  // Hasta pantalla muy ancha las tartas van en su propia línea, debajo del
   // nombre y con la sangría de su icono; la cabecera se coloca igual.
   return (
     <div className={`${COLOCACION_DE_LAS_SEMANAS} flex`}>
@@ -777,7 +871,7 @@ function TartasDeLasSemanas({
       className={[
         COLOCACION_DE_LAS_SEMANAS,
         // En su propia línea, una fila sin tartas no gasta una en blanco.
-        soloHueco || semanas === undefined ? "hidden lg:flex" : "flex",
+        soloHueco || semanas === undefined ? "hidden xl:flex" : "flex",
       ].join(" ")}
     >
       {datos.semanas.map((semana, posicion) => (

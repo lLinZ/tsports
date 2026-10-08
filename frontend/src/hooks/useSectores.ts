@@ -27,6 +27,7 @@ export function useSectores(): {
   sectores: Sector[];
   sinSector: CatalogoDeSectores["sinSector"];
   totalValorPropuestoUsd: number | null;
+  totalPronosticoUsd: number | null;
   estaCargando: boolean;
   error: unknown;
   recargar: () => void;
@@ -40,6 +41,8 @@ export function useSectores(): {
     sectores: consulta.data?.sectores ?? [],
     sinSector: consulta.data?.sinSector ?? null,
     totalValorPropuestoUsd: consulta.data?.totalValorPropuestoUsd ?? null,
+    // `?? null`: una copia guardada de antes de esta versión no lo trae.
+    totalPronosticoUsd: consulta.data?.totalPronosticoUsd ?? null,
     estaCargando: consulta.isLoading,
     error: errorSoloSiNoHayNadaQueEnsenar(consulta),
     recargar: () => void consulta.refetch(),

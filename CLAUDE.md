@@ -506,6 +506,15 @@ Salieron del cliente y están implementadas a propósito así:
     y solo para quien ve las cifras de toda la empresa; a un agente no le
     llega (`valorPropuestoUsd` null).
 
+    Al lado va el **pronóstico** (desde el 2026-10-08, pedido por LinZ):
+    la suma del OVP de las líneas del checklist de las marcas de cada
+    sector (`pronosticoUsd`), en su propia consulta agrupada (con un JOIN
+    a la de arriba, cada marca contaría una vez por propiedad). Su total
+    es el `ovpPronosticado` del resumen y el «Pronosticado por el equipo»
+    de Propiedades: todas las líneas, también las de propiedades
+    desactivadas (regla 8). Se añadió porque en producción ninguna
+    propuesta llevaba valor y la primera columna salía entera a cero.
+
     **«Campañas por sector»** (desde el 2026-10-08, pedido por LinZ con
     un boceto): en cada fila de Sectores, una tarta por semana del mes con
     las acciones de campaña de ese rubro (`eventos_de_campana`, regla 13,

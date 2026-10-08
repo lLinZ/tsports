@@ -6,6 +6,8 @@ namespace Tests\Feature;
 
 use App\Enums\RolUsuario;
 use App\Models\Marca;
+use App\Models\Propiedad;
+use App\Models\PropiedadDeMarca;
 use App\Models\Sector;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -25,6 +27,9 @@ use Tests\TestCase;
  *   · Un sector EN USO no se borra. Se desactiva, que lo quita del
  *     selector sin tocar las marcas que ya lo llevan. Y una marca con un
  *     sector desactivado tiene que poder seguir guardándose.
+ *
+ * Además, el dinero de cada sector (propuestas y pronóstico) tiene que
+ * cuadrar con el resumen, y a un agente no le llega.
  */
 class CatalogoDeSectoresTest extends TestCase
 {
@@ -123,18 +128,58 @@ class CatalogoDeSectoresTest extends TestCase
             ->assertJsonPath('contadores.valorPropuestoAnual', 24000);
     }
 
+    public function test_cada_sector_suma_el_pronostico_de_sus_marcas_y_cuadra_con_el_resumen(): void
+    {
+        $comercial = $this->crearUsuario(RolUsuario::Comercial);
+        $comite = $this->crearPropiedad('Comité Olímpico');
+        $kombat = $this->crearPropiedad('Kombat Challenge');
+        // Las líneas de una propiedad desactivada siguen contando (regla 8).
+        $retirada = $this->crearPropiedad('Copa vieja', activa: false);
+
+        $polar = Marca::create(['nombre_marca' => 'Polar', 'sector' => 'Bebidas']);
+        $pepsi = Marca::create(['nombre_marca' => 'Pepsi', 'sector' => 'Bebidas']);
+        $sinRubro = Marca::create(['nombre_marca' => 'Sin rubro']);
+        $laboratorio = Marca::create(['nombre_marca' => 'Laboratorio', 'sector' => 'Farmacéutico']);
+
+        // Una marca con dos propiedades: su OVP se suma una vez por línea,
+        // y la marca no cuenta dos veces en «totalMarcas».
+        $this->ofrecer($polar, $comite, 10000);
+        $this->ofrecer($polar, $kombat, 2500);
+        $this->ofrecer($pepsi, $retirada, 1500);
+        $this->ofrecer($sinRubro, $comite, 700);
+        $this->ofrecer($laboratorio, $kombat, 300);
+
+        $respuesta = $this->actingAs($comercial)->getJson('/api/sectores')->assertOk();
+
+        $bebidas = collect($respuesta->json('data'))->firstWhere('nombre', 'Bebidas');
+        $this->assertSame(2, $bebidas['totalMarcas']);
+        $this->assertEquals(14000, $bebidas['pronosticoUsd']);
+        $this->assertEquals(0, collect($respuesta->json('data'))->firstWhere('nombre', 'Alimentos')['pronosticoUsd']);
+
+        $this->assertEquals(1000, $respuesta->json('sinSector.pronosticoUsd'));
+        $this->assertEquals(15000, $respuesta->json('totalPronosticoUsd'));
+
+        // El mismo total que «pronosticado por el equipo» del resumen.
+        $this->assertEquals(15000, $this->actingAs($comercial)->getJson('/api/panel/resumen')->json('contadores.ovpPronosticado'));
+    }
+
     public function test_un_agente_no_recibe_el_dinero_de_la_agencia_por_sector(): void
     {
         $agente = $this->crearUsuario(RolUsuario::Vendedor);
-        Marca::create([
+        $polar = Marca::create([
             'nombre_marca' => 'Polar', 'sector' => 'Bebidas', 'fase_propuesta_completada' => true,
             'descripcion_propuesta' => 'Patrocinio', 'valor_anual_usd' => 12000,
+            'vendedor_asignado_id' => $agente->id,
         ]);
+        $this->ofrecer($polar, $this->crearPropiedad('Comité Olímpico'), 5000);
 
         $respuesta = $this->actingAs($agente)->getJson('/api/sectores')->assertOk();
 
-        $this->assertNull(collect($respuesta->json('data'))->firstWhere('nombre', 'Bebidas')['valorPropuestoUsd']);
+        $bebidas = collect($respuesta->json('data'))->firstWhere('nombre', 'Bebidas');
+        $this->assertNull($bebidas['valorPropuestoUsd']);
+        $this->assertNull($bebidas['pronosticoUsd']);
         $respuesta->assertJsonMissingPath('totalValorPropuestoUsd');
+        $respuesta->assertJsonMissingPath('totalPronosticoUsd');
         $respuesta->assertJsonMissingPath('sinSector');
     }
 
@@ -295,6 +340,26 @@ class CatalogoDeSectoresTest extends TestCase
             'rol' => $rol->value,
             'zona' => null,
             'activo' => true,
+        ]);
+    }
+
+    private function crearPropiedad(string $nombre, bool $activa = true): Propiedad
+    {
+        return Propiedad::create([
+            'nombre' => $nombre,
+            'monto_total_usd' => 100000,
+            'porcentaje_forecast' => 20,
+            'asignada_a_todos' => true,
+            'activa' => $activa,
+        ]);
+    }
+
+    private function ofrecer(Marca $marca, Propiedad $propiedad, float $ovp): void
+    {
+        PropiedadDeMarca::create([
+            'marca_id' => $marca->id,
+            'propiedad_id' => $propiedad->id,
+            'ovp_usd' => $ovp,
         ]);
     }
 }

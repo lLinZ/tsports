@@ -30,6 +30,7 @@ export async function listarSectores(
     data: Sector[];
     sinSector?: CatalogoDeSectores["sinSector"];
     totalValorPropuestoUsd?: number;
+    totalPronosticoUsd?: number;
   }>("/sectores", {
     params: opciones.soloActivos ? { soloActivos: 1 } : {},
   });
@@ -38,6 +39,7 @@ export async function listarSectores(
     sectores: data.data,
     sinSector: data.sinSector ?? null,
     totalValorPropuestoUsd: data.totalValorPropuestoUsd ?? null,
+    totalPronosticoUsd: data.totalPronosticoUsd ?? null,
   };
 }
 
