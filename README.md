@@ -340,11 +340,13 @@ node informes/videos/herramientas/manifiesto.mjs
 ```
 
 Después se copia `informes/videos/salida/` al servidor, por ejemplo con
-`scp -r`, a `~/videos-tsports`. Y en el servidor, con el mismo usuario
-que despliega:
+`scp -r`, a `/var/tmp/videos-tsports`: fuera de la carpeta de root, que
+`www-data` no puede leer. Y en el servidor, como `www-data`, el usuario
+con el que corre PHP: los vídeos van al disco privado, y lo que guardara
+root ahí no lo podría abrir el sitio.
 
 ```bash
-php /var/www/tsports/backend/artisan videos:importar ~/videos-tsports
+runuser -u www-data -- php /var/www/tsports/backend/artisan videos:importar /var/tmp/videos-tsports
 ```
 
 Se puede repetir sin miedo: lo que no cambió no se toca, y un vídeo
