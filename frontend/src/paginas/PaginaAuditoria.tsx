@@ -41,11 +41,13 @@ import {
 import { errorSoloSiNoHayNadaQueEnsenar } from "@/utilidades/consultas";
 
 /** Color del distintivo según lo que se hizo. */
-const COLOR_DE_LA_ACCION: Record<string, "success" | "primary" | "danger" | "default"> = {
+const COLOR_DE_LA_ACCION: Record<string, "success" | "primary" | "danger" | "warning" | "default"> = {
   creo: "success",
   actualizo: "primary",
   elimino: "danger",
   comento: "default",
+  // Lo que más se revisa: es cuando contactos e importes salen del sistema.
+  exporto: "warning",
   inicio_sesion: "default",
   publico_web: "primary",
 };
@@ -56,6 +58,7 @@ const ETIQUETA_DE_LA_ACCION: Record<string, string> = {
   actualizo: "Editó",
   elimino: "Eliminó",
   comento: "Comentó",
+  exporto: "Exportó",
   inicio_sesion: "Entró",
   publico_web: "Publicó",
 };
@@ -67,6 +70,7 @@ const OPCIONES_DE_ACCION = [
   { valor: "actualizo", etiqueta: "Editó" },
   { valor: "elimino", etiqueta: "Eliminó" },
   { valor: "comento", etiqueta: "Comentó" },
+  { valor: "exporto", etiqueta: "Exportó" },
   { valor: "publico_web", etiqueta: "Publicó la web" },
   { valor: "inicio_sesion", etiqueta: "Entró" },
 ];

@@ -603,7 +603,8 @@ function ModalDeUsuario({
               <SelectItem key="comercial" description="Todas las marcas; asigna trabajo">
                 Comercial
               </SelectItem>
-              <SelectItem key="vendedor" description="Ve todo; edita solo lo suyo">
+              {/* Desde el 2026-09-08 un agente ya no ve las marcas ajenas (regla 6). */}
+              <SelectItem key="vendedor" description="Solo sus marcas asignadas; no borra">
                 Agente
               </SelectItem>
             </Select>

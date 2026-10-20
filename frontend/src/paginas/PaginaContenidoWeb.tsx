@@ -263,7 +263,9 @@ export function PaginaContenidoWeb() {
       <div className="bento-card p-4 sm:p-5">
         <Tabs
           aria-label="Secciones del contenido"
-          classNames={{ tabList: "flex-wrap" }}
+          // HeroUI le pone `w-full` a cada pestaña: con `flex-wrap`, cada
+          // una ocupaba su fila y las ocho tapaban media pantalla.
+          classNames={{ tabList: "flex-wrap", tab: "w-auto" }}
           color="primary"
           radius="lg"
           variant="light"
