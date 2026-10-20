@@ -57,6 +57,7 @@ use App\Http\Controllers\Api\ExportacionDeBitacoraController;
 use App\Http\Controllers\Api\SuscripcionPushController;
 use App\Http\Controllers\Api\TiempoRealController;
 use App\Http\Controllers\Api\UsuarioController;
+use App\Http\Controllers\Api\VideoTutorialController;
 use Illuminate\Support\Facades\Route;
 
 /* =====================================================================
@@ -290,6 +291,12 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/cierres-de-mes', [CierreDeMesController::class, 'index']);
     Route::post('/cierres-de-mes', [CierreDeMesController::class, 'store']);
     Route::delete('/cierres-de-mes/{cierre}', [CierreDeMesController::class, 'destroy']);
+
+    /* ---------- Vídeos tutoriales ----------
+     | Los de las series que ve cada rol (RolUsuario::guiasDeVideoQueVe).
+     | Solo lectura: los carga `php artisan videos:importar`. El vídeo se
+     | abre con el enlace firmado de /adjuntos/{archivo}.               */
+    Route::get('/videos', [VideoTutorialController::class, 'index']);
 
     /* ---------- Chat interno ----------
      | Mensajería entre personas, uno a uno y en grupo. Lo de una charla

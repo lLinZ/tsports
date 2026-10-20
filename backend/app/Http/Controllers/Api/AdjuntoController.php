@@ -13,6 +13,9 @@ use App\Support\GuardadoDeArchivos;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -28,7 +31,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * horas (ArchivoMedia::eliminarAdjuntosAbandonados).
  *
  * Por la misma ruta firmada se sirven los reportes de cierre de mes
- * (CierreDeMesController), que también viven en el disco privado.
+ * (CierreDeMesController) y los vídeos tutoriales con su portada
+ * (VideoTutorialController), que también viven en el disco privado.
  *
  * SE SIRVEN CON ENLACE FIRMADO, no desde /storage. Viven en el disco
  * privado porque son de una marca, y una marca no la ve todo el equipo
@@ -84,7 +88,7 @@ class AdjuntoController extends Controller
      * da acceso es la firma, que comprueba el middleware `signed` antes de
      * llegar aquí.
      */
-    public function ver(Request $peticion, ArchivoMedia $archivo): StreamedResponse
+    public function ver(Request $peticion, ArchivoMedia $archivo): StreamedResponse|BinaryFileResponse
     {
         // La ruta sirve lo privado y nada más: los adjuntos de la bitácora
         // y los reportes de cierre de mes. Lo demás es público o no es de
@@ -98,6 +102,18 @@ class AdjuntoController extends Controller
         $disco = Storage::disk($archivo->disco);
 
         abort_unless($disco->exists($ruta), 404);
+
+        // Un vídeo se sirve por trozos (cabecera Range, respuesta 206): sin
+        // eso Safari, en el Mac y en el iPhone, no lo reproduce, y ningún
+        // navegador deja saltar a la mitad sin bajarlo entero. La respuesta
+        // de fichero de Symfony sabe hacerlo; la de Storage no.
+        if (! $conMiniatura && str_starts_with($archivo->tipo_mime, 'video/')) {
+            return response()->file($disco->path($ruta), [
+                'Content-Type' => $archivo->tipo_mime,
+                'X-Content-Type-Options' => 'nosniff',
+                'Cache-Control' => 'private, max-age=86400',
+            ])->setContentDisposition(ResponseHeaderBag::DISPOSITION_INLINE, $archivo->nombre_original, Str::ascii($archivo->nombre_original));
+        }
 
         return $disco->response(
             $ruta,

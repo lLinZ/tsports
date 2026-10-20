@@ -1006,6 +1006,32 @@ Salieron del cliente y están implementadas a propósito así:
       un filtro. El PDF y la hoja de cálculo los arma el navegador con la
       misma respuesta (`utilidades/exportarLoQueViene.ts`).
 
+31. **Los vídeos tutoriales: cada rol ve su serie y las de debajo, y los
+    ficheros no van en el repositorio.** Desde el 2026-10-20, a petición
+    de LinZ: una pantalla «Vídeos» (`/videos`, todo el equipo) con los
+    tutoriales grabados en informes/videos.
+
+    - **Tres series** (`GuiaDeVideo`): agente, comercial y administrador.
+      El agente ve la suya; el comercial, la del agente y la suya; el
+      administrador, las tres (`RolUsuario::guiasDeVideoQueVe`, y el
+      corte en `VideoTutorial::scopeQueVe`). La pantalla no mira roles:
+      pinta lo que llega de `/api/videos`.
+    - **El vídeo y su portada van al disco privado** por
+      `GuardadoDeArchivos` (propósito `video_tutorial`, regla 21) y se
+      abren con el enlace firmado de `/api/adjuntos`: servidos por
+      /storage, un agente vería los del administrador con la dirección.
+    - **Se sirven por trozos** (`Range` → 206, `AdjuntoController`): sin
+      eso Safari, en el Mac y en el iPhone, no reproduce un MP4.
+    - **No van en el repositorio**: pesan unos 200 MB y el repositorio es
+      público. `node informes/videos/herramientas/manifiesto.mjs` deja en
+      `informes/videos/salida/` el `videos.json` y las portadas; esa
+      carpeta se copia al servidor y se carga con
+      `php artisan videos:importar <carpeta>`. Un vídeo se reconoce por su
+      `clave` («agente-03»): importar otra vez no duplica, y un fichero
+      vuelto a grabar sustituye al viejo y lo borra del disco.
+    - «Visto» es de cada navegador (localStorage con el id de la persona):
+      no cuenta para nada, así que no tiene tabla.
+
 ---
 
 ## 7. Errores: una sola forma
@@ -1147,3 +1173,7 @@ VPS usa **MySQL**: la plantilla es `backend/.env.example`.
   otra persona (reglas 15 y 30).
 - Poner `step` en un campo de dinero: redondea lo escrito al múltiplo
   (regla 15).
+- Subir los vídeos tutoriales al repositorio o servirlos desde /storage:
+  van al servidor a mano y al disco privado (regla 31).
+- Decidir en la pantalla «Vídeos» qué serie ve cada rol: lo decide
+  `RolUsuario::guiasDeVideoQueVe` (regla 31).

@@ -19,6 +19,7 @@ use App\Models\Recordatorio;
 use App\Models\Sector;
 use App\Models\UmbralesDelEstado;
 use App\Models\User;
+use App\Models\VideoTutorial;
 use App\Support\CambiosEnVivo;
 use Illuminate\Database\Eloquent\Model;
 
@@ -83,6 +84,7 @@ final class ObservadorDeCambiosEnVivo
             $modelo instanceof CierreDeMes => $this->cambios->paraTodoElEquipo(CambiosEnVivo::CIERRES_DE_MES),
             $modelo instanceof UmbralesDelEstado => $this->cambios->paraTodoElEquipo(CambiosEnVivo::UMBRALES_DEL_ESTADO),
             $modelo instanceof Meta => $this->cambios->paraTodoElEquipo(CambiosEnVivo::METAS),
+            $modelo instanceof VideoTutorial => $this->cambios->paraTodoElEquipo(CambiosEnVivo::VIDEOS),
             $modelo instanceof User => $this->siSeVeDesdeFuera($modelo, $seBorro),
             default => null,
         };

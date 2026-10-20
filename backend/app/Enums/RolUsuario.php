@@ -156,6 +156,25 @@ enum RolUsuario: string
         return $this === self::Admin || $this === self::Comercial;
     }
 
+    /**
+     * ¿Qué series de vídeos tutoriales ve? (desde el 2026-10-20)
+     *
+     * La suya y las de debajo: el comercial también trabaja marcas, así
+     * que ve además las del agente, y el administrador las ve todas. Un
+     * agente no ve las del comercial ni las del administrador: enseñan
+     * pantallas que él no tiene.
+     *
+     * @return list<GuiaDeVideo>
+     */
+    public function guiasDeVideoQueVe(): array
+    {
+        return match ($this) {
+            self::Admin => [GuiaDeVideo::Agente, GuiaDeVideo::Comercial, GuiaDeVideo::Administrador],
+            self::Comercial => [GuiaDeVideo::Agente, GuiaDeVideo::Comercial],
+            self::Vendedor => [GuiaDeVideo::Agente],
+        };
+    }
+
     /** Todos los valores, para poblar selectores y validaciones. */
     public static function valores(): array
     {

@@ -21,6 +21,7 @@ use App\Models\Recordatorio;
 use App\Models\Sector;
 use App\Models\UmbralesDelEstado;
 use App\Models\User;
+use App\Models\VideoTutorial;
 use App\Observers\ObservadorDeCambiosEnVivo;
 use App\Policies\CampanaPolicy;
 use App\Policies\CierreDeMesPolicy;
@@ -147,6 +148,7 @@ class AppServiceProvider extends ServiceProvider
             UmbralesDelEstado::class,
             Recordatorio::class,
             Meta::class,
+            VideoTutorial::class,
         ];
 
         foreach ($modelosQueSeVenEnElPanel as $modelo) {

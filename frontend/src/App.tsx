@@ -64,6 +64,7 @@ import { PaginaCatalogoWeb } from "@/paginas/PaginaCatalogoWeb";
 import { PaginaCierreDeMes } from "@/paginas/PaginaCierreDeMes";
 import { PaginaTiempoReal } from "@/paginas/PaginaTiempoReal";
 import { PaginaUsuarios } from "@/paginas/PaginaUsuarios";
+import { PaginaVideos } from "@/paginas/PaginaVideos";
 import { PaginaWebPublica } from "@/paginas/publico/PaginaWebPublica";
 import type { Usuario } from "@/tipos/modelos";
 
@@ -303,6 +304,16 @@ function RutasDeLaAplicacion() {
           </RutaProtegida>
         }
         path="/notificaciones"
+      />
+
+      {/* Los vídeos de cada rol: cuáles, lo decide el servidor. */}
+      <Route
+        element={
+          <RutaProtegida>
+            <PaginaVideos />
+          </RutaProtegida>
+        }
+        path="/videos"
       />
 
       {/* --- Requieren además un permiso concreto --- */}

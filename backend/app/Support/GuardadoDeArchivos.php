@@ -63,6 +63,15 @@ final class GuardadoDeArchivos
     private const PDF = ['application/pdf' => 'pdf'];
 
     /**
+     * Un vídeo tutorial. Solo lo carga el comando `videos:importar` desde
+     * una carpeta del servidor, nunca una subida del navegador, así que su
+     * tope no tiene que ir a juego con PHP ni con nginx.
+     */
+    public const TAMANO_MAXIMO_DE_VIDEO_KB = 200 * 1024;
+
+    private const VIDEOS = ['video/mp4' => 'mp4'];
+
+    /**
      * Hojas de cálculo, documentos y presentaciones de Office: el reporte
      * de cierre de mes casi siempre es un Excel. Solo para ese propósito;
      * nada de esto se enseña fuera del equipo.
@@ -110,6 +119,16 @@ final class GuardadoDeArchivos
                 'tipos' => self::IMAGENES + self::PDF,
                 'maximoKb' => self::TAMANO_MAXIMO_DE_DOCUMENTO_KB,
                 'formatos' => 'JPG, PNG, WebP, GIF o PDF',
+            ],
+            // Privada: cada rol ve solo los vídeos de su serie, y servidos
+            // por /storage cualquiera con la dirección vería los de otro.
+            // Con imagen, para la portada que se enseña antes de darle a
+            // reproducir.
+            ArchivoMedia::PROPOSITO_VIDEO_TUTORIAL => [
+                'disco' => ArchivoMedia::DISCO_PRIVADO,
+                'tipos' => self::VIDEOS + self::IMAGENES,
+                'maximoKb' => self::TAMANO_MAXIMO_DE_VIDEO_KB,
+                'formatos' => 'MP4, y JPG o PNG para la portada',
             ],
             // Privada: es un reporte interno de la agencia.
             ArchivoMedia::PROPOSITO_CIERRE_DE_MES => [

@@ -1700,6 +1700,32 @@ export interface CierreDeMes {
 }
 
 /* ==================================================================== */
+/* Vídeos tutoriales                                                    */
+/* ==================================================================== */
+
+/** La serie de un vídeo: una por rol, como las guías en PDF. */
+export type GuiaDeVideo = "agente" | "comercial" | "administrador";
+
+/**
+ * Un vídeo de la pantalla «Vídeos». Solo llegan los de las series que ve
+ * quien pregunta, ya ordenados: la interfaz no filtra nada.
+ */
+export interface VideoTutorial {
+  id: string;
+  /** El nombre estable del vídeo, «agente-03». */
+  clave: string;
+  guia: GuiaDeVideo;
+  guiaEtiqueta: string;
+  orden: number;
+  titulo: string;
+  descripcion: string | null;
+  duracionSegundos: number;
+  /** FIRMADAS y caducan en uno o dos días, como los adjuntos. */
+  url: string | null;
+  portada: string | null;
+}
+
+/* ==================================================================== */
 /* Reporte «Pronóstico por marca»                                       */
 /* ==================================================================== */
 

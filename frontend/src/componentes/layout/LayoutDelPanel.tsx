@@ -27,6 +27,7 @@ import {
 import {
   Building2,
   CalendarCheck,
+  Clapperboard,
   ExternalLink,
   Globe,
   LayoutDashboard,
@@ -197,6 +198,15 @@ const ENTRADAS_DEL_MENU: EntradaDeMenu[] = [
     descripcion: "Avisos en vivo de prueba",
     icono: Radio,
     laPuedeVer: (usuario) => usuario.permisos.administraElSistema,
+  },
+  {
+    ruta: "/videos",
+    etiqueta: "Vídeos",
+    descripcion: "Cómo se usa el panel",
+    icono: Clapperboard,
+    // Todo el equipo, al final, como una ayuda. Qué vídeos ve cada quien
+    // lo decide el servidor (RolUsuario::guiasDeVideoQueVe).
+    laPuedeVer: () => true,
   },
 ];
 

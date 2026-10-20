@@ -51,10 +51,14 @@ class ArchivoMedia extends Model
     public const PROPOSITO_ADJUNTO_COMENTARIO = 'adjunto_comentario';
     public const PROPOSITO_CIERRE_DE_MES = 'cierre_de_mes';
 
+    /** Un vídeo tutorial o su portada (VideoTutorial, desde el 2026-10-20). */
+    public const PROPOSITO_VIDEO_TUTORIAL = 'video_tutorial';
+
     /** Los propósitos cuyo fichero va al disco privado y se sirve firmado. */
     public const PROPOSITOS_PRIVADOS = [
         self::PROPOSITO_ADJUNTO_COMENTARIO,
         self::PROPOSITO_CIERRE_DE_MES,
+        self::PROPOSITO_VIDEO_TUTORIAL,
     ];
 
     public const DISCO_PUBLICO = 'public';

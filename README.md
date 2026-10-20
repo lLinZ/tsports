@@ -326,6 +326,32 @@ El primero dice cuándo toca el siguiente; el segundo, cómo fue el
 sudo systemctl start tsports-recordatorios
 ```
 
+### Los vídeos tutoriales
+
+La pantalla «Vídeos» enseña a cada rol los tutoriales de su serie. Los
+vídeos **no vienen con el código** (pesan unos 200 MB y el repositorio
+es público): se graban en `informes/videos` y se cargan aparte.
+
+En el ordenador donde se graban, primero se prepara la carpeta (el
+manifiesto `videos.json` y una portada por vídeo):
+
+```bash
+node informes/videos/herramientas/manifiesto.mjs
+```
+
+Después se copia `informes/videos/salida/` al servidor, por ejemplo con
+`scp -r`, a `~/videos-tsports`. Y en el servidor, con el mismo usuario
+que despliega:
+
+```bash
+php /var/www/tsports/backend/artisan videos:importar ~/videos-tsports
+```
+
+Se puede repetir sin miedo: lo que no cambió no se toca, y un vídeo
+vuelto a grabar sustituye al viejo. Con `--quitar-los-demas` se borran
+los que ya no estén en la carpeta. Una vez cargados, la carpeta copiada
+se puede borrar: los vídeos quedan dentro del sitio, en el disco privado.
+
 > **Al actualizar a la segunda etapa** (propiedades y campañas), después
 > de migrar hay que sembrar una sola vez los dos catálogos:
 >

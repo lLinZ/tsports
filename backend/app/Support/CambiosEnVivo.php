@@ -79,6 +79,9 @@ final class CambiosEnVivo
     /** Las metas de venta: cada quien vuelve a pedir su panel. */
     public const METAS = 'metas';
 
+    /** Los vídeos tutoriales: cada quien vuelve a pedir los de su serie. */
+    public const VIDEOS = 'videos';
+
     /**
      * Pasado este número de marcas en una sola petición (el importador,
      * un cambio masivo) se avisa «cambiaron las marcas» sin decir cuáles.

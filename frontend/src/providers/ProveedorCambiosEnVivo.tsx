@@ -40,6 +40,7 @@ import { CLAVE_DE_CATALOGOS } from "@/hooks/useCatalogos";
 import { clavesDeMarcas } from "@/hooks/useMarcas";
 import { clavesDePropiedades } from "@/hooks/usePropiedades";
 import { CLAVE_DE_SECTORES } from "@/hooks/useSectores";
+import { CLAVE_DE_VIDEOS } from "@/hooks/useVideos";
 import { useEventoPersonal, useTiempoReal } from "@/providers/ProveedorTiempoReal";
 
 /** Lo que manda App\Support\CambiosEnVivo. `id` null = «varias» o «todas». */
@@ -124,6 +125,11 @@ function clavesQueCambiaron({ entidad, id }: CambioEnLosDatos): QueryKey[] {
     // del equipo.
     case "metas":
       return [CLAVE_DEL_PANEL, CLAVE_DE_LA_AUDITORIA];
+
+    // Se cargó o se cambió un vídeo (`videos:importar`): cada quien vuelve
+    // a pedir los de su serie.
+    case "videos":
+      return [CLAVE_DE_VIDEOS];
 
     // El nombre de cada persona sale en las tarjetas y en el resumen.
     case "equipo":
