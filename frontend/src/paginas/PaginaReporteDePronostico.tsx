@@ -16,9 +16,8 @@
  *     pronósticos en las fichas. Los eventos sin ninguna todavía salen
  *     con los huecos vacíos: así se ve qué falta por vender.
  *
- * El total cuadra con el de Propiedades. Qué marcas entran lo decide el
- * servidor (ReporteDePronosticoController): la agencia entera para admin
- * y comercial, su cartera para un agente.
+ * El total cuadra con el de Propiedades. La pantalla es de admin y
+ * comercial, con la agencia entera (ReporteDePronosticoController).
  *
  * No se anota en la auditoría, al revés que el de bitácora: son las
  * mismas cifras que ya enseñan el panel y Propiedades, y no saca del

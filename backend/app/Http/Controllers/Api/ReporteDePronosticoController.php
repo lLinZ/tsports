@@ -35,11 +35,9 @@ use Illuminate\Http\Request;
  * Propiedades, que suma TODAS las líneas, también las de propiedades
  * desactivadas (esas salen marcadas).
  *
- * LO QUE VE CADA QUIEN es lo que ve en el tablero (regla 6): la agencia
- * entera admin y comercial, su cartera el agente. Al agente no se le
- * manda nada de marcas ajenas, ni sumado en los totales. No lleva el
- * MTP ni la meta de ninguna propiedad: son cifras de la agencia, y aquí
- * no hacen falta para contestar la pregunta.
+ * LO VEN ADMIN Y COMERCIAL (`UserPolicy::verReportes`); al agente se le
+ * responde 403 desde el 2026-10-30. No lleva el MTP ni la meta de ninguna
+ * propiedad: aquí no hacen falta para contestar la pregunta.
  */
 class ReporteDePronosticoController extends Controller
 {
@@ -48,7 +46,7 @@ class ReporteDePronosticoController extends Controller
      */
     public function porMarca(Request $peticion): JsonResponse
     {
-        $this->authorize('viewAny', Marca::class);
+        $this->authorize('verReportes', User::class);
 
         /** @var User $usuario */
         $usuario = $peticion->user();

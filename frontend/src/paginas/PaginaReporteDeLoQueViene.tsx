@@ -21,10 +21,10 @@
  *     deja «Contacté» como siguiente paso, también) con su hora.
  *
  * Los días de cada periodo los cuenta el servidor con el calendario de
- * Caracas (aquí solo se dice «esta semana» o «el próximo mes»), y qué
- * entra lo decide también él: la agencia entera para admin y comercial,
- * la cartera para un agente. El PDF y la hoja de cálculo salen de lo
- * mismo que se ve (utilidades/exportarLoQueViene.ts).
+ * Caracas (aquí solo se dice «esta semana» o «el próximo mes»). La
+ * pantalla es de admin y comercial, con la agencia entera. El PDF y la
+ * hoja de cálculo salen de lo mismo que se ve
+ * (utilidades/exportarLoQueViene.ts).
  *
  * Al revés que el reporte de bitácora, este se pide solo al cambiar un
  * filtro: no queda anotado en la auditoría (no saca conversaciones ni

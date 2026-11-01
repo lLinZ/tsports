@@ -10,10 +10,10 @@
  *
  * QUÉ MARCAS ENTRAN lo decide el servidor, y aquí solo se enseña:
  *
- *   · Sin marcas elegidas, todas las que ve quien lo pide: la agencia
- *     entera para admin y comercial, su cartera para un agente (regla
- *     19). Hasta el 2026-10-01 eso era solo del administrador y los demás
- *     tenían que elegir las marcas una a una.
+ *   · Sin marcas elegidas, la agencia entera (regla 19). Hasta el
+ *     2026-10-01 eso era solo del administrador y los demás tenían que
+ *     elegir las marcas una a una. El agente no entra en esta pantalla
+ *     desde el 2026-10-30.
  *   · Eligiendo marcas, quien pueda verlas. El buscador ya solo ofrece
  *     esas, y el servidor lo vuelve a comprobar al pedir el reporte.
  *

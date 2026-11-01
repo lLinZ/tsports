@@ -157,6 +157,20 @@ enum RolUsuario: string
     }
 
     /**
+     * ¿Entra en la sección Reportes (bitácora por fechas, lo que viene,
+     * pronóstico por marca y brochure)?
+     *
+     * Admin y comercial, desde el 2026-10-30, por decisión de LinZ. Hasta
+     * entonces el agente también entraba y veía lo de su cartera. Sacar
+     * reportes es trabajo de quien dirige; el agente trabaja sus marcas
+     * desde el tablero, la ficha y el resumen.
+     */
+    public function veLosReportes(): bool
+    {
+        return $this === self::Admin || $this === self::Comercial;
+    }
+
+    /**
      * ¿Qué series de vídeos tutoriales ve? (desde el 2026-10-20)
      *
      * La suya y las de debajo: el comercial también trabaja marcas, así

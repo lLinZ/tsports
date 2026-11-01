@@ -136,8 +136,7 @@ const ENTRADAS_DEL_MENU: EntradaDeMenu[] = [
     etiqueta: "Reportes",
     descripcion: "Bitácora, pronóstico y brochure",
     icono: NotebookPen,
-    // Todo el equipo: cada quien saca el de las marcas que ve.
-    laPuedeVer: () => true,
+    laPuedeVer: (usuario) => usuario.permisos.veLosReportes,
   },
   {
     ruta: "/cierre-de-mes",

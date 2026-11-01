@@ -249,35 +249,31 @@ function RutasDeLaAplicacion() {
         path="/chat/:idDeLaConversacion?"
       />
 
-      {/* Todo el equipo: un agente saca el reporte de sus marcas. Sin
-          marcas elegidas es el de toda la agencia, y eso lo comprueba el
-          servidor (solo administrador). */}
+      {/* Toda la sección Reportes es de admin y comercial; el servidor
+          responde 403 al agente (UserPolicy::verReportes). */}
       <Route
         element={
-          <RutaProtegida>
+          <RutaProtegida requiere={(usuario) => usuario.permisos.veLosReportes}>
             <PaginaReporteDeBitacora />
           </RutaProtegida>
         }
         path="/reportes/bitacora"
       />
 
-      {/* Lo planificado día por día (recordatorios y acciones de campaña).
-          Todo el equipo: cada quien, de las marcas que ve; la agenda de
-          otra persona, solo quien reparte (lo decide el servidor). */}
+      {/* Lo planificado día por día (recordatorios y acciones de campaña). */}
       <Route
         element={
-          <RutaProtegida>
+          <RutaProtegida requiere={(usuario) => usuario.permisos.veLosReportes}>
             <PaginaReporteDeLoQueViene />
           </RutaProtegida>
         }
         path="/reportes/lo-que-viene"
       />
 
-      {/* En qué marcas está el pronóstico (OVP). Todo el equipo: cada
-          quien, de las marcas que ve (lo decide el servidor). */}
+      {/* En qué marcas está el pronóstico (OVP). */}
       <Route
         element={
-          <RutaProtegida>
+          <RutaProtegida requiere={(usuario) => usuario.permisos.veLosReportes}>
             <PaginaReporteDePronostico />
           </RutaProtegida>
         }
@@ -285,10 +281,10 @@ function RutasDeLaAplicacion() {
       />
 
       {/* El brochure de propiedades en PDF, para mandar a un patrocinador.
-          Lo saca todo el equipo: solo lleva lo que ya ve un cliente. */}
+          Solo lleva lo que ya ve un cliente. */}
       <Route
         element={
-          <RutaProtegida>
+          <RutaProtegida requiere={(usuario) => usuario.permisos.veLosReportes}>
             <PaginaBrochure />
           </RutaProtegida>
         }

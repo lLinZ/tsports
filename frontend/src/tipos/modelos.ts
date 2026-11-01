@@ -49,6 +49,8 @@ export interface PermisosDelUsuario {
   sacaLaBitacoraCompleta: boolean;
   /** Ve y sube los reportes de «Cierre de mes» (admin y comercial). */
   veLosCierresDeMes: boolean;
+  /** Entra en la sección Reportes (admin y comercial). */
+  veLosReportes: boolean;
   /** Cambia los días que tarda una marca en enfriarse. Hoy, el administrador. */
   ajustaLosUmbralesDelEstado: boolean;
   /** Pone y quita las metas de venta (quien reparte: admin y comercial). */

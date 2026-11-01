@@ -32,10 +32,9 @@ use Illuminate\Http\Request;
  *     pudiera descargársela sería peor que darle acceso al tablero.
  *
  * El REPORTE POR FECHAS (`porFechas`) es la misma bitácora cortada por
- * un rango de días y agrupada por marca. Lo saca cualquiera, de las
- * marcas que ve: sin marcas elegidas son todas las suyas (la agencia
- * entera para admin y comercial, su cartera para un agente); con
- * marcas, cada una tiene que poder verla.
+ * un rango de días y agrupada por marca. Lo sacan admin y comercial
+ * (`UserPolicy::verReportes`); al agente se le responde 403 desde el
+ * 2026-10-30. Sin marcas elegidas es la agencia entera.
  *
  * Y TODAS QUEDAN ANOTADAS en el registro de actividad, antes de
  * devolver nada. Sacar una bitácora es sacar del sistema toda la
@@ -136,16 +135,15 @@ class ExportacionDeBitacoraController extends Controller
      *                        empieza a otra hora de Caracas, y sin esto lo
      *                        comentado al final de su día saldría en otro.
      *
-     * QUÉ MARCAS ENTRAN lo decide lo que cada quien ve (regla 6):
+     * QUIÉN LO SACA: admin y comercial. El agente recibe un 403 aunque pida
+     * solo las suyas.
      *
-     *   · Sin elegir marcas, TODAS LAS SUYAS: la agencia entera para admin
-     *     y comercial, su cartera para un agente. Hasta el 2026-10-01 esto
-     *     era solo del administrador y los demás tenían que elegir las
-     *     marcas una a una; con quinientas marcas eran quinientos clics, y
-     *     el comercial ya las ve todas en el tablero.
+     *   · Sin elegir marcas, TODAS. Hasta el 2026-10-01 esto era solo del
+     *     administrador y los demás tenían que elegir las marcas una a una;
+     *     con quinientas marcas eran quinientos clics, y el comercial ya
+     *     las ve todas en el tablero.
      *   · Eligiendo marcas, cada una tiene que poder verla quien pregunta.
-     *     Una sola ajena y se rechaza entera con un 403: devolver las
-     *     demás y callarse esa diría, por omisión, que existe.
+     *     Una que no existe rechaza la petición entera con un 403.
      *
      * El histórico completo de una vez (`completa`) sigue siendo solo del
      * administrador.
@@ -154,6 +152,8 @@ class ExportacionDeBitacoraController extends Controller
      */
     public function porFechas(Request $peticion): JsonResponse
     {
+        $this->authorize('verReportes', User::class);
+
         /** @var User $quienConsulta */
         $quienConsulta = $peticion->user();
 

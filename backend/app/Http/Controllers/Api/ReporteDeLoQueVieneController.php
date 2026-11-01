@@ -44,11 +44,11 @@ use Illuminate\Validation\ValidationException;
  * «este mes» de hoy a fin de mes. Si lo decidiera el navegador, un
  * ordenador que no está en hora de Venezuela pediría otros días.
  *
- * LO QUE VE CADA QUIEN es lo de las marcas que ve (regla 6): la agencia
- * entera admin y comercial, su cartera el agente. Filtrar por persona es
- * de quien ve todas; un agente solo puede pedirse a sí mismo. Un
- * recordatorio de alguien que ya no puede ver su marca, o cuya cuenta
- * está desactivada, no sale: nadie lo va a hacer (Recordatorio::scopeDe).
+ * LO VEN ADMIN Y COMERCIAL (`UserPolicy::verReportes`), con la agencia
+ * entera y el filtro por persona; al agente se le responde 403 desde el
+ * 2026-10-30. Un recordatorio de alguien que ya no puede ver su marca, o
+ * cuya cuenta está desactivada, no sale: nadie lo va a hacer
+ * (Recordatorio::scopeDe).
  *
  * No se anota en la auditoría, igual que el pronóstico: no saca del
  * sistema ninguna conversación ni dato de contacto, solo lo que ya enseñan
@@ -68,7 +68,7 @@ class ReporteDeLoQueVieneController extends Controller
      */
     public function delPeriodo(Request $peticion): JsonResponse
     {
-        $this->authorize('viewAny', Marca::class);
+        $this->authorize('verReportes', User::class);
 
         /** @var User $yo */
         $yo = $peticion->user();

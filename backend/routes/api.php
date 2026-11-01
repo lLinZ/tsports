@@ -155,11 +155,11 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // El calendario de acciones de campaña, semana a semana.
     Route::get('/panel/calendario', [CalendarioController::class, 'calendario']);
     // En qué marcas está el pronóstico (OVP): por marca y por propiedad.
-    // Cada quien, de las marcas que ve.
+    // Admin y comercial (UserPolicy::verReportes).
     Route::get('/reportes/pronostico', [ReporteDePronosticoController::class, 'porMarca']);
     // Lo planificado entre dos días: recordatorios del equipo (también
-    // los que deja «Contacté») y acciones de campaña. Cada quien, de las
-    // marcas que ve.
+    // los que deja «Contacté») y acciones de campaña. Admin y comercial
+    // (UserPolicy::verReportes).
     Route::get('/reportes/lo-que-viene', [ReporteDeLoQueVieneController::class, 'delPeriodo']);
 
     /* ---------- Corregir el historial de acciones de campaña ----------
@@ -279,9 +279,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // relación comercial con esa marca.
     Route::get('/marcas/{marca}/bitacora/exportacion', [ExportacionDeBitacoraController::class, 'deUnaMarca']);
 
-    // Lo que se escribió entre dos fechas, agrupado por marca. Sin marcas
-    // elegidas es la agencia entera y solo lo saca el administrador; con
-    // marcas, quien pueda ver cada una (lo decide el controlador).
+    // Lo que se escribió entre dos fechas, agrupado por marca. Admin y
+    // comercial (UserPolicy::verReportes); sin marcas elegidas es la
+    // agencia entera.
     Route::get('/bitacora/reporte', [ExportacionDeBitacoraController::class, 'porFechas']);
 
     /* ---------- Cierre de mes ----------

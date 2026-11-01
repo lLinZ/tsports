@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\RolUsuario;
+use App\Http\Resources\RecursoUsuario;
 use App\Models\Marca;
 use App\Models\Propiedad;
 use App\Models\PropiedadDeMarca;
@@ -21,7 +22,7 @@ use Tests\TestCase;
  *
  *   · El total es el mismo que el de la pantalla de Propiedades.
  *   · Una línea sin cifra no mete a la marca en el reporte.
- *   · El agente solo ve lo de sus marcas, también en los totales.
+ *   · El agente no lo saca, ni de sus marcas.
  */
 class ReporteDePronosticoTest extends TestCase
 {
@@ -96,28 +97,29 @@ class ReporteDePronosticoTest extends TestCase
         $this->assertSame([], $porPropiedad[1]['marcas']);
     }
 
-    public function test_el_agente_solo_ve_el_dinero_de_sus_marcas(): void
+    public function test_el_agente_no_saca_el_reporte_ni_de_sus_marcas(): void
     {
         $agente = $this->crearUsuario(RolUsuario::Vendedor);
-        $otroAgente = $this->crearUsuario(RolUsuario::Vendedor);
-
-        $comite = $this->crearPropiedad('Comité Olímpico');
-
         $suya = Marca::create(['nombre_marca' => 'Suya', 'vendedor_asignado_id' => $agente->id]);
-        $ajena = Marca::create(['nombre_marca' => 'Ajena', 'vendedor_asignado_id' => $otroAgente->id]);
+        $this->ofrecer($suya, $this->crearPropiedad('Comité Olímpico'), 1500);
 
-        $this->ofrecer($suya, $comite, 1500);
-        $this->ofrecer($ajena, $comite, 9000);
+        $this->actingAs($agente)->getJson('/api/reportes/pronostico')->assertForbidden();
+    }
 
-        $reporte = $this->actingAs($agente)->getJson('/api/reportes/pronostico')->assertOk();
+    /** La bandera con la que el panel esconde el menú y las rutas de Reportes. */
+    public function test_el_permiso_de_reportes_llega_a_admin_y_comercial_y_no_al_agente(): void
+    {
+        $esperados = [
+            [RolUsuario::Admin, true],
+            [RolUsuario::Comercial, true],
+            [RolUsuario::Vendedor, false],
+        ];
 
-        $reporte->assertJsonPath('alcance', 'personal')
-            ->assertJsonPath('resumen.totalOvpUsd', 1500)
-            ->assertJsonPath('resumen.totalMarcas', 1)
-            ->assertJsonPath('porPropiedad.0.ovpUsd', 1500);
+        foreach ($esperados as [$rol, $loVe]) {
+            $permisos = (new RecursoUsuario($this->crearUsuario($rol)))->toArray(request())['permisos'];
 
-        $this->assertSame(['Suya'], array_column($reporte->json('porPropiedad.0.marcas'), 'nombre'));
-        $this->assertStringNotContainsString('Ajena', $reporte->getContent());
+            $this->assertSame($loVe, $permisos['veLosReportes'], $rol->value);
+        }
     }
 
     /* ------------------------------------------------------------------

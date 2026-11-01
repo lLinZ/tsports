@@ -68,6 +68,7 @@ class RecursoUsuario extends JsonResource
                 // que lo comprueba al pedirlo, para que no puedan discrepar.
                 'sacaLaBitacoraCompleta' => $this->resource->can('verAuditoria', User::class),
                 'veLosCierresDeMes' => $this->rol->veLosCierresDeMes(),
+                'veLosReportes' => $this->resource->can('verReportes', User::class),
                 'ajustaLosUmbralesDelEstado' => $this->resource->can('ajustarUmbralesDelEstado', Marca::class),
                 'fijaLasMetas' => $this->resource->can('fijarMetas', User::class),
             ],

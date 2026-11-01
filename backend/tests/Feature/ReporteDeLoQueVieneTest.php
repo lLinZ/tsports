@@ -22,8 +22,7 @@ use Tests\TestCase;
  *     próximo») los cuenta el servidor con el día de Caracas.
  *   · Junta los recordatorios del equipo (con qué toca y la hora) y las
  *     acciones de campaña, día por día y en orden.
- *   · Cada quien ve lo de las marcas que ve (regla 6): un agente, lo de
- *     su cartera, y no puede pedir la agenda de otra persona.
+ *   · El agente no lo saca, ni de sus marcas ni con el filtro por persona.
  *   · Lo que nadie va a hacer no sale: el recordatorio de alguien que ya
  *     no ve la marca o cuya cuenta está desactivada.
  *   · Lo atrasado va aparte, y lo ya hecho del periodo sale como hecho.
@@ -122,41 +121,19 @@ class ReporteDeLoQueVieneTest extends TestCase
         $this->assertNotEmpty($respuesta->json('personas'));
     }
 
-    public function test_un_agente_solo_ve_lo_de_sus_marcas_y_no_pide_la_agenda_de_otro(): void
+    public function test_el_agente_no_saca_el_reporte_ni_de_su_propia_agenda(): void
     {
         $ana = $this->crearUsuario(RolUsuario::Vendedor, 'Ana Agente');
         $luis = $this->crearUsuario(RolUsuario::Vendedor, 'Luis Agente');
-        $comercial = $this->crearUsuario(RolUsuario::Comercial, 'Carla Comercial');
 
         $deAna = Marca::create(['nombre_marca' => 'Pepsi', 'vendedor_asignado_id' => $ana->id]);
-        $deLuis = Marca::create(['nombre_marca' => 'Secreta', 'vendedor_asignado_id' => $luis->id]);
-
         $this->recordatorio($deAna, $ana, '2026-10-09', ['tipo' => 'llamada']);
-        // El comercial también trabaja la de Ana: a Ana le sale (la ve en
-        // la ficha igual).
-        $this->recordatorio($deAna, $comercial, '2026-10-10', ['tipo' => 'reunion']);
-        $this->recordatorio($deLuis, $luis, '2026-10-09', ['tipo' => 'llamada']);
-        $this->accion($deLuis, '2026-10-10');
 
-        $respuesta = $this->actingAs($ana)
-            ->getJson('/api/reportes/lo-que-viene?periodo=esta_semana')
-            ->assertOk()
-            ->assertJsonPath('alcance', 'personal')
-            ->assertJsonPath('resumen.porHacer', 2)
-            ->assertJsonPath('resumen.acciones', 0)
-            ->assertJsonPath('personas', []);
-
-        $this->assertStringNotContainsString('Secreta', $respuesta->getContent());
-
-        $this->actingAs($ana)
-            ->getJson("/api/reportes/lo-que-viene?persona={$luis->id}")
-            ->assertForbidden();
-
-        // A sí misma sí.
-        $this->actingAs($ana)
-            ->getJson("/api/reportes/lo-que-viene?persona={$ana->id}")
-            ->assertOk()
-            ->assertJsonPath('resumen.porHacer', 1);
+        foreach (['periodo=esta_semana', "persona={$ana->id}", "persona={$luis->id}"] as $filtro) {
+            $this->actingAs($ana)
+                ->getJson("/api/reportes/lo-que-viene?{$filtro}")
+                ->assertForbidden();
+        }
     }
 
     public function test_el_filtro_por_persona_deja_sus_recordatorios_y_las_acciones_de_sus_marcas(): void

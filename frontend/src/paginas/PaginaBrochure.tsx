@@ -11,7 +11,7 @@
  * propiedad por propiedad, de a cuál le falta texto o fotos, para que no
  * se descubra al abrir el PDF.
  *
- * Lo saca todo el equipo: quien vende es quien lo manda. De partida van
+ * Lo sacan admin y comercial, como el resto de Reportes. De partida van
  * marcadas las propiedades publicadas en la web, que son las que ya
  * tienen su texto y sus fotos para clientes.
  * ---------------------------------------------------------------------

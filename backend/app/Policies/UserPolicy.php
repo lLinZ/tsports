@@ -97,6 +97,12 @@ class UserPolicy
         return $usuario->activo && $usuario->rol->puedeAsignarVendedores();
     }
 
+    /** Entrar en la sección Reportes (`RolUsuario::veLosReportes`). */
+    public function verReportes(User $usuario): bool
+    {
+        return $usuario->activo && $usuario->rol->veLosReportes();
+    }
+
     /** Consultar el registro de auditoría del sistema. */
     public function verAuditoria(User $usuario): bool
     {

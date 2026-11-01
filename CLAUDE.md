@@ -388,6 +388,11 @@ Salieron del cliente y están implementadas a propósito así:
      se cambió a petición del equipo, con el argumento de que quien
      reparte es el comercial. El corte lo hace el servidor: las marcas
      ajenas no salen en la respuesta, ni por el listado ni por la ficha.
+     **No entra en Reportes** (desde el 2026-10-30, decisión de LinZ): ni
+     la bitácora por fechas, ni «Lo que viene», ni el pronóstico por
+     marca, ni el brochure. Son de admin y comercial
+     (`RolUsuario::veLosReportes`, `UserPolicy::verReportes`), y al agente
+     el servidor le responde 403 aunque pida solo lo suyo.
    - "Suya" se decide **por el id** del vendedor asignado y nunca por su
      nombre. El nombre se repite entre personas y además se puede editar;
      usarlo para dar acceso abriría la cartera de una a la otra. El
@@ -424,8 +429,8 @@ Salieron del cliente y están implementadas a propósito así:
    propiedad, porque es un acuerdo, no una ley.
 
    **En qué marcas está el OVP** lo contesta Reportes › «Pronóstico por
-   marca» (desde el 2026-10-01): el mismo dinero por marca y por
-   propiedad, cada quien de las marcas que ve. Su total tiene que
+   marca» (desde el 2026-10-01, admin y comercial): el mismo dinero por
+   marca y por propiedad. Su total tiene que
    cuadrar con «Pronosticado por el equipo» de Propiedades, que suma
    todas las líneas, también las de propiedades desactivadas.
 
@@ -657,13 +662,11 @@ Salieron del cliente y están implementadas a propósito así:
 
     El **reporte por fechas** (`/reportes/bitacora`, desde el
     2026-09-25) es la misma bitácora cortada por días y agrupada por
-    marca. **Sin marcas elegidas son todas las que ve quien lo pide**: la
-    agencia entera para admin y comercial, su cartera para un agente.
-    Hasta el 2026-10-01 eso era solo del administrador y los demás tenían
-    que elegir las marcas una a una (con quinientas, quinientos clics).
-    Con marcas, quien pueda ver cada una, y una ajena rechaza la petición
-    entera. El histórico completo de una vez sigue siendo solo del
-    administrador. Un día es un día **de quien mira**: el navegador manda
+    marca, y lo sacan admin y comercial (regla 6). **Sin marcas elegidas
+    es la agencia entera**. Hasta el 2026-10-01 eso era solo del
+    administrador y los demás tenían que elegir las marcas una a una (con
+    quinientas, quinientos clics). El histórico completo de una vez sigue
+    siendo solo del administrador. Un día es un día **de quien mira**: el navegador manda
     su zona horaria, porque lo comentado a las nueve de la noche en
     Caracas ya es mañana en UTC.
 
@@ -995,12 +998,11 @@ Salieron del cliente y están implementadas a propósito así:
       domingo, `este_mes` de hoy a fin de mes, `proximo_mes` entero, u
       `otro` con desde y hasta, un año como mucho). El navegador solo dice
       cuál (regla 16).
-    - **Cada quien, lo de las marcas que ve** (regla 6): la agencia entera
-      admin y comercial, su cartera el agente. Filtrar por persona es de
-      quien ve todas (`personas` solo le llega a él); un agente solo se
-      puede pedir a sí mismo (403 si no). Un recordatorio de alguien que ya
-      no ve la marca o cuya cuenta está desactivada no sale: nadie lo va a
-      hacer. Las acciones de campaña son del agente de su marca.
+    - **Lo ven admin y comercial** (regla 6), con la agencia entera y el
+      filtro por persona; el agente recibe un 403. Un recordatorio de
+      alguien que ya no ve la marca o cuya cuenta está desactivada no sale:
+      nadie lo va a hacer. Las acciones de campaña son del agente de su
+      marca.
     - **No queda en la auditoría**, como el pronóstico: no saca
       conversaciones ni datos de contacto. Por eso se pide solo al cambiar
       un filtro. El PDF y la hoja de cálculo los arma el navegador con la
@@ -1171,6 +1173,8 @@ VPS usa **MySQL**: la plantilla es `backend/.env.example`.
   servidor (regla 30).
 - Mandar a un agente el dinero de la agencia por sector, o la agenda de
   otra persona (reglas 15 y 30).
+- Abrirle a un agente la sección Reportes o sus rutas de `/api`, aunque
+  sea solo con lo suyo (regla 6).
 - Poner `step` en un campo de dinero: redondea lo escrito al múltiplo
   (regla 15).
 - Subir los vídeos tutoriales al repositorio o servirlos desde /storage:
