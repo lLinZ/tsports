@@ -189,7 +189,7 @@ export function CruceDePropiedades() {
                 {cruce.columnas.map((columna) => (
                   <th
                     key={columna.propiedadId}
-                    className="px-1.5 py-3 text-right align-bottom"
+                    className="px-1 py-3 text-right align-bottom"
                   >
                     <Link
                       className="inline-flex flex-col items-end gap-1.5 hover:opacity-80"
@@ -199,7 +199,7 @@ export function CruceDePropiedades() {
                         logoUrl={columna.logoUrl}
                         nombre={columna.nombre}
                       />
-                      <span className="max-w-28 text-xs font-semibold leading-tight text-foreground">
+                      <span className="max-w-24 text-xs font-semibold leading-tight text-foreground">
                         {columna.nombre}
                         {!columna.activa && (
                           <span className="block text-[10px] font-normal text-warning-600">
@@ -265,7 +265,7 @@ export function CruceDePropiedades() {
                       {cruce.columnas.map((columna) => (
                         <td
                           key={columna.propiedadId}
-                          className="px-1.5 py-1.5 text-right"
+                          className="px-1 py-1.5 text-right"
                         >
                           <Casilla
                             estado={fila.estado}
@@ -292,7 +292,7 @@ export function CruceDePropiedades() {
                   return (
                     <td
                       key={columna.propiedadId}
-                      className="px-1.5 py-3 text-right"
+                      className="px-1 py-3 text-right"
                     >
                       <p className="font-bold text-foreground">
                         {formatearDinero(total?.ovpUsd ?? 0)}
@@ -327,7 +327,7 @@ function Casilla({
 }) {
   if (ovp === undefined) {
     return (
-      <span className="inline-block min-w-16 text-center text-default-200">
+      <span className="inline-block min-w-14 text-center text-default-200">
         ·
       </span>
     );
@@ -337,7 +337,7 @@ function Casilla({
 
   return (
     <span
-      className={`inline-flex h-8 min-w-[5.25rem] items-center justify-end rounded-xl px-2 text-[13px] font-semibold ${pastilla}`}
+      className={`inline-flex h-8 min-w-[4.75rem] items-center justify-end rounded-xl px-2 text-[13px] font-semibold ${pastilla}`}
     >
       {ovp > 0 ? (
         formatearDinero(ovp)

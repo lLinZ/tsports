@@ -636,17 +636,18 @@ function FilaDeEnvio({ envio }: { envio: EnvioDeAviso }) {
 
       <span className={pantalla.clase}>{pantalla.texto}</span>
 
-      <span>
+      <span className="min-w-0">
         <Chip
-          className="max-w-full"
+          // El texto largo («Falló: el dispositivo…») se corta dentro de su
+          // columna; entero, en el título al pasar el ratón.
+          classNames={{ base: "max-w-full", content: "min-w-0 truncate" }}
           color={movil.color}
           radius="full"
           size="sm"
+          title={movil.texto}
           variant="flat"
         >
-          <span className="truncate" title={movil.texto}>
-            {movil.texto}
-          </span>
+          {movil.texto}
         </Chip>
       </span>
 
