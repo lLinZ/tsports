@@ -34,7 +34,17 @@ class SuscripcionPush extends Model
         'clave_p256dh',
         'clave_auth',
         'dispositivo',
+        'ultimo_envio_en',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            // La última vez que el servicio de entrega aceptó un aviso
+            // para este dispositivo: lo que enseña «Tus dispositivos».
+            'ultimo_envio_en' => 'datetime',
+        ];
+    }
 
     /**
      * Las claves del navegador no salen de aquí en ninguna respuesta.

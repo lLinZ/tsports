@@ -326,6 +326,24 @@ export function formatearDiaAgendado(
   return `el ${diaYMes.replace(".", "")}`;
 }
 
+/**
+ * Lo próximo que toca con una marca, dicho como en la tarjeta del
+ * tablero: «Mañana · 10:00 · Reunión» o «Vencido · el 6 oct · Llamada».
+ * Los días los cuenta el servidor (`diasHasta`), como en
+ * formatearDiaAgendado.
+ */
+export function formatearSiguientePaso(paso: {
+  fecha: string;
+  diasHasta: number;
+  hora: string | null;
+  etiqueta: string;
+}): string {
+  const elDia = formatearDiaAgendado(paso.fecha, paso.diasHasta);
+  const cuando = paso.diasHasta < 0 ? `Vencido · ${elDia}` : elDia.charAt(0).toUpperCase() + elDia.slice(1);
+
+  return [cuando, paso.hora, paso.etiqueta].filter(Boolean).join(" · ");
+}
+
 /** Hora del mensaje: "14:05". */
 export function formatearHora(fechaIso: string | null | undefined): string {
   const fecha = comoFechaLocal(fechaIso);

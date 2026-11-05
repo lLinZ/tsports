@@ -46,11 +46,19 @@ export async function listarNotificaciones({
   };
 }
 
-/** El número de la campanita. */
-export async function contarNotificacionesSinLeer(): Promise<number> {
-  const { data } = await clienteHttp.get<{ sinLeer: number }>("/notificaciones/sin-leer");
+/**
+ * El número de la campanita y, aparte, cuántos de esos avisos suenan: la
+ * persona puede quitarle el sonido a un tipo de aviso en sus ajustes.
+ */
+export interface ContadorDeLaCampanita {
+  sinLeer: number;
+  sinLeerConSonido: number;
+}
 
-  return data.sinLeer;
+export async function contarNotificacionesSinLeer(): Promise<ContadorDeLaCampanita> {
+  const { data } = await clienteHttp.get<ContadorDeLaCampanita>("/notificaciones/sin-leer");
+
+  return { sinLeer: data.sinLeer, sinLeerConSonido: data.sinLeerConSonido ?? data.sinLeer };
 }
 
 export async function marcarNotificacionComoLeida(

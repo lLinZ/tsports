@@ -45,11 +45,13 @@ import { ProveedorSesion, useSesion } from "@/providers/ProveedorSesion";
 import { ProveedorTema } from "@/providers/ProveedorTema";
 import { ProveedorTiempoReal } from "@/providers/ProveedorTiempoReal";
 import { PaginaAuditoria } from "@/paginas/PaginaAuditoria";
+import { PaginaAvisos } from "@/paginas/PaginaAvisos";
 import { PaginaCampanas } from "@/paginas/PaginaCampanas";
 import { PaginaChat } from "@/paginas/PaginaChat";
 import { PaginaContenidoWeb } from "@/paginas/PaginaContenidoWeb";
 import { PaginaEntrar } from "@/paginas/PaginaEntrar";
 import { PaginaMarcas } from "@/paginas/PaginaMarcas";
+import { PaginaMovimientoDeLaPropiedad } from "@/paginas/PaginaMovimientoDeLaPropiedad";
 import { PaginaNoEncontrada } from "@/paginas/PaginaNoEncontrada";
 import { PaginaNotificaciones } from "@/paginas/PaginaNotificaciones";
 import { PaginaPanel } from "@/paginas/PaginaPanel";
@@ -170,6 +172,18 @@ function RutasDeLaAplicacion() {
           </RutaProtegida>
         }
         path="/propiedades"
+      />
+
+      {/* La ficha de una propiedad con sus marcas por estado (Propiedades ›
+          Movimiento). Enseña las marcas de todo el equipo con sus importes:
+          admin y comercial. El servidor responde 403 a cualquier otro. */}
+      <Route
+        element={
+          <RutaProtegida requiere={(usuario) => usuario.permisos.veElMovimientoDeLasPropiedades}>
+            <PaginaMovimientoDeLaPropiedad />
+          </RutaProtegida>
+        }
+        path="/propiedades/:idDeLaPropiedad/movimiento"
       />
 
       {/* Qué propiedades ven los clientes en la web y con qué usuario
@@ -354,6 +368,17 @@ function RutasDeLaAplicacion() {
           </RutaProtegida>
         }
         path="/tiempo-real"
+      />
+
+      {/* Qué avisa el sistema, a quién y el registro de envíos. Solo el
+          administrador; el servidor lo vuelve a comprobar (403). */}
+      <Route
+        element={
+          <RutaProtegida requiere={(usuario) => usuario.permisos.configuraLosAvisos}>
+            <PaginaAvisos />
+          </RutaProtegida>
+        }
+        path="/avisos"
       />
 
       <Route element={<PaginaNoEncontrada />} path="*" />

@@ -337,7 +337,8 @@ tsports/
 │       │   │                checklist y galería de propiedades
 │       │   └── layout/    ← barra lateral y superior
 │       ├── hooks/         ← useMarcas, usePropiedades, useCampanas,
-│       │                    useCatalogos, useRecordatorios, useEfectosDeScroll
+│       │                    useCatalogos, useRecordatorios, useEfectosDeScroll,
+│       │                    useMovimientoDePropiedades, useAvisos
 │       ├── paginas/       ← una por ruta
 │       ├── providers/     ← tema, sesión, caché de datos, tiempo real
 │       │                    y cambios en vivo
@@ -378,7 +379,7 @@ Salieron del cliente y están implementadas a propósito así:
 
 6. **Roles:**
    - `admin` → todo: cuentas, web y marcas. Es el único que ve
-     **Equipo, Auditoría y Tiempo real**.
+     **Equipo, Auditoría, Tiempo real y Avisos** (regla 33).
    - `comercial` → todas las marcas; asigna vendedores. Desde el
      2026-10-01 no ve la pantalla de Equipo (la veía sin poder tocar
      nada); la lista del equipo para repartir marcas le sigue llegando
@@ -568,11 +569,12 @@ Salieron del cliente y están implementadas a propósito así:
       venga (alta, ficha o selector del tablero). No se avisa si el
       agente no cambió, si se quitó, ni a quien se la asigna a sí mismo.
     - **Comentario en la bitácora** (entrada o respuesta, desde el
-      2026-09-30) → a los administradores, de todas las marcas (solo el
-      rol admin: `recibeAvisoDeCadaComentario`; el comercial no, se
-      decidió así), y a quien lleva esa marca. Nunca a quien lo escribió,
-      y a quien además etiquetaron le llega un solo aviso: el de la
-      mención. Editar no vuelve a avisar.
+      2026-09-30) → a los administradores, de todas las marcas, y a quien
+      lleva esa marca. El comercial no, de fábrica; desde el 2026-11-05 el
+      administrador puede ponérselo en «Avisos» (regla 33). Nunca a quien
+      lo escribió, y a quien además etiquetaron le llega un solo aviso: el
+      de la mención (con las menciones apagadas, el del comentario).
+      Editar no vuelve a avisar.
     - **Recordatorios del día** (desde el 2026-10-05) → a cada persona,
       a las 08:00 de Caracas, UN aviso con todos los suyos de hoy (regla
       27). Es el único aviso que no nace de algo que hizo alguien.
@@ -582,6 +584,9 @@ Salieron del cliente y están implementadas a propósito así:
     En el panel, un aviso nuevo **suena** («ding») cuando sube el número
     de la campanita —no al llegar el evento, para que suene igual en vivo
     que por la consulta de cada minuto— y un mensaje del chat hace «pop».
+    Desde el 2026-11-05 cuenta solo lo que suena (`sinLeerConSonido`):
+    cada aviso guarda en su fila si lo quiere con sonido quien lo recibe
+    (regla 33).
     Los dos salen de `utilidades/sonidos.ts`, generados con Web Audio (sin
     ficheros), solo con la pestaña a la vista (escondida ya suena la
     notificación del sistema) y se apagan por dispositivo desde el menú de
@@ -1034,6 +1039,67 @@ Salieron del cliente y están implementadas a propósito así:
     - «Visto» es de cada navegador (localStorage con el id de la persona):
       no cuenta para nada, así que no tiene tabla.
 
+32. **Una propiedad no tiene estado propio: se cuentan sus marcas por el
+    suyo.** Desde el 2026-11-05 (propuesta «Propiedades en caliente»,
+    aprobada por LinZ, pensada para Edgar, el comercial). Propiedades
+    lleva dos pestañas más, **Movimiento** (el ranking) y **Cruce** (marcas
+    por propiedades), y cada propiedad su ficha
+    (`/propiedades/:id/movimiento`). Lo arma
+    `App\Support\MovimientoDeLasPropiedades`.
+
+    - **No se promedia.** Dos calientes y dos frías no son una «tibia»:
+      son dos para cerrar y dos para retomar. El ranking cuenta cuántas
+      hay de cada estado y ordena por las calientes (y, si empatan, por el
+      dinero en ellas).
+    - **El estado es el de la marca** (regla 26), en la misma consulta
+      (`conEstado`), con lo fijado a mano contando. Una marca caliente lo
+      es en todas sus propiedades aunque la llamaran por una: es el límite
+      que explica la propuesta. Preguntar en «Contacté» de qué propiedad
+      se habló quedó como idea opcional, sin hacer.
+    - **«En calientes»** es el OVP de esa propiedad en sus marcas
+      calientes, no el total de esas marcas. **«Sin siguiente paso»** de
+      la ficha sale del SQL de `SiguientePasoDeLasMarcas` (regla 29); de
+      aquí solo sale cuál es el siguiente paso de quien lo tiene.
+    - **Los totales cuadran** con «Pronosticado por el equipo» (todas las
+      líneas, también las de propiedades desactivadas, regla 8) y el cruce
+      suma lo mismo por filas y por columnas. Las columnas del cruce no
+      cambian al filtrar; los contadores llevan todos los filtros menos el
+      de estado (como el tablero).
+    - **Lo ven admin y comercial** (`veElMovimientoDeLasPropiedades`); al
+      agente se le responde 403 y sigue viendo el catálogo de siempre. Los
+      tres Excel salen de `/propiedades/movimiento/exportacion`, que queda
+      en la auditoría (regla 28).
+
+33. **Los avisos se ven y se ajustan, y nadie recibe lo que no puede
+    ver.** Desde el 2026-11-05 (propuesta «Panel de avisos», aprobada por
+    LinZ: «no sabemos qué notificaciones se ejecutan»).
+
+    - **La pantalla «Avisos»** (`/avisos`, solo el administrador,
+      `configuraLosAvisos`): si cada canal funciona, los seis avisos con
+      cuándo salta cada uno, a quién le llega, por dónde y cuántos salieron
+      en 30 días, un interruptor para apagar cada uno y el **registro de
+      envíos**. Lo decide `App\Support\AjustesDeAvisos`; sin fila en
+      `ajustes_de_avisos`, todo va de fábrica (regla 17).
+    - **En los dos avisos de grupo se eligen los roles**: el lead
+      (administración, comercial) y el comentario (administración,
+      comercial, quien lleva la marca). No hay casilla para el agente en
+      el lead —no ve los leads sin dueño, regla 6— y el servidor rechaza
+      cualquier destinatario que no esté en la lista.
+    - **Cada persona elige lo suyo** en Notificaciones › Ajustes: si cada
+      aviso le suena en el móvil y en el panel (`preferencias_de_avisos`),
+      y su **horario de silencio** (columnas `silencio_*` de `users`,
+      apagado de partida, 20:00 a 07:30 y fines de semana ya puestos). La
+      campanita no se apaga: la fila es el aviso. Ni un administrador toca
+      lo de otro.
+    - **En silencio el móvil no suena y no se aplaza**: el aviso espera en
+      la campanita. Lo mira el trabajo al salir (`EnviarAvisoPush`,
+      `EnviarMensajeDeChatAlMovil`), que es la hora a la que sonaría.
+    - **Qué pasó con cada aviso se apunta en su fila**
+      (`entrega_en_pantalla`, `entrega_al_movil` y su detalle): lo escribe
+      Notificador al crearlo y EnviarAvisoPush al mandarlo. Hasta ese día
+      un fallo del móvil solo quedaba en el log. Los mensajes del chat no
+      entran en el registro: no son avisos de la campanita.
+
 ---
 
 ## 7. Errores: una sola forma
@@ -1181,3 +1247,11 @@ VPS usa **MySQL**: la plantilla es `backend/.env.example`.
   van al servidor a mano y al disco privado (regla 31).
 - Decidir en la pantalla «Vídeos» qué serie ve cada rol: lo decide
   `RolUsuario::guiasDeVideoQueVe` (regla 31).
+- Darle un estado propio a una propiedad, o promediar el de sus marcas:
+  se cuentan por estado (regla 32).
+- Contar «en calientes» con el OVP total de la marca en vez del de esa
+  propiedad (regla 32).
+- Crear un aviso sin pasar por `AjustesDeAvisos`, o añadir un destinatario
+  que no puede ver la marca de la que habla el aviso (reglas 6 y 33).
+- Dejar que alguien apague la campanita, o toque los ajustes de avisos de
+  otra persona (regla 33).

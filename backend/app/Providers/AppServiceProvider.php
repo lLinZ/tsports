@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Models\AccesoDeInvitados;
+use App\Models\AjusteDeAviso;
 use App\Models\ArchivoDePropiedad;
 use App\Models\Campana;
 use App\Models\CierreDeMes;
@@ -149,6 +150,7 @@ class AppServiceProvider extends ServiceProvider
             Recordatorio::class,
             Meta::class,
             VideoTutorial::class,
+            AjusteDeAviso::class,
         ];
 
         foreach ($modelosQueSeVenEnElPanel as $modelo) {

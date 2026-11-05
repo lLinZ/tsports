@@ -59,7 +59,20 @@ final class Push
      */
     public static function enviar(iterable $suscripciones, Notificacion $notificacion): array
     {
-        return self::enviarContenido($suscripciones, [
+        return self::entregar($suscripciones, $notificacion)['muertos'];
+    }
+
+    /**
+     * Lo mismo que `enviar`, diciendo además a qué endpoints llegó y a
+     * cuáles no. Es lo que apunta el registro de envíos (desde el
+     * 2026-11-05): «Entregado · iPhone» o «Falló».
+     *
+     * @param  iterable<SuscripcionPush>  $suscripciones
+     * @return array{entregados: list<string>, muertos: list<string>, fallidos: list<string>}
+     */
+    public static function entregar(iterable $suscripciones, Notificacion $notificacion): array
+    {
+        return self::entregarContenido($suscripciones, [
             'titulo' => $notificacion->titulo,
             'cuerpo' => $notificacion->cuerpo,
             // El enlace lo resuelve el modelo, igual que para la
@@ -86,8 +99,23 @@ final class Push
      */
     public static function enviarContenido(iterable $suscripciones, array $contenido, string $tema): array
     {
+        return self::entregarContenido($suscripciones, $contenido, $tema)['muertos'];
+    }
+
+    /**
+     * El envío de verdad, con el resultado de cada endpoint: los que el
+     * servicio aceptó, los que dio por muertos (404/410) y los que
+     * fallaron por otra cosa (el servicio no contestó, rechazó el
+     * contenido).
+     *
+     * @param  iterable<SuscripcionPush>  $suscripciones
+     * @param  array<string,mixed>  $contenido
+     * @return array{entregados: list<string>, muertos: list<string>, fallidos: list<string>}
+     */
+    public static function entregarContenido(iterable $suscripciones, array $contenido, string $tema): array
+    {
         if (! self::estaActivo()) {
-            return [];
+            return ['entregados' => [], 'muertos' => [], 'fallidos' => []];
         }
 
         $tema = substr((string) preg_replace('/[^A-Za-z0-9_-]/', '', $tema), 0, 32);
@@ -129,8 +157,16 @@ final class Push
         }
 
         $muertos = [];
+        $entregados = [];
+        $fallidos = [];
 
         foreach ($mensajero->flush() as $resultado) {
+            if ($resultado->isSuccess()) {
+                $entregados[] = $resultado->getEndpoint();
+
+                continue;
+            }
+
             // 404 y 410 son la forma que tiene el servicio de entrega de
             // decir «este navegador ya no existe»: desinstalaron la
             // aplicación, limpiaron los datos del sitio o revocaron el
@@ -138,9 +174,11 @@ final class Push
             // muertas y cada envío tarda un poco más que el anterior.
             if ($resultado->isSubscriptionExpired()) {
                 $muertos[] = $resultado->getEndpoint();
+            } else {
+                $fallidos[] = $resultado->getEndpoint();
             }
         }
 
-        return $muertos;
+        return ['entregados' => $entregados, 'muertos' => $muertos, 'fallidos' => $fallidos];
     }
 }

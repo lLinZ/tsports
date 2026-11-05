@@ -13,25 +13,9 @@
  * pinta con la campana y funciona igual.
  * ---------------------------------------------------------------------
  */
-import {
-  AlarmClock,
-  AtSign,
-  Bell,
-  Globe,
-  MessageSquare,
-  UserCheck,
-  type LucideIcon,
-} from "lucide-react";
 import { formatearFechaYHora, formatearTiempoRelativo } from "@/utilidades/formato";
-import type { Notificacion, TipoDeNotificacion } from "@/tipos/modelos";
-
-const ICONOS_POR_TIPO: Partial<Record<TipoDeNotificacion, LucideIcon>> = {
-  lead_nuevo: Globe,
-  marca_asignada: UserCheck,
-  mencion_en_bitacora: AtSign,
-  comentario_en_bitacora: MessageSquare,
-  recordatorios_del_dia: AlarmClock,
-};
+import { iconoDelAviso } from "@/utilidades/iconosDeAvisos";
+import type { Notificacion } from "@/tipos/modelos";
 
 export function FilaDeNotificacion({
   notificacion,
@@ -40,7 +24,7 @@ export function FilaDeNotificacion({
   notificacion: Notificacion;
   alPulsar: (notificacion: Notificacion) => void;
 }) {
-  const Icono = ICONOS_POR_TIPO[notificacion.tipo] ?? Bell;
+  const Icono = iconoDelAviso(notificacion.tipo);
   const sinLeer = !notificacion.leida;
 
   return (

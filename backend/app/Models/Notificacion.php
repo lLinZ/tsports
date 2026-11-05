@@ -42,6 +42,45 @@ class Notificacion extends Model
     /** El aviso de la mañana: los recordatorios que te tocan hoy. */
     public const TIPO_RECORDATORIOS_DEL_DIA = 'recordatorios_del_dia';
 
+    /*
+     | Qué pasó con el aviso en cada canal (desde el 2026-11-05). Es el
+     | registro de envíos de la pantalla «Avisos»: lo apuntan Notificador
+     | al crearlo y EnviarAvisoPush al mandarlo. La campanita no tiene
+     | columna: la fila es el aviso (regla 17).
+     */
+
+    /** Se empujó en vivo y la persona tenía el panel a la vista. */
+    public const PANTALLA_AL_MOMENTO = 'al_momento';
+
+    /** Se empujó en vivo, pero no tenía el panel a la vista. */
+    public const PANTALLA_PANEL_CERRADO = 'panel_cerrado';
+
+    /** El tiempo real está apagado: lo verá al entrar o en la consulta de cada minuto. */
+    public const PANTALLA_SIN_TIEMPO_REAL = 'sin_tiempo_real';
+
+    /** Reverb no contestó. */
+    public const PANTALLA_FALLO = 'fallo';
+
+    public const MOVIL_EN_COLA = 'en_cola';
+
+    public const MOVIL_ENTREGADO = 'entregado';
+
+    /** Ya lo había leído en el panel cuando le tocó salir: no hizo falta. */
+    public const MOVIL_YA_LEIDO = 'ya_leido';
+
+    public const MOVIL_SIN_DISPOSITIVO = 'sin_dispositivo';
+
+    /** La persona quitó ese aviso del móvil en sus ajustes. */
+    public const MOVIL_APAGADO_POR_LA_PERSONA = 'apagado_por_la_persona';
+
+    /** Estaba en su horario de silencio. */
+    public const MOVIL_SILENCIO = 'silencio';
+
+    /** El servidor no tiene las claves de los avisos al móvil. */
+    public const MOVIL_SIN_PUSH = 'sin_push';
+
+    public const MOVIL_FALLO = 'fallo';
+
     protected $fillable = [
         'destinatario_id',
         'tipo',
@@ -50,12 +89,20 @@ class Notificacion extends Model
         'entidad_tipo',
         'entidad_id',
         'leida_en',
+        // Qué pasó con el aviso en cada canal (el registro de envíos).
+        'con_sonido',
+        'entrega_en_pantalla',
+        'entrega_al_movil',
+        'entrega_al_movil_detalle',
+        'entrega_al_movil_en',
     ];
 
     protected function casts(): array
     {
         return [
             'leida_en' => 'datetime',
+            'con_sonido' => 'boolean',
+            'entrega_al_movil_en' => 'datetime',
         ];
     }
 

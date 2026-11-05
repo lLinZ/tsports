@@ -70,6 +70,9 @@ final class CambiosEnVivo
     /** Los reportes de cierre de mes. Solo los ve admin y comercial. */
     public const CIERRES_DE_MES = 'cierres';
 
+    /** Qué avisos salen y a quién (pantalla «Avisos»). Solo el administrador. */
+    public const AVISOS = 'avisos';
+
     /**
      * Los días que tarda una marca en enfriarse. Cambian el estado de
      * todas las marcas a la vez, así que se avisa a todo el equipo.
@@ -229,6 +232,10 @@ final class CambiosEnVivo
 
             foreach (array_keys($delCatalogo) as $entidad) {
                 if ($entidad === self::CIERRES_DE_MES && ! $persona->rol->veLosCierresDeMes()) {
+                    continue;
+                }
+
+                if ($entidad === self::AVISOS && ! $persona->rol->configuraLosAvisos()) {
                     continue;
                 }
 

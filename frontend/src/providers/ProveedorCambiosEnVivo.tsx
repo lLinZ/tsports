@@ -34,10 +34,12 @@
  */
 import { useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { useEffect, useRef, type ReactNode } from "react";
+import { clavesDeAvisos } from "@/hooks/useAvisos";
 import { clavesDeCampanas } from "@/hooks/useCampanas";
 import { CLAVE_DE_CIERRES_DE_MES } from "@/hooks/useCierresDeMes";
 import { CLAVE_DE_CATALOGOS } from "@/hooks/useCatalogos";
 import { clavesDeMarcas } from "@/hooks/useMarcas";
+import { clavesDelMovimiento } from "@/hooks/useMovimientoDePropiedades";
 import { clavesDePropiedades } from "@/hooks/usePropiedades";
 import { CLAVE_DE_SECTORES } from "@/hooks/useSectores";
 import { CLAVE_DE_VIDEOS } from "@/hooks/useVideos";
@@ -73,7 +75,7 @@ function clavesQueCambiaron({ entidad, id }: CambioEnLosDatos): QueryKey[] {
     // cada rubro: una propuesta nueva cambia la columna «Dinero por sector».
     case "marca":
       return id === null
-        ? [clavesDeMarcas.todas, CLAVE_DEL_PANEL, CLAVE_DE_SECTORES, CLAVE_DE_LA_AUDITORIA]
+        ? [clavesDeMarcas.todas, CLAVE_DEL_PANEL, CLAVE_DE_SECTORES, clavesDelMovimiento.todo, CLAVE_DE_LA_AUDITORIA]
         : [
             ["marcas", "listado"],
             clavesDeMarcas.ficha(id),
@@ -81,17 +83,22 @@ function clavesQueCambiaron({ entidad, id }: CambioEnLosDatos): QueryKey[] {
             ["marcas", "sugerencias"],
             CLAVE_DEL_PANEL,
             CLAVE_DE_SECTORES,
+            // El estado de la marca, su OVP y su siguiente paso se ven en
+            // Propiedades › Movimiento y Cruce.
+            clavesDelMovimiento.todo,
             CLAVE_DE_LA_AUDITORIA,
           ];
 
     case "bitacora":
       // El tablero enseña cuántos comentarios tiene cada marca.
       return id === null
-        ? [clavesDeMarcas.todas, CLAVE_DE_LA_AUDITORIA]
+        ? [clavesDeMarcas.todas, clavesDelMovimiento.todo, CLAVE_DE_LA_AUDITORIA]
         : [
             clavesDeMarcas.comentarios(id),
             clavesDeMarcas.ficha(id),
             ["marcas", "listado"],
+            // Un comentario calienta la marca, y con ella sus propiedades.
+            clavesDelMovimiento.todo,
             CLAVE_DE_LA_AUDITORIA,
           ];
 
@@ -101,7 +108,7 @@ function clavesQueCambiaron({ entidad, id }: CambioEnLosDatos): QueryKey[] {
       return [clavesDePropiedades.todas, clavesDeMarcas.todas, CLAVE_DEL_PANEL, CLAVE_DE_LA_AUDITORIA];
 
     case "campanas":
-      return [clavesDeCampanas.todas, clavesDeMarcas.todas, CLAVE_DEL_PANEL, CLAVE_DE_LA_AUDITORIA];
+      return [clavesDeCampanas.todas, clavesDeMarcas.todas, CLAVE_DEL_PANEL, clavesDelMovimiento.todo, CLAVE_DE_LA_AUDITORIA];
 
     case "sectores":
       return [
@@ -112,6 +119,11 @@ function clavesQueCambiaron({ entidad, id }: CambioEnLosDatos): QueryKey[] {
         CLAVE_DE_LA_AUDITORIA,
       ];
 
+    // Qué avisos salen y a quién: solo le llega al administrador, y
+    // cambia también lo que cada quien ve en sus ajustes.
+    case "avisos":
+      return [clavesDeAvisos.todo];
+
     // Solo le llega a quien ve los cierres (admin y comercial).
     case "cierres":
       return [CLAVE_DE_CIERRES_DE_MES, CLAVE_DE_LA_AUDITORIA];
@@ -119,7 +131,7 @@ function clavesQueCambiaron({ entidad, id }: CambioEnLosDatos): QueryKey[] {
     // Los días que tarda una marca en enfriarse: cambian el estado de
     // todas a la vez, en el tablero y en el reparto del resumen.
     case "umbrales":
-      return [clavesDeMarcas.todas, CLAVE_DEL_PANEL];
+      return [clavesDeMarcas.todas, CLAVE_DEL_PANEL, clavesDelMovimiento.todo];
 
     // Las metas salen en el resumen: la propia y, a quien reparte, las
     // del equipo.
@@ -133,7 +145,7 @@ function clavesQueCambiaron({ entidad, id }: CambioEnLosDatos): QueryKey[] {
 
     // El nombre de cada persona sale en las tarjetas y en el resumen.
     case "equipo":
-      return [CLAVE_DEL_EQUIPO, clavesDeMarcas.todas, CLAVE_DEL_PANEL, CLAVE_DE_LA_AUDITORIA];
+      return [CLAVE_DEL_EQUIPO, clavesDeMarcas.todas, CLAVE_DEL_PANEL, clavesDelMovimiento.todo, CLAVE_DE_LA_AUDITORIA];
 
     default:
       return [];

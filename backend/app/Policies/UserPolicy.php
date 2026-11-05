@@ -103,6 +103,18 @@ class UserPolicy
         return $usuario->activo && $usuario->rol->veLosReportes();
     }
 
+    /** Ver el movimiento de las propiedades: ranking, cruce y ficha. */
+    public function verMovimientoDeLasPropiedades(User $usuario): bool
+    {
+        return $usuario->activo && $usuario->rol->veElMovimientoDeLasPropiedades();
+    }
+
+    /** Configurar los avisos del sistema y ver su registro de envíos. */
+    public function configurarAvisos(User $usuario): bool
+    {
+        return $usuario->activo && $usuario->rol->configuraLosAvisos();
+    }
+
     /** Consultar el registro de auditoría del sistema. */
     public function verAuditoria(User $usuario): bool
     {

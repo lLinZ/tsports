@@ -27,6 +27,7 @@ declare(strict_types=1);
 use App\Http\Controllers\Api\AccesoDeInvitadosController;
 use App\Http\Controllers\Api\AdjuntoController;
 use App\Http\Controllers\Api\AuditoriaController;
+use App\Http\Controllers\Api\AvisosController;
 use App\Http\Controllers\Api\AutenticacionController;
 use App\Http\Controllers\Api\BuscadorController;
 use App\Http\Controllers\Api\CalendarioController;
@@ -45,6 +46,8 @@ use App\Http\Controllers\Api\MarcaController;
 use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\MetaController;
 use App\Http\Controllers\Api\MiPerfilController;
+use App\Http\Controllers\Api\MisAvisosController;
+use App\Http\Controllers\Api\MovimientoDePropiedadesController;
 use App\Http\Controllers\Api\NotificacionController;
 use App\Http\Controllers\Api\PanelController;
 use App\Http\Controllers\Api\PropiedadController;
@@ -133,6 +136,19 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/notificaciones/leidas', [NotificacionController::class, 'marcarTodasComoLeidas']);
     Route::patch('/notificaciones/{notificacion}/leida', [NotificacionController::class, 'marcarComoLeida']);
 
+    // Lo que cada quien elige de sus avisos (desde el 2026-11-05): si le
+    // suena el móvil y si suena en el panel, aviso por aviso, y su horario
+    // de silencio. Solo lo suyo; la campanita no se apaga.
+    Route::get('/mis-avisos', [MisAvisosController::class, 'index']);
+    Route::put('/mis-avisos/silencio', [MisAvisosController::class, 'silencio']);
+    Route::put('/mis-avisos/{tipo}', [MisAvisosController::class, 'update']);
+
+    // La pantalla «Avisos» del administrador: qué avisos salen, a qué
+    // roles, si cada canal funciona y el registro de envíos.
+    Route::get('/avisos', [AvisosController::class, 'index']);
+    Route::get('/avisos/envios', [AvisosController::class, 'envios']);
+    Route::put('/avisos/{tipo}', [AvisosController::class, 'update']);
+
     Route::get('/mi-perfil', [MiPerfilController::class, 'show']);
     Route::put('/mi-perfil', [MiPerfilController::class, 'update']);
     // Tema y color de acento. Va aparte porque se llama cada vez que
@@ -218,6 +234,14 @@ Route::middleware('auth:sanctum')->group(function (): void {
      | checklist de la ficha); crearlas y ponerles precio solo lo puede
      | hacer quien gestiona el catálogo, y eso lo decide PropiedadPolicy. */
     Route::get('/propiedades', [PropiedadController::class, 'index']);
+    // Dónde está caliente cada propiedad (admin y comercial, desde el
+    // 2026-11-05): el ranking, el cruce con las marcas, la ficha de una y
+    // su exportación, que queda en la auditoría. Van antes de
+    // /propiedades/{propiedad} para que «movimiento» no se lea como un id.
+    Route::get('/propiedades/movimiento', [MovimientoDePropiedadesController::class, 'ranking']);
+    Route::get('/propiedades/movimiento/cruce', [MovimientoDePropiedadesController::class, 'cruce']);
+    Route::get('/propiedades/movimiento/exportacion', [MovimientoDePropiedadesController::class, 'exportar']);
+    Route::get('/propiedades/{propiedad}/movimiento', [MovimientoDePropiedadesController::class, 'ficha']);
     Route::get('/propiedades/{propiedad}', [PropiedadController::class, 'show']);
     Route::post('/propiedades', [PropiedadController::class, 'store']);
     Route::put('/propiedades/{propiedad}', [PropiedadController::class, 'update']);

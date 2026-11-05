@@ -100,6 +100,14 @@ function huellaDeQuienEsta(ids: string[]): string {
 
 export function ProveedorChat({ children }: { children: ReactNode }) {
   const { estadoDeLaSesion, usuario } = useSesion();
+
+  // En una referencia: el efecto que hace sonar los mensajes no tiene que
+  // volver a correr cuando cambian los ajustes.
+  const usuarioConSonidoDelChat = useRef(true);
+
+  useEffect(() => {
+    usuarioConSonidoDelChat.current = usuario?.avisos?.sonidoDelChat ?? true;
+  }, [usuario]);
   const haySesion = estadoDeLaSesion === "conSesion" && usuario !== null;
 
   const clienteDeConsultas = useQueryClient();
@@ -287,8 +295,10 @@ export function ProveedorChat({ children }: { children: ReactNode }) {
 
     ultimoMensajeConocido.current = nuevosConocidos;
 
-    // Uno por tanda, aunque hayan llegado varios a la vez.
-    if (llegoAlgoDeOtro) sonarMensaje();
+    // Uno por tanda, aunque hayan llegado varios a la vez. Callado si la
+    // persona le quitó el sonido al chat en sus ajustes, o si el
+    // administrador apagó el aviso del chat (llega en la sesión).
+    if (llegoAlgoDeOtro && usuarioConSonidoDelChat.current) sonarMensaje();
   }, [datosDeLasConversaciones, abrirConversacion]);
 
   /* ---------------------------------------------------------------- */

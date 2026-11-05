@@ -62,6 +62,10 @@ class NotificacionController extends Controller
 
         return response()->json([
             'sinLeer' => Notificacion::query()->de($persona)->sinLeer()->count(),
+            // La campanita suena cuando sube ESTE número, no el otro: un
+            // aviso al que la persona le quitó el sonido llega callado
+            // (desde el 2026-11-05, sus ajustes).
+            'sinLeerConSonido' => Notificacion::query()->de($persona)->sinLeer()->where('con_sonido', true)->count(),
         ]);
     }
 

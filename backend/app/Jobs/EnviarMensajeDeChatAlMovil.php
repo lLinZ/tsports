@@ -7,6 +7,8 @@ namespace App\Jobs;
 use App\Models\MensajeDeChat;
 use App\Models\SuscripcionPush;
 use App\Models\User;
+use App\Support\AjustesDeAvisos;
+use App\Support\HorarioDeSilencio;
 use App\Support\Presencia;
 use App\Support\Push;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -51,7 +53,9 @@ class EnviarMensajeDeChatAlMovil implements ShouldQueue
 
     public function handle(): void
     {
-        if (! Push::estaActivo()) {
+        // Apagado en la pantalla «Avisos», el chat sigue funcionando igual:
+        // solo deja de sonar en los teléfonos.
+        if (! Push::estaActivo() || ! AjustesDeAvisos::vigentes()->estaActivo(AjustesDeAvisos::CHAT)) {
             return;
         }
 
@@ -122,11 +126,17 @@ class EnviarMensajeDeChatAlMovil implements ShouldQueue
     {
         $mensaje->loadMissing('conversacion.participantes');
 
-        return $mensaje->conversacion->participantes
+        $participantes = $mensaje->conversacion->participantes;
+        // Quien quitó el chat del móvil en sus ajustes (2026-11-05).
+        $preferencias = AjustesDeAvisos::preferenciasDe($participantes, AjustesDeAvisos::CHAT);
+
+        return $participantes
             ->filter(fn (User $persona): bool => $persona->id !== $mensaje->autor_id
                 && $persona->activo
                 && (int) $persona->pivot->ultimo_leido_id < $mensaje->id
-                && ! Presencia::estaEnLinea($persona))
+                && ! Presencia::estaEnLinea($persona)
+                && ($preferencias->get($persona->id)?->al_movil ?? true)
+                && ! HorarioDeSilencio::estaEnSilencio($persona))
             ->pluck('id')
             ->values()
             ->all();

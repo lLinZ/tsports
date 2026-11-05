@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Models\Notificacion;
 use App\Models\SuscripcionPush;
+use App\Support\HorarioDeSilencio;
 use App\Support\Push;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -51,19 +52,31 @@ class EnviarAvisoPush implements ShouldQueue
 
     public function handle(): void
     {
-        if (! Push::estaActivo()) {
+        $notificacion = Notificacion::query()->with('destinatario')->find($this->idDeLaNotificacion);
+
+        if ($notificacion === null) {
             return;
         }
 
-        $notificacion = Notificacion::find($this->idDeLaNotificacion);
+        if (! Push::estaActivo()) {
+            $this->apuntar($notificacion, Notificacion::MOVIL_SIN_PUSH);
 
-        if ($notificacion === null) {
             return;
         }
 
         // Si le dio tiempo a leerla en el panel antes de que llegase su
         // turno en la cola, no hay que hacerle sonar el teléfono.
         if ($notificacion->estaLeida()) {
+            $this->apuntar($notificacion, Notificacion::MOVIL_YA_LEIDO);
+
+            return;
+        }
+
+        // El horario de silencio se mira aquí, al salir, y no al
+        // encolar: es la hora a la que de verdad sonaría el teléfono.
+        if ($notificacion->destinatario !== null && HorarioDeSilencio::estaEnSilencio($notificacion->destinatario)) {
+            $this->apuntar($notificacion, Notificacion::MOVIL_SILENCIO);
+
             return;
         }
 
@@ -72,11 +85,13 @@ class EnviarAvisoPush implements ShouldQueue
             ->get();
 
         if ($suscripciones->isEmpty()) {
+            $this->apuntar($notificacion, Notificacion::MOVIL_SIN_DISPOSITIVO);
+
             return;
         }
 
         try {
-            $muertos = Push::enviar($suscripciones, $notificacion);
+            $resultado = Push::entregar($suscripciones, $notificacion);
         } catch (Throwable $error) {
             // El aviso está guardado; que el envío falle no puede dejar
             // el trabajo en la tabla de fallidos ni disparar alarmas.
@@ -84,14 +99,49 @@ class EnviarAvisoPush implements ShouldQueue
                 'notificacion' => $notificacion->id,
                 'error' => $error->getMessage(),
             ]);
+            $this->apuntar($notificacion, Notificacion::MOVIL_FALLO, 'El servicio de avisos no respondió');
 
             return;
         }
 
-        if ($muertos !== []) {
+        if ($resultado['muertos'] !== []) {
             // Navegadores que ya no existen: desinstalaron la aplicación,
             // limpiaron los datos del sitio o quitaron el permiso.
-            SuscripcionPush::query()->whereIn('endpoint', $muertos)->delete();
+            SuscripcionPush::query()->whereIn('endpoint', $resultado['muertos'])->delete();
         }
+
+        if ($resultado['entregados'] !== []) {
+            $aDondeLlego = $suscripciones->whereIn('endpoint', $resultado['entregados']);
+
+            SuscripcionPush::query()->whereIn('id', $aDondeLlego->pluck('id'))->update(['ultimo_envio_en' => now()]);
+
+            $this->apuntar(
+                $notificacion,
+                Notificacion::MOVIL_ENTREGADO,
+                $aDondeLlego->map(fn (SuscripcionPush $suscripcion): string => $suscripcion->dispositivo ?: 'Un dispositivo')
+                    ->unique()
+                    ->implode(', '),
+            );
+
+            return;
+        }
+
+        $this->apuntar(
+            $notificacion,
+            Notificacion::MOVIL_FALLO,
+            $resultado['muertos'] !== []
+                ? 'El dispositivo ya no acepta avisos: hay que volver a activarlos'
+                : 'El servicio de avisos rechazó el envío',
+        );
+    }
+
+    /** Lo que pasó, para el registro de envíos de la pantalla «Avisos». */
+    private function apuntar(Notificacion $notificacion, string $resultado, ?string $detalle = null): void
+    {
+        $notificacion->forceFill([
+            'entrega_al_movil' => $resultado,
+            'entrega_al_movil_detalle' => $detalle === null ? null : mb_substr($detalle, 0, 160),
+            'entrega_al_movil_en' => now(),
+        ])->saveQuietly();
     }
 }

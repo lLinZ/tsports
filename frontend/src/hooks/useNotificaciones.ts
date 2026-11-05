@@ -26,6 +26,7 @@ import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   contarNotificacionesSinLeer,
+  type ContadorDeLaCampanita,
   listarNotificaciones,
   marcarNotificacionComoLeida,
   marcarTodasLasNotificacionesComoLeidas,
@@ -59,14 +60,41 @@ const INTERVALO_SIN_TIEMPO_REAL_MS = 60_000;
 
 /** El número rojo de la campanita. */
 export function useContadorDeNotificaciones() {
+  return useContadorDeLaCampanita(numeroDeLaCampanita);
+}
+
+/**
+ * Cuántos de los que no se han leído suenan. Es lo que hace sonar el
+ * «ding»: un aviso al que la persona le quitó el sonido sube el número
+ * de la campanita, pero llega callado.
+ */
+function useContadorConSonido() {
+  return useContadorDeLaCampanita(numeroQueSuena);
+}
+
+/**
+ * Una sola consulta para los dos números (TanStack la comparte). La copia
+ * sin conexión de antes del 2026-11-05 guardaba solo un número: se lee
+ * igual, para no dejar la campanita vacía al actualizar.
+ */
+function useContadorDeLaCampanita(elegir: (datos: ContadorDeLaCampanita | number) => number) {
   const { estadoDeLaConexion } = useTiempoReal();
 
   return useQuery({
     queryKey: clavesDeNotificaciones.sinLeer,
     queryFn: contarNotificacionesSinLeer,
+    select: elegir,
     // En vivo, el número lo mueve el WebSocket y preguntar sobra.
     refetchInterval: estadoDeLaConexion === "enVivo" ? false : INTERVALO_SIN_TIEMPO_REAL_MS,
   });
+}
+
+function numeroDeLaCampanita(datos: ContadorDeLaCampanita | number): number {
+  return typeof datos === "number" ? datos : datos.sinLeer;
+}
+
+function numeroQueSuena(datos: ContadorDeLaCampanita | number): number {
+  return typeof datos === "number" ? datos : datos.sinLeerConSonido;
 }
 
 /**
@@ -168,19 +196,19 @@ export function useAbrirNotificacion() {
 export function useAvisosEnVivo() {
   const clienteDeConsultas = useQueryClient();
   const abrirNotificacion = useAbrirNotificacion();
-  const { data: sinLeer } = useContadorDeNotificaciones();
+  const { data: sinLeerConSonido } = useContadorConSonido();
   const sinLeerAntes = useRef<number | null>(null);
 
   useEffect(() => {
-    if (sinLeer === undefined) return;
+    if (sinLeerConSonido === undefined) return;
 
     // La primera lectura no suena: lo que ya había al entrar no es nuevo.
-    if (sinLeerAntes.current !== null && sinLeer > sinLeerAntes.current) {
+    if (sinLeerAntes.current !== null && sinLeerConSonido > sinLeerAntes.current) {
       sonarAviso();
     }
 
-    sinLeerAntes.current = sinLeer;
-  }, [sinLeer]);
+    sinLeerAntes.current = sinLeerConSonido;
+  }, [sinLeerConSonido]);
 
   useEventoPersonal<Notificacion>(".notificacion-nueva", (notificacion) => {
     // Solo la campanita. El tablero y el resumen (el lead nuevo, la marca

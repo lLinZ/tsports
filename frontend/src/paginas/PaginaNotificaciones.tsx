@@ -11,11 +11,16 @@
  * «Sin leer» es un filtro del servidor, no de esta pantalla: filtrar
  * aquí la lista ya cargada dejaría fuera los que están en páginas que
  * aún no se han pedido.
+ *
+ * «Ajustes» (desde el 2026-11-05) es lo que cada quien elige de sus
+ * avisos: móvil y sonido, aviso por aviso, sus dispositivos y su horario
+ * de silencio (AjustesDeMisAvisos). Va en la dirección (?vista=ajustes)
+ * para poder llevar a alguien directo a ella.
  * ---------------------------------------------------------------------
  */
 import { Button, Tab, Tabs } from "@heroui/react";
 import { BellOff, CheckCheck } from "lucide-react";
-import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   BloqueDeCarga,
   BloqueDeError,
@@ -33,12 +38,27 @@ import {
 import { useScrollInfinito } from "@/hooks/useScrollInfinito";
 import { avisarDeError, avisarDeExito } from "@/utilidades/avisos";
 import { formatearNumero } from "@/utilidades/formato";
+import { AjustesDeMisAvisos } from "@/componentes/layout/AjustesDeMisAvisos";
 import { TarjetaDeAvisosEnElMovil } from "@/componentes/layout/TarjetaDeAvisosEnElMovil";
 
-type Vista = "todas" | "sinLeer";
+type Vista = "todas" | "sinLeer" | "ajustes";
+
+function esUnaVista(valor: string | null): valor is Vista {
+  return valor === "todas" || valor === "sinLeer" || valor === "ajustes";
+}
 
 export function PaginaNotificaciones() {
-  const [vista, establecerVista] = useState<Vista>("todas");
+  const [parametros, establecerParametros] = useSearchParams();
+  const vistaDeLaDireccion = parametros.get("vista");
+  const vista: Vista = esUnaVista(vistaDeLaDireccion)
+    ? vistaDeLaDireccion
+    : "todas";
+
+  function establecerVista(nueva: Vista) {
+    establecerParametros(nueva === "todas" ? {} : { vista: nueva }, {
+      replace: true,
+    });
+  }
 
   const listado = useListadoDeNotificaciones(vista === "sinLeer");
   const contador = useContadorDeNotificaciones();
@@ -87,57 +107,72 @@ export function PaginaNotificaciones() {
           >
             <Tab key="todas" title="Todas" />
             <Tab key="sinLeer" title="Sin leer" />
+            <Tab key="ajustes" title="Ajustes" />
           </Tabs>
 
-          <Button
-            isDisabled={sinLeer === 0}
-            isLoading={marcarTodas.isPending}
-            radius="full"
-            size="sm"
-            startContent={!marcarTodas.isPending && <CheckCheck className="size-4" />}
-            variant="flat"
-            onPress={() => void marcarTodasComoLeidas()}
-          >
-            Marcar todas como leídas
-          </Button>
+          {vista !== "ajustes" && (
+            <Button
+              isDisabled={sinLeer === 0}
+              isLoading={marcarTodas.isPending}
+              radius="full"
+              size="sm"
+              startContent={
+                !marcarTodas.isPending && <CheckCheck className="size-4" />
+              }
+              variant="flat"
+              onPress={() => void marcarTodasComoLeidas()}
+            >
+              Marcar todas como leídas
+            </Button>
+          )}
         </div>
       </div>
 
-      <TarjetaDeAvisosEnElMovil />
+      {vista === "ajustes" ? (
+        <AjustesDeMisAvisos />
+      ) : (
+        <>
+          <TarjetaDeAvisosEnElMovil />
 
-      <TarjetaBento>
-        {listado.estaCargando ? (
-          <BloqueDeCarga alto="min-h-48" mensaje="Cargando avisos…" />
-        ) : listado.error ? (
-          <BloqueDeError mensaje={mensajeDeError(listado.error)} />
-        ) : listado.notificaciones.length === 0 ? (
-          <EstadoVacio
-            descripcion={
-              vista === "sinLeer"
-                ? "Has leído todos tus avisos."
-                : "Aquí aparecerán los leads que entren por la web y las marcas que te asignen."
-            }
-            icono={<BellOff className="size-6" />}
-            titulo={vista === "sinLeer" ? "Nada pendiente" : "Todavía no tienes avisos"}
-          />
-        ) : (
-          <div className="space-y-1">
-            {listado.notificaciones.map((notificacion) => (
-              <FilaDeNotificacion
-                key={notificacion.id}
-                alPulsar={abrirNotificacion}
-                notificacion={notificacion}
+          <TarjetaBento>
+            {listado.estaCargando ? (
+              <BloqueDeCarga alto="min-h-48" mensaje="Cargando avisos…" />
+            ) : listado.error ? (
+              <BloqueDeError mensaje={mensajeDeError(listado.error)} />
+            ) : listado.notificaciones.length === 0 ? (
+              <EstadoVacio
+                descripcion={
+                  vista === "sinLeer"
+                    ? "Has leído todos tus avisos."
+                    : "Aquí aparecerán los leads que entren por la web y las marcas que te asignen."
+                }
+                icono={<BellOff className="size-6" />}
+                titulo={
+                  vista === "sinLeer"
+                    ? "Nada pendiente"
+                    : "Todavía no tienes avisos"
+                }
               />
-            ))}
-          </div>
-        )}
+            ) : (
+              <div className="space-y-1">
+                {listado.notificaciones.map((notificacion) => (
+                  <FilaDeNotificacion
+                    key={notificacion.id}
+                    alPulsar={abrirNotificacion}
+                    notificacion={notificacion}
+                  />
+                ))}
+              </div>
+            )}
 
-        {/* El centinela se queda montado aunque no queden páginas: ver
+            {/* El centinela se queda montado aunque no queden páginas: ver
             useScrollInfinito. */}
-        <div ref={finalDeLaLista} />
+            <div ref={finalDeLaLista} />
 
-        {listado.estaCargandoMas && <BloqueDeCarga alto="min-h-16" />}
-      </TarjetaBento>
+            {listado.estaCargandoMas && <BloqueDeCarga alto="min-h-16" />}
+          </TarjetaBento>
+        </>
+      )}
     </div>
   );
 }

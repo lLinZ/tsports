@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Observers;
 
 use App\Models\AccesoDeInvitados;
+use App\Models\AjusteDeAviso;
 use App\Models\ArchivoDePropiedad;
 use App\Models\Campana;
 use App\Models\CierreDeMes;
@@ -85,6 +86,7 @@ final class ObservadorDeCambiosEnVivo
             $modelo instanceof UmbralesDelEstado => $this->cambios->paraTodoElEquipo(CambiosEnVivo::UMBRALES_DEL_ESTADO),
             $modelo instanceof Meta => $this->cambios->paraTodoElEquipo(CambiosEnVivo::METAS),
             $modelo instanceof VideoTutorial => $this->cambios->paraTodoElEquipo(CambiosEnVivo::VIDEOS),
+            $modelo instanceof AjusteDeAviso => $this->cambios->paraTodoElEquipo(CambiosEnVivo::AVISOS),
             $modelo instanceof User => $this->siSeVeDesdeFuera($modelo, $seBorro),
             default => null,
         };

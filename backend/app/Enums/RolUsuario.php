@@ -130,21 +130,6 @@ enum RolUsuario: string
     }
 
     /**
-     * ¿Le llega un aviso por CADA comentario de la bitácora, en cualquier
-     * marca?
-     *
-     * Solo al administrador. Se pidió así el 2026-09-30: quiere enterarse
-     * de todo lo que se habla con las marcas sin tener que ir a buscarlo.
-     * El comercial se dejó fuera a propósito, aunque vea todas las
-     * marcas. Al agente le llegan solo los de las marcas que lleva; eso
-     * lo decide Notificador::avisarDeUnComentario.
-     */
-    public function recibeAvisoDeCadaComentario(): bool
-    {
-        return $this === self::Admin;
-    }
-
-    /**
      * ¿Ve y sube los reportes de «Cierre de mes»?
      *
      * Admin y comercial. Es el reporte que el comercial prepara al acabar
@@ -168,6 +153,32 @@ enum RolUsuario: string
     public function veLosReportes(): bool
     {
         return $this === self::Admin || $this === self::Comercial;
+    }
+
+    /**
+     * ¿Ve el movimiento de las propiedades (las pestañas «Movimiento» y
+     * «Cruce» de Propiedades y la ficha de cada propiedad)?
+     *
+     * Admin y comercial, desde el 2026-11-05 (propuesta aprobada por
+     * LinZ). Las tres vistas enseñan las marcas de todo el equipo con sus
+     * importes; el agente sigue viendo el catálogo como siempre.
+     */
+    public function veElMovimientoDeLasPropiedades(): bool
+    {
+        return $this === self::Admin || $this === self::Comercial;
+    }
+
+    /**
+     * ¿Configura los avisos del sistema (pantalla «Avisos»: cuáles salen,
+     * a qué roles y el registro de envíos)?
+     *
+     * Solo el administrador, desde el 2026-11-05. Lo que cada persona
+     * elige para sí (móvil, sonido, horario de silencio) no pasa por aquí:
+     * eso lo decide cada quien desde sus notificaciones.
+     */
+    public function configuraLosAvisos(): bool
+    {
+        return $this === self::Admin;
     }
 
     /**

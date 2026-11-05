@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Resources;
 
 use App\Models\Marca;
+use App\Models\PreferenciaDeAviso;
 use App\Models\User;
+use App\Support\AjustesDeAvisos;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -69,10 +71,24 @@ class RecursoUsuario extends JsonResource
                 'sacaLaBitacoraCompleta' => $this->resource->can('verAuditoria', User::class),
                 'veLosCierresDeMes' => $this->rol->veLosCierresDeMes(),
                 'veLosReportes' => $this->resource->can('verReportes', User::class),
+                'veElMovimientoDeLasPropiedades' => $this->resource->can('verMovimientoDeLasPropiedades', User::class),
+                'configuraLosAvisos' => $this->resource->can('configurarAvisos', User::class),
                 'ajustaLosUmbralesDelEstado' => $this->resource->can('ajustarUmbralesDelEstado', Marca::class),
                 'fijaLasMetas' => $this->resource->can('fijarMetas', User::class),
             ],
 
+            // Lo que el panel necesita saber de sus propios avisos sin
+            // pedirlo aparte: si el chat le hace «pop». Solo de uno mismo.
+            'avisos' => $this->when(
+                $usuarioQueConsulta !== null && $usuarioQueConsulta->id === $this->id,
+                fn (): array => [
+                    'sonidoDelChat' => AjustesDeAvisos::vigentes()->estaActivo(AjustesDeAvisos::CHAT)
+                        && (bool) (PreferenciaDeAviso::query()
+                            ->where('usuario_id', $this->id)
+                            ->where('tipo', AjustesDeAvisos::CHAT)
+                            ->value('con_sonido') ?? true),
+                ],
+            ),
             'creadoEn' => $this->created_at?->toIso8601String(),
             'ultimoAccesoEn' => $this->ultimo_acceso_at?->toIso8601String(),
         ];

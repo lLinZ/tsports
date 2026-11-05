@@ -34,7 +34,7 @@
  * equipo no la encontraba.
  * ---------------------------------------------------------------------
  */
-import { Button, Chip, Tooltip } from "@heroui/react";
+import { Button, Chip, Tab, Tabs, Tooltip } from "@heroui/react";
 import {
   Globe,
   Images,
@@ -49,7 +49,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { mensajeDeError } from "@/api/clienteHttp";
 import { BarraDeProporcion } from "@/componentes/comunes/BarraDeProporcion";
 import { BotonDeActivacion } from "@/componentes/comunes/BotonDeActivacion";
@@ -60,7 +60,9 @@ import {
 } from "@/componentes/comunes/EstadosDePantalla";
 import { SeccionDeDesactivadas } from "@/componentes/comunes/SeccionDeDesactivadas";
 import { VisorDeGaleria } from "@/componentes/comunes/VisorDeGaleria";
+import { CruceDePropiedades } from "@/componentes/crm/CruceDePropiedades";
 import { ModalDePropiedad } from "@/componentes/crm/ModalDePropiedad";
+import { MovimientoDePropiedades } from "@/componentes/crm/MovimientoDePropiedades";
 import {
   useCambiarActivaDePropiedad,
   useCatalogoDePropiedades,
@@ -79,9 +81,27 @@ import {
 import { elementosDeUnaGaleria } from "@/utilidades/galeria";
 import type { Propiedad } from "@/tipos/modelos";
 
+/** Las pestañas de la pantalla. Movimiento y Cruce, solo admin y comercial. */
+type VistaDePropiedades = "catalogo" | "movimiento" | "cruce";
+
 export function PaginaPropiedades() {
   const usuario = useUsuarioAutenticado();
   const catalogo = useCatalogoDePropiedades();
+
+  // La pestaña va en la dirección (?vista=movimiento): la ficha de una
+  // propiedad vuelve a ella, y se puede mandar el enlace. A quien no
+  // tiene el permiso se le enseña el catálogo aunque la pida.
+  const [parametros, establecerParametros] = useSearchParams();
+  const veElMovimiento = usuario.permisos.veElMovimientoDeLasPropiedades;
+  const vistaPedida = parametros.get("vista");
+  const vista: VistaDePropiedades =
+    veElMovimiento && (vistaPedida === "movimiento" || vistaPedida === "cruce")
+      ? vistaPedida
+      : "catalogo";
+
+  function cambiarVista(nueva: VistaDePropiedades) {
+    establecerParametros(nueva === "catalogo" ? {} : { vista: nueva });
+  }
 
   const [elModalEstaAbierto, establecerModalAbierto] = useState(false);
   const [propiedadEnEdicion, establecerPropiedadEnEdicion] =
@@ -110,8 +130,12 @@ export function PaginaPropiedades() {
 
   // Totales del catálogo. Solo cuentan las propiedades en venta: sumar
   // una retirada inflaría la meta con dinero que ya nadie persigue.
-  const propiedadesEnVenta = propiedades.filter((propiedad) => propiedad.activa);
-  const propiedadesDesactivadas = propiedades.filter((propiedad) => !propiedad.activa);
+  const propiedadesEnVenta = propiedades.filter(
+    (propiedad) => propiedad.activa,
+  );
+  const propiedadesDesactivadas = propiedades.filter(
+    (propiedad) => !propiedad.activa,
+  );
 
   const montoTotalDelCatalogo = propiedadesEnVenta.reduce(
     (suma, propiedad) => suma + propiedad.montoTotalUsd,
@@ -144,83 +168,50 @@ export function PaginaPropiedades() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            isIconOnly
-            aria-label="Actualizar el catálogo"
-            isLoading={catalogo.estaRefrescando}
-            radius="lg"
-            size="sm"
-            variant="flat"
-            onPress={() => void catalogo.recargar()}
-          >
-            {!catalogo.estaRefrescando && <RefreshCw className="size-4" />}
-          </Button>
-
-          {usuario.permisos.gestionaElCatalogoComercial && (
-            <Button
-              as={Link}
-              radius="lg"
+          {veElMovimiento && (
+            <Tabs
+              aria-label="Qué ver de las propiedades"
+              radius="full"
+              selectedKey={vista}
               size="sm"
-              startContent={<Store className="size-4" />}
-              to="/catalogo-web"
-              variant="flat"
+              onSelectionChange={(clave) =>
+                cambiarVista(clave as VistaDePropiedades)
+              }
             >
-              Catálogo web
-            </Button>
+              <Tab key="catalogo" title="Catálogo" />
+              <Tab key="movimiento" title="Movimiento" />
+              <Tab key="cruce" title="Cruce" />
+            </Tabs>
           )}
 
-          {usuario.permisos.gestionaElCatalogoComercial && (
-            <Button
-              color="primary"
-              radius="lg"
-              size="sm"
-              startContent={<Plus className="size-4" />}
-              onPress={abrirModalDeAlta}
-            >
-              Nueva propiedad
-            </Button>
-          )}
-        </div>
-      </div>
+          {vista === "catalogo" && (
+            <>
+              <Button
+                isIconOnly
+                aria-label="Actualizar el catálogo"
+                isLoading={catalogo.estaRefrescando}
+                radius="lg"
+                size="sm"
+                variant="flat"
+                onPress={() => void catalogo.recargar()}
+              >
+                {!catalogo.estaRefrescando && <RefreshCw className="size-4" />}
+              </Button>
 
-      {/* Los tres totales del catálogo */}
-      {propiedades.length > 0 && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <TotalDelCatalogo
-            ayuda="Suma del monto total de las propiedades en venta."
-            etiqueta="Valor del catálogo (MTP)"
-            icono={<Wallet className="size-4" />}
-            valor={formatearDineroAbreviado(montoTotalDelCatalogo)}
-          />
-          <TotalDelCatalogo
-            ayuda="Suma del porcentaje acordado sobre cada propiedad."
-            etiqueta="Meta de venta"
-            icono={<Target className="size-4" />}
-            valor={formatearDineroAbreviado(metaTotalDelCatalogo)}
-          />
-          <TotalDelCatalogo
-            destacada
-            ayuda="Suma de los pronósticos anotados en todas las marcas."
-            etiqueta="Pronosticado por el equipo (OVP)"
-            icono={<TrendingUp className="size-4" />}
-            valor={formatearDineroAbreviado(pronosticoTotalDelEquipo)}
-          />
-        </div>
-      )}
+              {usuario.permisos.gestionaElCatalogoComercial && (
+                <Button
+                  as={Link}
+                  radius="lg"
+                  size="sm"
+                  startContent={<Store className="size-4" />}
+                  to="/catalogo-web"
+                  variant="flat"
+                >
+                  Catálogo web
+                </Button>
+              )}
 
-      {/* El catálogo */}
-      {catalogo.estaCargando ? (
-        <BloqueDeCarga alto="min-h-72" mensaje="Cargando las propiedades…" />
-      ) : catalogo.error ? (
-        <BloqueDeError
-          alReintentar={() => void catalogo.recargar()}
-          mensaje={mensajeDeError(catalogo.error)}
-        />
-      ) : propiedades.length === 0 ? (
-        <div className="bento-card">
-          <EstadoVacio
-            accion={
-              usuario.permisos.gestionaElCatalogoComercial ? (
+              {usuario.permisos.gestionaElCatalogoComercial && (
                 <Button
                   color="primary"
                   radius="lg"
@@ -228,42 +219,105 @@ export function PaginaPropiedades() {
                   startContent={<Plus className="size-4" />}
                   onPress={abrirModalDeAlta}
                 >
-                  Crear la primera propiedad
+                  Nueva propiedad
                 </Button>
-              ) : undefined
-            }
-            descripcion="Aquí se cargan los productos que la agencia vende, con su monto total y su meta."
-            icono={<Package className="size-5" />}
-            titulo="Todavía no hay propiedades"
-          />
+              )}
+            </>
+          )}
         </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {propiedadesEnVenta.map((propiedad) => (
-              <TarjetaDePropiedad
-                key={propiedad.id}
-                propiedad={propiedad}
-                alEditar={abrirModalDeEdicion}
-                alVerMaterial={establecerPropiedadEnElVisor}
-              />
-            ))}
-          </div>
+      </div>
 
-          {propiedadesDesactivadas.length > 0 && (
-            <SeccionDeDesactivadas
-              cantidad={propiedadesDesactivadas.length}
-              explicacion="No se ofrecen en el checklist de las fichas, pero las marcas que las llevaban las conservan con su pronóstico. Se reactivan cuando vuelvan."
-            >
-              {propiedadesDesactivadas.map((propiedad) => (
-                <TarjetaDePropiedad
-                  key={propiedad.id}
-                  propiedad={propiedad}
-                  alEditar={abrirModalDeEdicion}
-                  alVerMaterial={establecerPropiedadEnElVisor}
-                />
-              ))}
-            </SeccionDeDesactivadas>
+      {vista === "movimiento" && <MovimientoDePropiedades />}
+      {vista === "cruce" && <CruceDePropiedades />}
+
+      {vista === "catalogo" && (
+        <>
+          {/* Los tres totales del catálogo */}
+          {propiedades.length > 0 && (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <TotalDelCatalogo
+                ayuda="Suma del monto total de las propiedades en venta."
+                etiqueta="Valor del catálogo (MTP)"
+                icono={<Wallet className="size-4" />}
+                valor={formatearDineroAbreviado(montoTotalDelCatalogo)}
+              />
+              <TotalDelCatalogo
+                ayuda="Suma del porcentaje acordado sobre cada propiedad."
+                etiqueta="Meta de venta"
+                icono={<Target className="size-4" />}
+                valor={formatearDineroAbreviado(metaTotalDelCatalogo)}
+              />
+              <TotalDelCatalogo
+                destacada
+                ayuda="Suma de los pronósticos anotados en todas las marcas."
+                etiqueta="Pronosticado por el equipo (OVP)"
+                icono={<TrendingUp className="size-4" />}
+                valor={formatearDineroAbreviado(pronosticoTotalDelEquipo)}
+              />
+            </div>
+          )}
+
+          {/* El catálogo */}
+          {catalogo.estaCargando ? (
+            <BloqueDeCarga
+              alto="min-h-72"
+              mensaje="Cargando las propiedades…"
+            />
+          ) : catalogo.error ? (
+            <BloqueDeError
+              alReintentar={() => void catalogo.recargar()}
+              mensaje={mensajeDeError(catalogo.error)}
+            />
+          ) : propiedades.length === 0 ? (
+            <div className="bento-card">
+              <EstadoVacio
+                accion={
+                  usuario.permisos.gestionaElCatalogoComercial ? (
+                    <Button
+                      color="primary"
+                      radius="lg"
+                      size="sm"
+                      startContent={<Plus className="size-4" />}
+                      onPress={abrirModalDeAlta}
+                    >
+                      Crear la primera propiedad
+                    </Button>
+                  ) : undefined
+                }
+                descripcion="Aquí se cargan los productos que la agencia vende, con su monto total y su meta."
+                icono={<Package className="size-5" />}
+                titulo="Todavía no hay propiedades"
+              />
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {propiedadesEnVenta.map((propiedad) => (
+                  <TarjetaDePropiedad
+                    key={propiedad.id}
+                    propiedad={propiedad}
+                    alEditar={abrirModalDeEdicion}
+                    alVerMaterial={establecerPropiedadEnElVisor}
+                  />
+                ))}
+              </div>
+
+              {propiedadesDesactivadas.length > 0 && (
+                <SeccionDeDesactivadas
+                  cantidad={propiedadesDesactivadas.length}
+                  explicacion="No se ofrecen en el checklist de las fichas, pero las marcas que las llevaban las conservan con su pronóstico. Se reactivan cuando vuelvan."
+                >
+                  {propiedadesDesactivadas.map((propiedad) => (
+                    <TarjetaDePropiedad
+                      key={propiedad.id}
+                      propiedad={propiedad}
+                      alEditar={abrirModalDeEdicion}
+                      alVerMaterial={establecerPropiedadEnElVisor}
+                    />
+                  ))}
+                </SeccionDeDesactivadas>
+              )}
+            </>
           )}
         </>
       )}
@@ -272,7 +326,9 @@ export function PaginaPropiedades() {
         alCerrar={() => establecerModalAbierto(false)}
         // Recién creada, la ventana sigue abierta sobre ella para subirle
         // las fotos y el dossier sin tener que buscarla y volver a entrar.
-        alCrear={(propiedadCreada) => establecerPropiedadEnEdicion(propiedadCreada)}
+        alCrear={(propiedadCreada) =>
+          establecerPropiedadEnEdicion(propiedadCreada)
+        }
         estaAbierto={elModalEstaAbierto}
         propiedadEnEdicion={propiedadEnEdicion}
       />
@@ -323,7 +379,9 @@ function TotalDelCatalogo({
         </span>
 
         <div className="min-w-0">
-          <p className="text-lg font-bold leading-none tracking-tight">{valor}</p>
+          <p className="text-lg font-bold leading-none tracking-tight">
+            {valor}
+          </p>
           <p
             className={[
               "mt-1 truncate text-[11px]",
@@ -392,7 +450,8 @@ function TarjetaDePropiedad({
       tabIndex={propiedad.puedoEditarla ? 0 : undefined}
       onClick={propiedad.puedoEditarla ? () => alEditar(propiedad) : undefined}
       onKeyDown={(evento) => {
-        if (propiedad.puedoEditarla && evento.key === "Enter") alEditar(propiedad);
+        if (propiedad.puedoEditarla && evento.key === "Enter")
+          alEditar(propiedad);
       }}
     >
       {/* La portada de su galería, de borde a borde de la caja. */}
@@ -470,11 +529,14 @@ function TarjetaDePropiedad({
       </div>
 
       {/* Quiénes la trabajan, cuando no es de todos. */}
-      {!propiedad.asignadaATodos && (propiedad.prospectores?.length ?? 0) > 0 && (
-        <p className="truncate text-[11px] text-default-500">
-          {propiedad.prospectores?.map((prospector) => prospector.nombre).join(", ")}
-        </p>
-      )}
+      {!propiedad.asignadaATodos &&
+        (propiedad.prospectores?.length ?? 0) > 0 && (
+          <p className="truncate text-[11px] text-default-500">
+            {propiedad.prospectores
+              ?.map((prospector) => prospector.nombre)
+              .join(", ")}
+          </p>
+        )}
 
       {/* Los tres montos */}
       <div className="grid grid-cols-3 gap-2 rounded-xl bg-default-50 p-2.5">

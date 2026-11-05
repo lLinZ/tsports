@@ -61,7 +61,7 @@ import type {
  * `/15`: Tailwind lo traduce a `color-mix`, que el Chrome 103 de una de
  * las vendedoras no entiende.
  */
-const APARIENCIA_DE_LOS_ESTADOS: Record<
+export const APARIENCIA_DE_LOS_ESTADOS: Record<
   EstadoDeMarca,
   {
     etiqueta: string;
@@ -101,10 +101,10 @@ const APARIENCIA_DE_LOS_ESTADOS: Record<
   },
 };
 
-const ORDEN_DE_LOS_ESTADOS: EstadoDeMarca[] = ["caliente", "tibia", "fria"];
+export const ORDEN_DE_LOS_ESTADOS: EstadoDeMarca[] = ["caliente", "tibia", "fria"];
 
 /** «Hoy», «Ayer» o «Hace 9 días», con los días que ya contó el servidor. */
-function textoDeHaceDias(dias: number): string {
+export function textoDeHaceDias(dias: number): string {
   if (dias <= 0) return "Hoy";
   if (dias === 1) return "Ayer";
 
@@ -112,7 +112,7 @@ function textoDeHaceDias(dias: number): string {
 }
 
 /** Qué significa cada estado, con los días que estén puestos. */
-function explicacionDeLosUmbrales(umbrales: UmbralesDelEstado): string {
+export function explicacionDeLosUmbrales(umbrales: UmbralesDelEstado): string {
   return `Caliente: se movió en los últimos ${umbrales.diasCaliente} días o tiene una acción por delante. Tibia: hasta ${umbrales.diasTibia} días. Fría: más.`;
 }
 

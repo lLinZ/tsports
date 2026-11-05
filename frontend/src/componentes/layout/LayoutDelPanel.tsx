@@ -25,6 +25,7 @@ import {
   Chip,
 } from "@heroui/react";
 import {
+  BellRing,
   Building2,
   CalendarCheck,
   Clapperboard,
@@ -190,6 +191,14 @@ const ENTRADAS_DEL_MENU: EntradaDeMenu[] = [
     descripcion: "Quién hizo qué",
     icono: ScrollText,
     laPuedeVer: (usuario) => usuario.permisos.administraElSistema,
+  },
+  {
+    // Qué avisa el sistema, a quién y si llega (desde el 2026-11-05).
+    ruta: "/avisos",
+    etiqueta: "Avisos",
+    descripcion: "Qué avisa el sistema y si llega",
+    icono: BellRing,
+    laPuedeVer: (usuario) => usuario.permisos.configuraLosAvisos,
   },
   {
     ruta: "/tiempo-real",

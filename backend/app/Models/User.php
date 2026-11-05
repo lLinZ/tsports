@@ -70,6 +70,12 @@ class User extends Authenticatable
         'tema' => 'sistema',
         'color_acento' => '#1b9aaa',
         'activo' => true,
+        // El horario de silencio (App\Support\HorarioDeSilencio): apagado,
+        // con las horas de partida ya puestas para quien lo encienda.
+        'silencio_activo' => false,
+        'silencio_desde' => '20:00',
+        'silencio_hasta' => '07:30',
+        'silencio_fines_de_semana' => true,
     ];
 
     /** Nunca se serializan hacia el cliente. */
@@ -90,6 +96,8 @@ class User extends Authenticatable
             'rol' => RolUsuario::class,
             'tema' => TemaInterfaz::class,
             'activo' => 'boolean',
+            'silencio_activo' => 'boolean',
+            'silencio_fines_de_semana' => 'boolean',
         ];
     }
 

@@ -41,6 +41,12 @@ use Throwable;
  * Por permisos del rol (`RolUsuario`), nunca comparando nombres de rol.
  * Y solo a cuentas activas: una cuenta desactivada no entra, así que
  * sus avisos se acumularían para nadie.
+ *
+ * DESDE EL 2026-11-05 MANDA ADEMÁS LA PANTALLA «AVISOS» (AjustesDeAvisos):
+ * un aviso apagado no se crea, y en los dos de grupo (lead y comentario)
+ * el administrador elige los roles. Lo que elige cada persona para sí
+ * (móvil y sonido) se apunta en la fila al crearla, igual que qué pasó
+ * en cada canal: es el registro de envíos.
  */
 class Notificador
 {
@@ -58,10 +64,20 @@ class Notificador
      */
     public function avisarDeUnLeadNuevo(Marca $marca, ?Propiedad $propiedadDeInteres = null): void
     {
+        $ajustes = AjustesDeAvisos::vigentes();
+
+        if (! $ajustes->estaActivo(Notificacion::TIPO_LEAD_NUEVO)) {
+            return;
+        }
+
+        // Ver las marcas sin dueño sigue siendo condición: el aviso lleva
+        // el nombre de la empresa (regla 6). Los ajustes solo eligen entre
+        // quienes las ven.
         $quienReparte = User::query()
             ->where('activo', true)
             ->get()
-            ->filter(fn (User $persona): bool => $persona->rol->veTodasLasMarcas());
+            ->filter(fn (User $persona): bool => $persona->rol->veTodasLasMarcas()
+                && $ajustes->llegaAlRol(Notificacion::TIPO_LEAD_NUEVO, $persona->rol));
 
         $quienEscribio = $marca->persona_contacto !== null && $marca->persona_contacto !== $marca->nombre_marca
             ? sprintf('%s escribió desde la web por %s.', $marca->persona_contacto, $marca->nombre_marca)
@@ -104,7 +120,7 @@ class Notificador
 
         $agenteNuevo = User::query()->where('activo', true)->find($idDelAgenteNuevo);
 
-        if ($agenteNuevo === null) {
+        if ($agenteNuevo === null || ! AjustesDeAvisos::vigentes()->estaActivo(Notificacion::TIPO_MARCA_ASIGNADA)) {
             return;
         }
 
@@ -141,7 +157,7 @@ class Notificador
             ->filter(fn (User $persona): bool => $persona->id !== $quienEscribe->id)
             ->filter(fn (User $persona): bool => $persona->activo);
 
-        if ($aQuienAvisar->isEmpty()) {
+        if ($aQuienAvisar->isEmpty() || ! AjustesDeAvisos::vigentes()->estaActivo(Notificacion::TIPO_MENCION)) {
             return;
         }
 
@@ -160,8 +176,9 @@ class Notificador
      *
      * Le llega a dos grupos, pedidos el 2026-09-30:
      *
-     *   · A los administradores, de TODAS las marcas. Por permiso del rol
-     *     (`recibeAvisoDeCadaComentario`), nunca comparando nombres.
+     *   · A los administradores, de TODAS las marcas. Desde el 2026-11-05
+     *     lo decide la pantalla «Avisos», que deja añadir al comercial
+     *     (AjustesDeAvisos); de fábrica, solo administración.
      *   · A la persona que lleva la marca. Es lo que prometía la función 7
      *     de la Fase 3 («cuando le escriben en una ficha suya»); hasta
      *     entonces solo se le avisaba si la etiquetaban.
@@ -182,13 +199,29 @@ class Notificador
         bool $esUnaRespuesta,
         Collection $yaAvisados,
     ): void {
+        $ajustes = AjustesDeAvisos::vigentes();
+
+        if (! $ajustes->estaActivo(Notificacion::TIPO_COMENTARIO)) {
+            return;
+        }
+
+        // Con las menciones apagadas, a quien etiquetaron no le llega la
+        // suya: recibe este, como cualquiera a quien le toque.
+        if (! $ajustes->estaActivo(Notificacion::TIPO_MENCION)) {
+            $yaAvisados = collect();
+        }
+
         $idsQueNoSeAvisan = $yaAvisados->pluck('id')->push($quienEscribe->id)->all();
 
+        // Por rol, administración y comercial (que ven todas las marcas);
+        // y quien lleva la marca, que la ve por ser suya. Ninguno de los
+        // dos caminos filtra una marca ajena (regla 6).
         $aQuienAvisar = User::query()
             ->where('activo', true)
             ->get()
-            ->filter(fn (User $persona): bool => $persona->rol->recibeAvisoDeCadaComentario()
-                || $persona->laMarcaEsSuya($marca))
+            ->filter(fn (User $persona): bool => $ajustes->llegaAlRol(Notificacion::TIPO_COMENTARIO, $persona->rol)
+                || ($ajustes->llegaA(Notificacion::TIPO_COMENTARIO, AjustesDeAvisos::QUIEN_LLEVA_LA_MARCA)
+                    && $persona->laMarcaEsSuya($marca)))
             ->reject(fn (User $persona): bool => in_array($persona->id, $idsQueNoSeAvisan, true))
             ->values();
 
@@ -220,7 +253,7 @@ class Notificador
      */
     public function avisarDeLosRecordatoriosDelDia(User $persona, Collection $deHoy, int $vencidos): void
     {
-        if ($deHoy->isEmpty()) {
+        if ($deHoy->isEmpty() || ! AjustesDeAvisos::vigentes()->estaActivo(Notificacion::TIPO_RECORDATORIOS_DEL_DIA)) {
             return;
         }
 
@@ -320,17 +353,37 @@ class Notificador
         string $entidadTipo,
         ?string $entidadId,
     ): void {
-        $notificaciones = $destinatarios->map(fn (User $destinatario): Notificacion => Notificacion::create([
-            'destinatario_id' => $destinatario->id,
-            'tipo' => $tipo,
-            'titulo' => $titulo,
-            'cuerpo' => $cuerpo,
-            'entidad_tipo' => $entidadTipo,
-            'entidad_id' => $entidadId,
-        ]));
+        // Lo que eligió cada quien para este aviso (sin elegir: todo
+        // encendido). Se apunta en la fila: el sonido de la campanita y
+        // el registro de envíos salen de ahí.
+        $preferencias = AjustesDeAvisos::preferenciasDe($destinatarios, $tipo);
+        $hayPush = Push::estaActivo();
+
+        $notificaciones = $destinatarios->map(function (User $destinatario) use ($preferencias, $hayPush, $tipo, $titulo, $cuerpo, $entidadTipo, $entidadId): Notificacion {
+            $suya = $preferencias->get($destinatario->id);
+
+            $notificacion = Notificacion::create([
+                'destinatario_id' => $destinatario->id,
+                'tipo' => $tipo,
+                'titulo' => $titulo,
+                'cuerpo' => $cuerpo,
+                'entidad_tipo' => $entidadTipo,
+                'entidad_id' => $entidadId,
+                'con_sonido' => $suya?->con_sonido ?? true,
+                'entrega_al_movil' => match (true) {
+                    ! $hayPush => Notificacion::MOVIL_SIN_PUSH,
+                    ! ($suya?->al_movil ?? true) => Notificacion::MOVIL_APAGADO_POR_LA_PERSONA,
+                    default => Notificacion::MOVIL_EN_COLA,
+                },
+            ]);
+
+            return $notificacion->setRelation('destinatario', $destinatario);
+        });
 
         $this->empujarEnVivo($notificaciones);
-        $this->empujarAlMovil($notificaciones);
+        $this->empujarAlMovil(
+            $notificaciones->filter(fn (Notificacion $notificacion): bool => $notificacion->entrega_al_movil === Notificacion::MOVIL_EN_COLA),
+        );
     }
 
     /**
@@ -365,6 +418,8 @@ class Notificador
         // Con el tiempo real apagado no se intenta: con el driver `log`
         // cada aviso acabaría escrito en el registro sin llegar a nadie.
         if (! TiempoReal::estaActivo()) {
+            $this->apuntarEnPantalla($notificaciones, Notificacion::PANTALLA_SIN_TIEMPO_REAL);
+
             return;
         }
 
@@ -387,8 +442,33 @@ class Notificador
                     'error' => $error->getMessage(),
                 ]);
 
+                $this->apuntarEnPantalla($notificaciones->values()->slice($posicion), Notificacion::PANTALLA_FALLO);
+
                 return;
             }
+
+            // «Al momento» si tenía el panel a la vista; si no, el aviso
+            // le espera en la pestaña (o en la campanita al volver).
+            $this->apuntarEnPantalla(
+                collect([$notificacion]),
+                $notificacion->destinatario !== null && Presencia::estaEnLinea($notificacion->destinatario)
+                    ? Notificacion::PANTALLA_AL_MOMENTO
+                    : Notificacion::PANTALLA_PANEL_CERRADO,
+            );
         }
+    }
+
+    /**
+     * @param  Collection<int,Notificacion>  $notificaciones
+     */
+    private function apuntarEnPantalla(Collection $notificaciones, string $resultado): void
+    {
+        if ($notificaciones->isEmpty()) {
+            return;
+        }
+
+        Notificacion::query()
+            ->whereIn('id', $notificaciones->pluck('id'))
+            ->update(['entrega_en_pantalla' => $resultado]);
     }
 }

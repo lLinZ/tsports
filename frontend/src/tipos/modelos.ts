@@ -51,6 +51,10 @@ export interface PermisosDelUsuario {
   veLosCierresDeMes: boolean;
   /** Entra en la sección Reportes (admin y comercial). */
   veLosReportes: boolean;
+  /** Ve las pestañas «Movimiento» y «Cruce» de Propiedades (admin y comercial). */
+  veElMovimientoDeLasPropiedades: boolean;
+  /** Configura los avisos del sistema y ve su registro de envíos. Hoy, el administrador. */
+  configuraLosAvisos: boolean;
   /** Cambia los días que tarda una marca en enfriarse. Hoy, el administrador. */
   ajustaLosUmbralesDelEstado: boolean;
   /** Pone y quita las metas de venta (quien reparte: admin y comercial). */
@@ -71,6 +75,12 @@ export interface Usuario {
   colorAcento: string;
   urlAvatar: string | null;
   permisos: PermisosDelUsuario;
+  /**
+   * Lo que el panel necesita de sus propios avisos. Solo llega en la
+   * cuenta propia: si el chat le hace «pop» (lo apaga la persona en sus
+   * ajustes o el administrador en «Avisos»).
+   */
+  avisos?: { sonidoDelChat: boolean };
   creadoEn: string | null;
   ultimoAccesoEn: string | null;
 }
@@ -1776,4 +1786,247 @@ export interface ReporteDePronostico {
   };
   porMarca: PronosticoDeUnaMarca[];
   porPropiedad: PronosticoDeUnaPropiedad[];
+}
+
+/* ==================================================================== */
+/* Propiedades › Movimiento (MovimientoDeLasPropiedades en el backend)  */
+/* ==================================================================== */
+
+/**
+ * Cuántas marcas de cada estado lleva una propiedad y cuánto se le
+ * pronostica en ellas. Una propiedad no tiene estado propio: se cuenta,
+ * no se promedia.
+ */
+export type RepartoDeMarcasPorEstado = Record<EstadoDeMarca, { marcas: number; ovpUsd: number }>;
+
+export type OrdenDelMovimiento = "calientes" | "marcas" | "pronostico" | "avance";
+
+export interface PropiedadEnMovimiento {
+  propiedadId: string;
+  nombre: string;
+  logoUrl: string | null;
+  activa: boolean;
+  montoTotalUsd: number;
+  porcentajeForecast: number;
+  forecastDeVentaUsd: number;
+  ovpUsd: number;
+  /** OVP ÷ MTP. Null sin MTP cargado. */
+  porcentajeSobreElTotal: number | null;
+  marcas: number;
+  porEstado: RepartoDeMarcasPorEstado;
+  ovpEnCalientesUsd: number;
+  /** Líneas del checklist añadidas desde el día 1 de este mes (Caracas). */
+  nuevasEsteMes: number;
+  ultimoMovimiento: {
+    haceDias: number;
+    etiqueta: string;
+    marcaId: string;
+    marcaNombre: string;
+    estado: EstadoDeMarca;
+  } | null;
+}
+
+export interface MovimientoDePropiedades {
+  totales: {
+    montoTotalUsd: number;
+    forecastDeVentaUsd: number;
+    ovpUsd: number;
+    ovpEnCalientesUsd: number;
+    porcentajeEnCalientes: number | null;
+  };
+  propiedades: PropiedadEnMovimiento[];
+  sinMarcas: { propiedadId: string; nombre: string; tieneMtp: boolean }[];
+  orden: OrdenDelMovimiento;
+  umbrales: UmbralesDelEstado;
+  generadoEn?: string;
+}
+
+/** Lo próximo que alguien va a hacer con una marca. */
+export interface SiguientePasoDeLaMarca {
+  clase: "recordatorio" | "accion";
+  fecha: string;
+  diasHasta: number;
+  hora: string | null;
+  etiqueta: string;
+}
+
+export interface MarcaDeLaPropiedad {
+  marcaId: string;
+  nombre: string;
+  logoUrl: string | null;
+  estado: EstadoDeMarca;
+  /** Lo que se le pronostica EN ESTA propiedad. */
+  ovpUsd: number;
+  nota: string | null;
+  ultimoMovimiento: { haceDias: number; etiqueta: string };
+  fase: { valor: "propuesta" | "aproximacion" | "prospeccion"; etiqueta: string };
+  agente: { id: string; nombre: string | null } | null;
+  /** Null es «sin siguiente paso» (regla 29). */
+  siguientePaso: SiguientePasoDeLaMarca | null;
+}
+
+export interface MovimientoDeLaPropiedad {
+  propiedad: {
+    id: string;
+    nombre: string;
+    logoUrl: string | null;
+    activa: boolean;
+    publicadaEnLaWeb: boolean;
+    asignadaATodos: boolean;
+    montoTotalUsd: number;
+    porcentajeForecast: number;
+    forecastDeVentaUsd: number;
+    ovpUsd: number;
+    porcentajeSobreElTotal: number | null;
+  };
+  porEstado: RepartoDeMarcasPorEstado;
+  marcas: MarcaDeLaPropiedad[];
+  umbrales: UmbralesDelEstado;
+  generadoEn?: string;
+}
+
+export type OrdenDelCruce = "pronostico" | "nombre";
+
+export interface FiltrosDelCruce {
+  estado: EstadoDeMarca | null;
+  /** Id del agente, o «sin» para las marcas sin agente. */
+  agente: string | null;
+  orden: OrdenDelCruce;
+}
+
+export interface CruceDePropiedades {
+  columnas: { propiedadId: string; nombre: string; logoUrl: string | null; activa: boolean }[];
+  filas: {
+    marcaId: string;
+    nombre: string;
+    logoUrl: string | null;
+    estado: EstadoDeMarca;
+    agente: { id: string; nombre: string | null } | null;
+    /** El OVP de cada propiedad que lleva en su checklist, por id. */
+    celdas: Record<string, number>;
+    ovpUsd: number;
+  }[];
+  totalesPorColumna: { propiedadId: string; ovpUsd: number; marcas: number; calientes: number }[];
+  ovpUsd: number;
+  contadores: { todas: number } & Record<EstadoDeMarca, number>;
+  agentes: { id: string; nombre: string | null }[];
+  filtros: FiltrosDelCruce;
+  generadoEn?: string;
+}
+
+/* ==================================================================== */
+/* Panel de avisos (AjustesDeAvisos en el backend)                      */
+/* ==================================================================== */
+
+/** Los avisos que se ajustan: los de la campanita y el del chat. */
+export type TipoDeAviso = TipoDeNotificacion | "mensaje_de_chat";
+
+/** Un aviso tal como lo enseña la pantalla «Avisos» del administrador. */
+export interface AvisoDelSistema {
+  tipo: TipoDeAviso;
+  nombre: string;
+  cuandoSalta: string;
+  /** A quién va un aviso personal. Null en los de grupo. */
+  aQuienVa: string | null;
+  /** En los de grupo: a quién se le puede poner, y si le llega. */
+  destinatarios: { clave: string; etiqueta: string; llega: boolean }[];
+  /** Lo que no se puede elegir, con su motivo (el agente en el lead). */
+  bloqueados: { etiqueta: string; motivo: string }[];
+  canales: { campanita: boolean; pantalla: boolean; movil: boolean; sonido: boolean };
+  activo: boolean;
+  ultimos30Dias: { cantidad: number; ultimoEn: string | null };
+  cambiadoPor: string | null;
+  cambiadoEn: string | null;
+}
+
+export interface PanelDeAvisos {
+  canales: {
+    campanita: { guardados30Dias: number };
+    pantalla: { activo: boolean; conectadosAhora: number };
+    movil: {
+      activo: boolean;
+      dispositivos: number;
+      personas: number;
+      personasSinMovil: number;
+      ultimoEnvioEn: string | null;
+    };
+    manana: { ultimaVezEn: string | null; personas: number };
+  };
+  avisos: AvisoDelSistema[];
+}
+
+/** Qué pasó en pantalla (Notificacion::PANTALLA_*). */
+export type EntregaEnPantalla = "al_momento" | "panel_cerrado" | "sin_tiempo_real" | "fallo";
+
+/** Qué pasó con el móvil (Notificacion::MOVIL_*). */
+export type EntregaAlMovil =
+  | "en_cola"
+  | "entregado"
+  | "ya_leido"
+  | "sin_dispositivo"
+  | "apagado_por_la_persona"
+  | "silencio"
+  | "sin_push"
+  | "fallo";
+
+export interface EnvioDeAviso {
+  id: string;
+  creadaEn: string | null;
+  tipo: TipoDeNotificacion;
+  titulo: string;
+  cuerpo: string | null;
+  destinatario: { id: string; nombre: string } | null;
+  /** Null en los avisos de antes del 2026-11-05: no se apuntaba. */
+  enPantalla: EntregaEnPantalla | null;
+  alMovil: EntregaAlMovil | null;
+  alMovilDetalle: string | null;
+  leidaEn: string | null;
+}
+
+export interface FiltrosDelRegistroDeEnvios {
+  persona: string | null;
+  tipo: TipoDeNotificacion | null;
+  dias: 7 | 30 | 90;
+  resultado: "todos" | "sin_llegar";
+}
+
+export interface PaginaDelRegistroDeEnvios {
+  envios: EnvioDeAviso[];
+  pagina: number;
+  ultimaPagina: number;
+  total: number;
+  resumen: {
+    dias: number;
+    total: number;
+    porcentajeLeidosOEntregados: number | null;
+    fallaronAlMovil: number;
+    personasSinMovil: number;
+  };
+  personas: { id: string; nombre: string }[];
+}
+
+/** Un aviso en los ajustes de cada persona. */
+export interface MiAviso {
+  tipo: TipoDeAviso;
+  nombre: string;
+  porQue: string;
+  vaALaCampanita: boolean;
+  alMovil: boolean;
+  conSonido: boolean;
+  /** Lo apagó el administrador: no llega, aunque aquí esté encendido. */
+  apagadoEnElSistema: boolean;
+}
+
+export interface HorarioDeSilencio {
+  activo: boolean;
+  /** "20:00" */
+  desde: string;
+  hasta: string;
+  finesDeSemana: boolean;
+}
+
+export interface MisAvisos {
+  avisos: MiAviso[];
+  silencio: HorarioDeSilencio;
+  dispositivos: { id: string; dispositivo: string | null; desde: string | null; ultimoEnvioEn: string | null }[];
 }
